@@ -31,8 +31,6 @@ jobs:
           grep -q 'android.permission.INTERNET' "$FILE" || sed -i '/<manifest/a\    <uses-permission android:name="android.permission.INTERNET"/>' "$FILE"
       - name: Install dependencies
         run: flutter pub get
-      - name: Generate launcher icons
-        run: dart run flutter_launcher_icons
       - name: Build release APK
         run: flutter build apk --release
       - name: Upload APK
