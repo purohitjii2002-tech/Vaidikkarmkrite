@@ -931,11 +931,10 @@ class BrandMark extends StatelessWidget {
     return const Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Image.asset(
-          'assets/images/file_000000005c848211b565e6d8ac8f81d3.png',
-          width: 30,
-          height: 30,
-          fit: BoxFit.contain,
+        Icon(
+          Icons.temple_hindu_rounded,
+          color: Color(0xFF79502B),
+          size: 30,
         ),
         SizedBox(width: 8),
         Text(
