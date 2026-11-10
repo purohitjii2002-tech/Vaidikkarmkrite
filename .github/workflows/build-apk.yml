@@ -25,6 +25,8 @@ jobs:
           cache: true
       - name: Generate Android project
         run: flutter create --platforms=android --project-name vaidikkarmkrite .
+      - name: Set Android app display name
+        run: sed -i 's/android:label="[^"]*"/android:label="KARMKRITE"/' android/app/src/main/AndroidManifest.xml
       - name: Add internet permission
         run: |
           FILE="android/app/src/main/AndroidManifest.xml"
