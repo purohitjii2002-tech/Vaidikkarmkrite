@@ -31,6 +31,8 @@ jobs:
         run: |
           FILE="android/app/src/main/AndroidManifest.xml"
           grep -q 'android.permission.INTERNET' "$FILE" || sed -i '/<manifest/a\    <uses-permission android:name="android.permission.INTERNET"/>' "$FILE"
+          grep -q 'android.permission.ACCESS_FINE_LOCATION' "$FILE" || sed -i '/<manifest/a\    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>' "$FILE"
+          grep -q 'android.permission.ACCESS_COARSE_LOCATION' "$FILE" || sed -i '/<manifest/a\    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>' "$FILE"
       - name: Install dependencies
         run: flutter pub get
       - name: Generate app launcher icon
