@@ -194,7 +194,7 @@ class _PanchangScreenState extends State<PanchangScreen> {
   Widget _muhurtaDial() {
     if (sunrise == null || sunset == null) return const SizedBox.shrink();
     final total = sunset!.difference(sunrise!).inMilliseconds;
-    final progress = (DateTime.now().difference(sunrise!).inMilliseconds / total).clamp(0.0, 1.0);
+    final progress = (DateTime.now().difference(sunrise!).inMilliseconds / total).clamp(0.0, 1.0).toDouble();
     return Card(
       color: const Color(0xFFFFF7E8),
       child: Padding(
