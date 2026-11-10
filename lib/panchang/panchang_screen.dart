@@ -1,4 +1,7 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -26,32 +29,153 @@ class _PanchangScreenState extends State<PanchangScreen> {
   Future<void> _load() async {
     setState(() { loading = true; error = null; });
     try {
-      if (!await Geolocator.isLocationServiceEnabled()) {
-        throw Exception('कृपया मोबाइल की Location सेवा चालू करें।');
+      final prefs = await SharedPreferences.getInstance();
+      final savedLat = prefs.getDouble('panchang_latitude');
+      final savedLon = prefs.getDouble('panchang_longitude');
+      final savedCity = prefs.getString('panchang_city');
+      if (savedLat != null && savedLon != null) {
+        position = Position(
+          latitude: savedLat, longitude: savedLon, timestamp: DateTime.now(),
+          accuracy: 0, altitude: 0, altitudeAccuracy: 0, heading: 0,
+          headingAccuracy: 0, speed: 0, speedAccuracy: 0,
+        );
+        city = savedCity ?? 'चुना हुआ स्थान';
+      } else {
+        if (!await Geolocator.isLocationServiceEnabled()) {
+          throw Exception('मोबाइल Location बंद है। आप सूची से अपना शहर चुन सकते हैं।');
+        }
+        var permission = await Geolocator.checkPermission();
+        if (permission == LocationPermission.denied) {
+          permission = await Geolocator.requestPermission();
+        }
+        if (permission == LocationPermission.denied ||
+            permission == LocationPermission.deniedForever) {
+          throw Exception('आप Location अनुमति दिए बिना भी सूची से अपना शहर चुन सकते हैं।');
+        }
+        position = await Geolocator.getCurrentPosition(
+          locationSettings: const LocationSettings(
+            accuracy: LocationAccuracy.medium,
+            timeLimit: Duration(seconds: 20),
+          ),
+        );
+        final places = await placemarkFromCoordinates(
+          position!.latitude, position!.longitude,
+        );
+        if (places.isNotEmpty) {
+          final p = places.first;
+          city = [p.locality, p.subAdministrativeArea, p.administrativeArea]
+              .where((x) => x != null && x.trim().isNotEmpty).toSet().join(', ');
+          if (city.isEmpty) city = 'वर्तमान स्थान';
+        }
       }
-      var permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
-      }
-      if (permission == LocationPermission.denied ||
-          permission == LocationPermission.deniedForever) {
-        throw Exception('शहर के अनुसार पंचांग के लिए Location अनुमति आवश्यक है।');
-      }
-      position = await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.medium,
-          timeLimit: Duration(seconds: 20),
+      _calculate();
+    } catch (e) {
+      error = e.toString().replaceFirst('Exception: ', '');
+    } finally {
+      if (mounted) setState(() => loading = false);
+    }
+  }
+
+  Future<void> _chooseLocation() async {
+    try {
+      final raw = await rootBundle.loadString('assets/data/india_states_districts.json');
+      final states = List<Map<String, dynamic>>.from(jsonDecode(raw));
+      String selectedState = states.first['name'].toString();
+      String? selectedDistrict;
+      final cityController = TextEditingController();
+      final choice = await showDialog<Map<String, String>>(
+        context: context,
+        builder: (dialogContext) => StatefulBuilder(
+          builder: (context, setDialogState) {
+            final stateData = states.firstWhere((x) => x['name'] == selectedState);
+            final districts = List<Map<String, dynamic>>.from(stateData['districts']);
+            selectedDistrict ??= districts.first['name'].toString();
+            return AlertDialog(
+              title: const Text('पंचांग के लिए स्थान चुनें'),
+              content: SizedBox(
+                width: double.maxFinite,
+                child: SingleChildScrollView(
+                  child: Column(mainAxisSize: MainAxisSize.min, children: [
+                    const Align(alignment: Alignment.centerLeft, child: Text('राज्य / केंद्रशासित प्रदेश')),
+                    DropdownButtonFormField<String>(
+                      isExpanded: true, value: selectedState,
+                      items: states.map((x) => DropdownMenuItem<String>(
+                        value: x['name'].toString(),
+                        child: Text(x['name'].toString(), overflow: TextOverflow.ellipsis),
+                      )).toList(),
+                      onChanged: (v) {
+                        if (v == null) return;
+                        setDialogState(() {
+                          selectedState = v;
+                          final d = states.firstWhere((x) => x['name'] == v)['districts'] as List;
+                          selectedDistrict = d.first['name'].toString();
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 14),
+                    const Align(alignment: Alignment.centerLeft, child: Text('जिला')),
+                    DropdownButtonFormField<String>(
+                      isExpanded: true, value: selectedDistrict,
+                      items: districts.map((x) => DropdownMenuItem<String>(
+                        value: x['name'].toString(),
+                        child: Text(x['name'].toString(), overflow: TextOverflow.ellipsis),
+                      )).toList(),
+                      onChanged: (v) => setDialogState(() => selectedDistrict = v),
+                    ),
+                    const SizedBox(height: 14),
+                    const Align(alignment: Alignment.centerLeft, child: Text('शहर / कस्बा (वैकल्पिक)')),
+                    TextField(
+                      controller: cityController,
+                      decoration: const InputDecoration(
+                        hintText: 'जैसे: उज्जैन, इंदौर, झालरापाटन',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text('शहर का नाम भरें या केवल जिला चुनें। पंचांग चुने गए स्थान के निर्देशांकों से बनेगा।',
+                      style: TextStyle(fontSize: 12, color: Colors.black54)),
+                  ]),
+                ),
+              ),
+              actions: [
+                TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('रद्द करें')),
+                ElevatedButton(
+                  onPressed: () => Navigator.pop(dialogContext, {
+                    'state': selectedState,
+                    'district': selectedDistrict ?? '',
+                    'city': cityController.text.trim(),
+                  }),
+                  child: const Text('स्थान चुनें'),
+                ),
+              ],
+            );
+          },
         ),
       );
-      final places = await placemarkFromCoordinates(
-        position!.latitude, position!.longitude,
+      cityController.dispose();
+      if (choice == null) return;
+      final enteredCity = choice['city'] ?? '';
+      final district = choice['district'] ?? '';
+      final state = choice['state'] ?? '';
+      final searchName = enteredCity.isNotEmpty
+          ? '$enteredCity, $district, $state, India'
+          : '$district, $state, India';
+      setState(() { loading = true; error = null; });
+      final locations = await locationFromAddress(searchName);
+      if (locations.isEmpty) throw Exception('इस स्थान के निर्देशांक नहीं मिले। कृपया शहर का नाम जाँचें।');
+      final loc = locations.first;
+      position = Position(
+        latitude: loc.latitude, longitude: loc.longitude, timestamp: DateTime.now(),
+        accuracy: 0, altitude: 0, altitudeAccuracy: 0, heading: 0,
+        headingAccuracy: 0, speed: 0, speedAccuracy: 0,
       );
-      if (places.isNotEmpty) {
-        final p = places.first;
-        city = [p.locality, p.subAdministrativeArea, p.administrativeArea]
-            .where((x) => x != null && x.trim().isNotEmpty).toSet().join(', ');
-        if (city.isEmpty) city = 'वर्तमान स्थान';
-      }
+      city = enteredCity.isNotEmpty
+          ? '$enteredCity, $district, $state'
+          : '$district, $state';
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setDouble('panchang_latitude', loc.latitude);
+      await prefs.setDouble('panchang_longitude', loc.longitude);
+      await prefs.setString('panchang_city', city);
       _calculate();
     } catch (e) {
       error = e.toString().replaceFirst('Exception: ', '');
@@ -251,7 +375,8 @@ class _PanchangScreenState extends State<PanchangScreen> {
         title: Text(en ? 'Panchang & Muhurat' : 'पंचांग एवं मुहूर्त'),
         actions: [
           IconButton(onPressed: _chooseDate, icon: const Icon(Icons.calendar_month)),
-          IconButton(onPressed: _load, icon: const Icon(Icons.my_location)),
+          IconButton(tooltip: 'शहर चुनें', onPressed: _chooseLocation, icon: const Icon(Icons.location_city)),
+          IconButton(tooltip: 'वर्तमान स्थान', onPressed: () async { final p = await SharedPreferences.getInstance(); await p.remove('panchang_latitude'); await p.remove('panchang_longitude'); await p.remove('panchang_city'); _load(); }, icon: const Icon(Icons.my_location)),
         ],
       ),
       body: loading
@@ -265,6 +390,8 @@ class _PanchangScreenState extends State<PanchangScreen> {
                     Text(error!, textAlign: TextAlign.center),
                     const SizedBox(height: 14),
                     ElevatedButton(onPressed: _load, child: const Text('दोबारा प्रयास करें')),
+                    const SizedBox(height: 8),
+                    OutlinedButton.icon(onPressed: _chooseLocation, icon: const Icon(Icons.location_city), label: const Text('अपना शहर चुनें')),
                   ]),
                 ))
               : RefreshIndicator(
@@ -285,6 +412,7 @@ class _PanchangScreenState extends State<PanchangScreen> {
                             const Icon(Icons.location_on, color: Color(0xFFFFD88A)),
                             const SizedBox(width: 6),
                             Expanded(child: Text(city, style: const TextStyle(color: Colors.white))),
+                            IconButton(tooltip: 'शहर बदलें', onPressed: _chooseLocation, icon: const Icon(Icons.edit_location_alt, color: Colors.white)),
                             TextButton(onPressed: _chooseDate,
                               child: const Text('तारीख बदलें', style: TextStyle(color: Colors.white))),
                           ]),
