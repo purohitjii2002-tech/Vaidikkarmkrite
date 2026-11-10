@@ -61,7 +61,6 @@ class AppText {
     'hi': {
       'home': 'होम',
       'library': 'पुस्तकालय',
-      'practice': 'अभ्यास',
       'saved': 'सहेजे गए',
       'profile': 'प्रोफाइल',
       'search': 'यहाँ खोजें...',
@@ -78,7 +77,6 @@ class AppText {
     'sa': {
       'home': 'गृहम्',
       'library': 'ग्रन्थालयः',
-      'practice': 'अभ्यासः',
       'saved': 'संगृहीतम्',
       'profile': 'परिचयः',
       'search': 'अन्वेषणम्...',
@@ -95,7 +93,6 @@ class AppText {
     'en': {
       'home': 'Home',
       'library': 'Library',
-      'practice': 'Practice',
       'saved': 'Saved',
       'profile': 'Profile',
       'search': 'Search here...',
@@ -323,10 +320,6 @@ class _HomeScreenState extends State<HomeScreen> {
           NavigationDestination(
             icon: const Icon(Icons.menu_book_outlined),
             label: tr('library'),
-          ),
-          NavigationDestination(
-            icon: const Icon(Icons.self_improvement_outlined),
-            label: tr('practice'),
           ),
           NavigationDestination(
             icon: const Icon(Icons.bookmark_border_rounded),
@@ -581,9 +574,8 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _otherTabBody() {
     switch (selectedTab) {
       case 1: return BooksScreen(language: widget.language);
-      case 2: return PracticeScreen(language: widget.language);
-      case 3: return SavedScreen(language: widget.language);
-      case 4: return ProfileScreen(language: widget.language, onLanguageChanged: widget.onLanguageChanged);
+      case 2: return SavedScreen(language: widget.language);
+      case 3: return ProfileScreen(language: widget.language, onLanguageChanged: widget.onLanguageChanged);
       default: return _homeBody();
     }
   }
@@ -938,37 +930,6 @@ class _BooksScreenState extends State<BooksScreen> {
             trailing:const Icon(Icons.picture_as_pdf),onTap:()=>openBook(b)));
         }));
       }));
-  }
-}
-
-class PracticeScreen extends StatefulWidget {
-  final String language;
-  const PracticeScreen({super.key,required this.language});
-  @override
-  State<PracticeScreen> createState()=>_PracticeScreenState();
-}
-class _PracticeScreenState extends State<PracticeScreen> {
-  int question=0, score=0; int? selected; bool answered=false;
-  final data=<Map<String,dynamic>>[
-    {'q':'“सत्यं वद” का अर्थ क्या है?','a':['सत्य बोलो','दान करो','मौन रहो','यात्रा करो'],'c':0,'e':'तैत्तिरीय उपनिषद् की शिक्षा है—सत्य बोलो।'},
-    {'q':'गायत्री मंत्र ऋग्वेद के किस मंडल में है?','a':['प्रथम','तृतीय','सप्तम','दशम'],'c':1,'e':'गायत्री मंत्र ऋग्वेद के तृतीय मंडल में मिलता है।'},
-    {'q':'“धर्मं चर” का अर्थ क्या है?','a':['धर्म का आचरण करो','केवल पढ़ो','मौन रहो','यात्रा करो'],'c':0,'e':'इसका आशय धर्मानुसार आचरण करना है।'}
-  ];
-  void answer(int i){if(answered)return;setState((){selected=i;answered=true;if(i==data[question]['c'])score++;});}
-  void next(){setState((){if(question<data.length-1){question++;}else{question=0;score=0;}selected=null;answered=false;});}
-  @override
-  Widget build(BuildContext context){
-    final q=data[question];final c=q['c'] as int;
-    return Scaffold(appBar:AppBar(title:Text(widget.language=='en'?'Daily Practice':'दैनिक अभ्यास')),
-      body:ListView(padding:const EdgeInsets.all(20),children:[
-        Container(padding:const EdgeInsets.all(18),decoration:BoxDecoration(color:const Color(0xFFFFF0D5),borderRadius:BorderRadius.circular(18)),
-          child:Text('प्रश्न ' + (question+1).toString() + ' / ' + data.length.toString() + '     •     सही उत्तर: ' + score.toString(),style:const TextStyle(fontWeight:FontWeight.bold))),
-        const SizedBox(height:22),Text(q['q'],style:const TextStyle(fontSize:20,fontWeight:FontWeight.bold)),
-        const SizedBox(height:14),
-        ...List.generate((q['a'] as List).length,(i)=>Card(color:answered&&i==c?const Color(0xFFE5F3E5):answered&&i==selected?const Color(0xFFFFE6E6):Colors.white,
-          child:ListTile(title:Text(q['a'][i]),trailing:answered&&i==c?const Icon(Icons.check_circle,color:Colors.green):null,onTap:()=>answer(i)))),
-        if(answered)...[const SizedBox(height:10),Text(selected==c?'सही उत्तर!':'सही उत्तर: ' + q['a'][c],style:const TextStyle(fontWeight:FontWeight.bold)),Text(q['e']),const SizedBox(height:12),ElevatedButton(onPressed:next,child:Text(question==data.length-1?'फिर से अभ्यास करें':'अगला प्रश्न'))]
-      ]));
   }
 }
 
