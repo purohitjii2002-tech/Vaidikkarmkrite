@@ -573,9 +573,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _otherTabBody() {
     switch (selectedTab) {
-      case 1: return BooksScreen(language: widget.language);
-      case 2: return SavedScreen(language: widget.language);
-      case 3: return ProfileScreen(language: widget.language, onLanguageChanged: widget.onLanguageChanged);
+      case 1: return BooksScreen(language: widget.language, onBack: () => setState(() => selectedTab = 0));
+      case 2: return SavedScreen(language: widget.language, onBack: () => setState(() => selectedTab = 0));
+      case 3: return ProfileScreen(language: widget.language, onLanguageChanged: widget.onLanguageChanged, onBack: () => setState(() => selectedTab = 0));
       default: return _homeBody();
     }
   }
@@ -890,7 +890,8 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
 
 class BooksScreen extends StatefulWidget {
   final String language;
-  const BooksScreen({super.key,required this.language});
+  final VoidCallback onBack;
+  const BooksScreen({super.key,required this.language,required this.onBack});
   @override
   State<BooksScreen> createState()=>_BooksScreenState();
 }
@@ -916,7 +917,7 @@ class _BooksScreenState extends State<BooksScreen> {
   @override
   Widget build(BuildContext context) {
     final en=widget.language=='en';
-    return Scaffold(appBar:AppBar(title:Text(en?'Digital Library':'डिजिटल पुस्तकालय')),
+    return Scaffold(appBar:AppBar(leading:IconButton(tooltip:'वापस जाएँ',icon:const Icon(Icons.arrow_back),onPressed:onBack),title:Text(en?'Digital Library':'डिजिटल पुस्तकालय')),
       body:FutureBuilder<List<Map<String,dynamic>>>(future:future,builder:(context,s){
         if(s.connectionState==ConnectionState.waiting)return const Center(child:CircularProgressIndicator());
         if(s.hasError)return Center(child:Column(mainAxisSize:MainAxisSize.min,children:[const Text('पुस्तकें लोड नहीं हो सकीं।'),ElevatedButton(onPressed:()=>setState(()=>future=load()),child:const Text('पुनः प्रयास करें'))]));
@@ -935,7 +936,8 @@ class _BooksScreenState extends State<BooksScreen> {
 
 class SavedScreen extends StatefulWidget {
   final String language;
-  const SavedScreen({super.key,required this.language});
+  final VoidCallback onBack;
+  const SavedScreen({super.key,required this.language,required this.onBack});
   @override
   State<SavedScreen> createState()=>_SavedScreenState();
 }
@@ -944,7 +946,7 @@ class _SavedScreenState extends State<SavedScreen>{
   @override
   void initState(){super.initState();future=SavedStore.read();}
   @override
-  Widget build(BuildContext context)=>Scaffold(appBar:AppBar(title:Text(widget.language=='en'?'Saved Items':'सहेजी गई सामग्री')),
+  Widget build(BuildContext context)=>Scaffold(appBar:AppBar(leading:IconButton(tooltip:'वापस जाएँ',icon:const Icon(Icons.arrow_back),onPressed:onBack),title:Text(widget.language=='en'?'Saved Items':'सहेजी गई सामग्री')),
     body:FutureBuilder<List<Map<String,dynamic>>>(future:future,builder:(context,s){
       if(s.connectionState==ConnectionState.waiting)return const Center(child:CircularProgressIndicator());
       final items=s.data??[];
@@ -957,10 +959,10 @@ class _SavedScreenState extends State<SavedScreen>{
 }
 
 class ProfileScreen extends StatelessWidget {
-  final String language; final ValueChanged<String> onLanguageChanged;
-  const ProfileScreen({super.key,required this.language,required this.onLanguageChanged});
+  final String language; final ValueChanged<String> onLanguageChanged; final VoidCallback onBack;
+  const ProfileScreen({super.key,required this.language,required this.onLanguageChanged,required this.onBack});
   @override
-  Widget build(BuildContext context)=>Scaffold(appBar:AppBar(title:Text(language=='en'?'Profile & Settings':'प्रोफाइल एवं सेटिंग्स')),
+  Widget build(BuildContext context)=>Scaffold(appBar:AppBar(leading:IconButton(tooltip:'वापस जाएँ',icon:const Icon(Icons.arrow_back),onPressed:onBack),title:Text(language=='en'?'Profile & Settings':'प्रोफाइल एवं सेटिंग्स')),
     body:ListView(padding:const EdgeInsets.all(18),children:[
       const SizedBox(height:12),const Center(child:BrandMark()),const Center(child:Text('शास्त्र से संस्कार तक')),
       const SizedBox(height:24),const Text('ऐप की भाषा',style:TextStyle(fontWeight:FontWeight.bold,fontSize:17)),
