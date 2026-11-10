@@ -410,7 +410,9 @@ class _HomeScreenState extends State<HomeScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _welcomeBanner(),
-                const SizedBox(height: 20),
+                const SizedBox(height: 12),
+                const HomeBanners(),
+                const SizedBox(height: 8),
                 TextField(
                   onChanged: (value) {
                     setState(() => searchText = value);
@@ -533,41 +535,47 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _dailyThought() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFFF0D5),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFE7C98E)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            tr('daily'),
-            style: const TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 17,
-              color: Color(0xFF68451F),
-            ),
+    return FutureBuilder<List<Map<String, dynamic>>>(
+      future: Supabase.instance.client
+          .from('daily_thoughts')
+          .select('thought_hi, thought_sa, thought_en, meaning_hi, source')
+          .eq('is_active', true)
+          .order('display_date', ascending: false)
+          .limit(1)
+          .then((rows) => List<Map<String, dynamic>>.from(rows)),
+      builder: (context, snapshot) {
+        final item = snapshot.data?.isNotEmpty == true ? snapshot.data!.first : null;
+        final thought = item == null ? 'सत्यं वद। धर्मं चर।' :
+            (widget.language == 'en' ? (item['thought_en'] ?? item['thought_hi']) :
+             widget.language == 'sa' ? (item['thought_sa'] ?? item['thought_hi']) : item['thought_hi']).toString();
+        final meaning = item == null ? 'सत्य बोलो और धर्म के मार्ग पर चलो।' :
+            (item['meaning_hi'] ?? '').toString();
+        return Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            color: const Color(0xFFFFF0D5),
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: const Color(0xFFE7C98E)),
           ),
-          const SizedBox(height: 12),
-          const Text(
-            'सत्यं वद। धर्मं चर।',
-            style: TextStyle(
-              fontSize: 21,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF79502B),
-            ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(tr('daily'), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 17, color: Color(0xFF68451F))),
+              const SizedBox(height: 12),
+              Text(thought, style: const TextStyle(fontSize: 21, fontWeight: FontWeight.bold, color: Color(0xFF79502B))),
+              if (meaning.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                Text(meaning, style: const TextStyle(fontSize: 14)),
+              ],
+              if ((item?['source'] ?? '').toString().isNotEmpty) ...[
+                const SizedBox(height: 8),
+                Text('स्रोत: ' + item!['source'].toString(), style: const TextStyle(fontSize: 12, color: Colors.black54)),
+              ],
+            ],
           ),
-          const SizedBox(height: 8),
-          const Text(
-            'सत्य बोलो और धर्म के मार्ग पर चलो।',
-            style: TextStyle(fontSize: 14),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -871,7 +879,7 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
   @override
   void initState() { super.initState(); SavedStore.has(widget.title).then((v) { if (mounted) setState(() => saved = v); }); }
   Future<void> toggle() async {
-    await SavedStore.toggle({'title':widget.title,'body':widget.content,'description':widget.description});
+    await SavedStore.toggle({'title':widget.title,'body':widget.content,'description':widget.description,'_remove':saved});
     if (!mounted) return;
     setState(() => saved = !saved);
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(saved ? 'सहेज दिया गया।' : 'सहेजी गई सामग्री से हटाया गया।')));
