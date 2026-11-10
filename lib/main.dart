@@ -1,7 +1,10 @@
 
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -569,38 +572,13 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _otherTabBody() {
-    final titles = [
-      tr('home'),
-      tr('library'),
-      tr('practice'),
-      tr('saved'),
-      tr('profile'),
-    ];
-
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const BrandMark(),
-            const SizedBox(height: 20),
-            Text(
-              titles[selectedTab],
-              style: const TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              tr('coming'),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-      ),
-    );
+    switch (selectedTab) {
+      case 1: return BooksScreen(language: widget.language);
+      case 2: return PracticeScreen(language: widget.language);
+      case 3: return SavedScreen(language: widget.language);
+      case 4: return ProfileScreen(language: widget.language, onLanguageChanged: widget.onLanguageChanged);
+      default: return _homeBody();
+    }
   }
 }
 
@@ -864,62 +842,168 @@ class _ModuleScreenState extends State<ModuleScreen> {
 }
 
 // Full Content Detail Screen
-class ContentDetailScreen extends StatelessWidget {
-  final String title;
-  final String content;
-  final String description;
+class SavedStore {
+  static const key = 'saved_content_items';
+  static Future<List<Map<String,dynamic>>> read() async {
+    final p = await SharedPreferences.getInstance();
+    return (p.getStringList(key) ?? []).map((x) {
+      try { return Map<String,dynamic>.from(jsonDecode(x)); } catch (_) { return <String,dynamic>{}; }
+    }).where((x) => x.isNotEmpty).toList();
+  }
+  static Future<bool> has(String title) async => (await read()).any((x) => x['title'] == title);
+  static Future<void> toggle(Map<String,dynamic> item) async {
+    final p = await SharedPreferences.getInstance();
+    final all = await read();
+    all.removeWhere((x) => x['title'] == item['title']);
+    if (item['_remove'] != true) all.insert(0, item);
+    await p.setStringList(key, all.map(jsonEncode).toList());
+  }
+}
 
-  const ContentDetailScreen({
-    super.key,
-    required this.title,
-    required this.content,
-    required this.description,
-  });
+class ContentDetailScreen extends StatefulWidget {
+  final String title, content, description;
+  const ContentDetailScreen({super.key, required this.title, required this.content, required this.description});
+  @override
+  State<ContentDetailScreen> createState() => _ContentDetailScreenState();
+}
+class _ContentDetailScreenState extends State<ContentDetailScreen> {
+  bool saved = false;
+  @override
+  void initState() { super.initState(); SavedStore.has(widget.title).then((v) { if (mounted) setState(() => saved = v); }); }
+  Future<void> toggle() async {
+    await SavedStore.toggle({'title':widget.title,'body':widget.content,'description':widget.description});
+    if (!mounted) return;
+    setState(() => saved = !saved);
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(saved ? 'सहेज दिया गया।' : 'सहेजी गई सामग्री से हटाया गया।')));
+  }
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(title: Text(widget.title, maxLines: 1, overflow: TextOverflow.ellipsis),
+      actions: [IconButton(onPressed: toggle, icon: Icon(saved ? Icons.bookmark : Icons.bookmark_border))]),
+    body: SingleChildScrollView(padding: const EdgeInsets.all(20), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text(widget.title, style: const TextStyle(fontSize:23,fontWeight:FontWeight.bold,color:Color(0xFF563719))),
+      if (widget.description.isNotEmpty) ...[const SizedBox(height:12), Text(widget.description,style:const TextStyle(fontSize:16,color:Colors.black54))],
+      const SizedBox(height:20),
+      SelectableText(widget.content.isEmpty ? 'इस विषय की विस्तृत सामग्री शीघ्र उपलब्ध होगी।' : widget.content,style:const TextStyle(fontSize:17,height:1.8))
+    ]))
+  );
+}
 
+class BooksScreen extends StatefulWidget {
+  final String language;
+  const BooksScreen({super.key,required this.language});
+  @override
+  State<BooksScreen> createState()=>_BooksScreenState();
+}
+class _BooksScreenState extends State<BooksScreen> {
+  late Future<List<Map<String,dynamic>>> future;
+  @override
+  void initState(){super.initState();future=load();}
+  Future<List<Map<String,dynamic>>> load() async {
+    final rows=await Supabase.instance.client.from('books')
+      .select('id,title_hi,title_en,author,description,cover_url,book_versions(pdf_url,version_no)')
+      .eq('is_active',true).order('created_at',ascending:false);
+    return List<Map<String,dynamic>>.from(rows);
+  }
+  Future<void> openBook(Map<String,dynamic> b) async {
+    final versions=List<Map<String,dynamic>>.from(b['book_versions']??[]);
+    versions.sort((a,b)=>((b['version_no']??0) as num).compareTo((a['version_no']??0) as num));
+    final url=versions.isEmpty?'':(versions.first['pdf_url']??'').toString();
+    final uri=Uri.tryParse(url);
+    if(uri==null || url.isEmpty || !await launchUrl(uri,mode:LaunchMode.externalApplication)){
+      if(mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('इस पुस्तक की PDF अभी उपलब्ध नहीं है।')));
+    }
+  }
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(title),
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              title,
-              style: const TextStyle(
-                fontSize: 23,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF563719),
-              ),
-            ),
-            if (description.isNotEmpty) ...[
-              const SizedBox(height: 12),
-              Text(
-                description,
-                style: const TextStyle(
-                  fontSize: 16,
-                  color: Colors.black54,
-                ),
-              ),
-            ],
-            const SizedBox(height: 20),
-            Text(
-              content.isEmpty
-                  ? 'इस विषय की विस्तृत सामग्री शीघ्र उपलब्ध होगी।'
-                  : content,
-              style: const TextStyle(
-                fontSize: 17,
-                height: 1.8,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
+    final en=widget.language=='en';
+    return Scaffold(appBar:AppBar(title:Text(en?'Digital Library':'डिजिटल पुस्तकालय')),
+      body:FutureBuilder<List<Map<String,dynamic>>>(future:future,builder:(context,s){
+        if(s.connectionState==ConnectionState.waiting)return const Center(child:CircularProgressIndicator());
+        if(s.hasError)return Center(child:Column(mainAxisSize:MainAxisSize.min,children:[const Text('पुस्तकें लोड नहीं हो सकीं।'),ElevatedButton(onPressed:()=>setState(()=>future=load()),child:const Text('पुनः प्रयास करें'))]));
+        final books=s.data??[];
+        if(books.isEmpty)return const Center(child:Padding(padding:EdgeInsets.all(28),child:Text('मास्टर एडमिन से जोड़ी गई पुस्तकें यहाँ दिखाई देंगी।',textAlign:TextAlign.center)));
+        return RefreshIndicator(onRefresh:()async=>setState(()=>future=load()),child:ListView.builder(padding:const EdgeInsets.all(14),itemCount:books.length,itemBuilder:(context,i){
+          final b=books[i]; final title=(en?b['title_en']:b['title_hi'])??b['title_hi']??'';
+          return Card(child:ListTile(leading:const Icon(Icons.menu_book_rounded,color:Color(0xFF79502B),size:32),
+            title:Text(title.toString(),style:const TextStyle(fontWeight:FontWeight.bold)),
+            subtitle:Text([b['author'],b['description']].where((x)=>x!=null&&x.toString().isNotEmpty).join(' • '),maxLines:2,overflow:TextOverflow.ellipsis),
+            trailing:const Icon(Icons.picture_as_pdf),onTap:()=>openBook(b)));
+        }));
+      }));
   }
+}
+
+class PracticeScreen extends StatefulWidget {
+  final String language;
+  const PracticeScreen({super.key,required this.language});
+  @override
+  State<PracticeScreen> createState()=>_PracticeScreenState();
+}
+class _PracticeScreenState extends State<PracticeScreen> {
+  int question=0, score=0; int? selected; bool answered=false;
+  final data=<Map<String,dynamic>>[
+    {'q':'“सत्यं वद” का अर्थ क्या है?','a':['सत्य बोलो','दान करो','मौन रहो','यात्रा करो'],'c':0,'e':'तैत्तिरीय उपनिषद् की शिक्षा है—सत्य बोलो।'},
+    {'q':'गायत्री मंत्र ऋग्वेद के किस मंडल में है?','a':['प्रथम','तृतीय','सप्तम','दशम'],'c':1,'e':'गायत्री मंत्र ऋग्वेद के तृतीय मंडल में मिलता है।'},
+    {'q':'“धर्मं चर” का अर्थ क्या है?','a':['धर्म का आचरण करो','केवल पढ़ो','मौन रहो','यात्रा करो'],'c':0,'e':'इसका आशय धर्मानुसार आचरण करना है।'}
+  ];
+  void answer(int i){if(answered)return;setState((){selected=i;answered=true;if(i==data[question]['c'])score++;});}
+  void next(){setState((){if(question<data.length-1){question++;}else{question=0;score=0;}selected=null;answered=false;});}
+  @override
+  Widget build(BuildContext context){
+    final q=data[question];final c=q['c'] as int;
+    return Scaffold(appBar:AppBar(title:Text(widget.language=='en'?'Daily Practice':'दैनिक अभ्यास')),
+      body:ListView(padding:const EdgeInsets.all(20),children:[
+        Container(padding:const EdgeInsets.all(18),decoration:BoxDecoration(color:const Color(0xFFFFF0D5),borderRadius:BorderRadius.circular(18)),
+          child:Text('प्रश्न ' + (question+1).toString() + ' / ' + data.length.toString() + '     •     सही उत्तर: ' + score.toString(),style:const TextStyle(fontWeight:FontWeight.bold))),
+        const SizedBox(height:22),Text(q['q'],style:const TextStyle(fontSize:20,fontWeight:FontWeight.bold)),
+        const SizedBox(height:14),
+        ...List.generate((q['a'] as List).length,(i)=>Card(color:answered&&i==c?const Color(0xFFE5F3E5):answered&&i==selected?const Color(0xFFFFE6E6):Colors.white,
+          child:ListTile(title:Text(q['a'][i]),trailing:answered&&i==c?const Icon(Icons.check_circle,color:Colors.green):null,onTap:()=>answer(i)))),
+        if(answered)...[const SizedBox(height:10),Text(selected==c?'सही उत्तर!':'सही उत्तर: ' + q['a'][c],style:const TextStyle(fontWeight:FontWeight.bold)),Text(q['e']),const SizedBox(height:12),ElevatedButton(onPressed:next,child:Text(question==data.length-1?'फिर से अभ्यास करें':'अगला प्रश्न'))]
+      ]));
+  }
+}
+
+class SavedScreen extends StatefulWidget {
+  final String language;
+  const SavedScreen({super.key,required this.language});
+  @override
+  State<SavedScreen> createState()=>_SavedScreenState();
+}
+class _SavedScreenState extends State<SavedScreen>{
+  late Future<List<Map<String,dynamic>>> future;
+  @override
+  void initState(){super.initState();future=SavedStore.read();}
+  @override
+  Widget build(BuildContext context)=>Scaffold(appBar:AppBar(title:Text(widget.language=='en'?'Saved Items':'सहेजी गई सामग्री')),
+    body:FutureBuilder<List<Map<String,dynamic>>>(future:future,builder:(context,s){
+      if(s.connectionState==ConnectionState.waiting)return const Center(child:CircularProgressIndicator());
+      final items=s.data??[];
+      if(items.isEmpty)return const Center(child:Padding(padding:EdgeInsets.all(28),child:Text('लेख पर बुकमार्क दबाएँ, वह यहाँ दिखाई देगा।',textAlign:TextAlign.center)));
+      return ListView.builder(padding:const EdgeInsets.all(14),itemCount:items.length,itemBuilder:(context,i){final x=items[i];return Card(child:ListTile(
+        leading:const Icon(Icons.bookmark,color:Color(0xFF79502B)),title:Text(x['title']??''),subtitle:Text(x['description']??'',maxLines:2,overflow:TextOverflow.ellipsis),
+        onTap:()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>ContentDetailScreen(title:x['title']??'',content:x['body']??'',description:x['description']??''))).then((_){setState(()=>future=SavedStore.read());}),
+        trailing:IconButton(icon:const Icon(Icons.delete_outline),onPressed:()async{await SavedStore.toggle({...x,'_remove':true});setState(()=>future=SavedStore.read());})));});
+    }));
+}
+
+class ProfileScreen extends StatelessWidget {
+  final String language; final ValueChanged<String> onLanguageChanged;
+  const ProfileScreen({super.key,required this.language,required this.onLanguageChanged});
+  @override
+  Widget build(BuildContext context)=>Scaffold(appBar:AppBar(title:Text(language=='en'?'Profile & Settings':'प्रोफाइल एवं सेटिंग्स')),
+    body:ListView(padding:const EdgeInsets.all(18),children:[
+      const SizedBox(height:12),const Center(child:BrandMark()),const Center(child:Text('शास्त्र से संस्कार तक')),
+      const SizedBox(height:24),const Text('ऐप की भाषा',style:TextStyle(fontWeight:FontWeight.bold,fontSize:17)),
+      Card(child:Column(children:[
+        RadioListTile<String>(value:'hi',groupValue:language,title:const Text('हिंदी'),onChanged:(v){if(v!=null)onLanguageChanged(v);}),
+        RadioListTile<String>(value:'sa',groupValue:language,title:const Text('संस्कृत'),onChanged:(v){if(v!=null)onLanguageChanged(v);}),
+        RadioListTile<String>(value:'en',groupValue:language,title:const Text('English'),onChanged:(v){if(v!=null)onLanguageChanged(v);})
+      ])),
+      const ListTile(leading:Icon(Icons.info_outline),title:Text('KARMKRITE'),subtitle:Text('वैदिक ज्ञान, शास्त्र एवं संस्कारों का डिजिटल मंच।')),
+      const ListTile(leading:Icon(Icons.verified_outlined),title:Text('संस्करण'),subtitle:Text('1.0.0'))
+    ]));
 }
 
 // App Brand - uses the logo already uploaded in assets/images.
