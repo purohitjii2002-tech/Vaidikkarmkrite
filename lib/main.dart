@@ -1029,7 +1029,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ElevatedButton(onPressed:sending||verifying?null:(otpSent?verifyOtp:sendOtp),child:Text(sending?'OTP भेजा जा रहा है...':verifying?'सत्यापन हो रहा है...':otpSent?'OTP सत्यापित करें':'OTP भेजें')),
         ]else...[
           Text('सत्यापित मोबाइल: '+(user.phone??''),style:const TextStyle(fontWeight:FontWeight.bold,color:Colors.green)),
-          input(name,'पूरा नाम'),input(phone,'मोबाइल नंबर',type:TextInputType.phone),input(email,'ईमेल',type:TextInputType.emailAddress),input(city,'शहर'),input(address,'पूरा पता'),input(dob,'जन्मतिथि (YYYY-MM-DD)'),
+          input(name,'पूरा नाम'),TextField(controller:phone,readOnly:true,decoration:const InputDecoration(labelText:'सत्यापित मोबाइल नंबर',border:OutlineInputBorder())),const SizedBox(height:12),input(email,'ईमेल',type:TextInputType.emailAddress),input(city,'शहर'),input(address,'पूरा पता'),input(dob,'जन्मतिथि (YYYY-MM-DD)'),
           ElevatedButton.icon(onPressed:saving?null:saveProfile,icon:const Icon(Icons.save),label:Text(saving?'सेव हो रहा है...':'प्रोफाइल सेव करें')),
           TextButton.icon(onPressed:()async{await client.auth.signOut();if(mounted){setState(()=>loading=true);await loadProfile();}},icon:const Icon(Icons.logout),label:const Text('लॉगआउट')),
         ],
