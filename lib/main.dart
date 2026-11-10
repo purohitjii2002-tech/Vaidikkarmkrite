@@ -924,7 +924,7 @@ class _BooksScreenState extends State<BooksScreen> {
   @override
   Widget build(BuildContext context) {
     final en=widget.language=='en';
-    return Scaffold(appBar:AppBar(leading:IconButton(tooltip:'वापस जाएँ',icon:const Icon(Icons.arrow_back),onPressed:onBack),title:Text(en?'Digital Library':'डिजिटल पुस्तकालय')),
+    return Scaffold(appBar:AppBar(leading:IconButton(tooltip:'वापस जाएँ',icon:const Icon(Icons.arrow_back),onPressed:widget.onBack),title:Text(en?'Digital Library':'डिजिटल पुस्तकालय')),
       body:FutureBuilder<List<Map<String,dynamic>>>(future:future,builder:(context,s){
         if(s.connectionState==ConnectionState.waiting)return const Center(child:CircularProgressIndicator());
         if(s.hasError)return Center(child:Column(mainAxisSize:MainAxisSize.min,children:[const Text('पुस्तकें लोड नहीं हो सकीं।'),ElevatedButton(onPressed:()=>setState(()=>future=load()),child:const Text('पुनः प्रयास करें'))]));
@@ -953,7 +953,7 @@ class _SavedScreenState extends State<SavedScreen>{
   @override
   void initState(){super.initState();future=SavedStore.read();}
   @override
-  Widget build(BuildContext context)=>Scaffold(appBar:AppBar(leading:IconButton(tooltip:'वापस जाएँ',icon:const Icon(Icons.arrow_back),onPressed:onBack),title:Text(widget.language=='en'?'Saved Items':'सहेजी गई सामग्री')),
+  Widget build(BuildContext context)=>Scaffold(appBar:AppBar(leading:IconButton(tooltip:'वापस जाएँ',icon:const Icon(Icons.arrow_back),onPressed:widget.onBack),title:Text(widget.language=='en'?'Saved Items':'सहेजी गई सामग्री')),
     body:FutureBuilder<List<Map<String,dynamic>>>(future:future,builder:(context,s){
       if(s.connectionState==ConnectionState.waiting)return const Center(child:CircularProgressIndicator());
       final items=s.data??[];
