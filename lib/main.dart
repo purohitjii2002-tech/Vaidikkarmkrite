@@ -974,67 +974,25 @@ class ProfileScreen extends StatefulWidget {
   State<ProfileScreen> createState() => _ProfileScreenState();
 }
 class _ProfileScreenState extends State<ProfileScreen> {
-  final phone=TextEditingController(), name=TextEditingController(), email=TextEditingController(), address=TextEditingController();
-  bool loading=true, saving=false;
-  String? error;
-  final client=Supabase.instance.client;
-  @override void initState(){super.initState();loadProfile();}
-  @override void dispose(){phone.dispose();name.dispose();email.dispose();address.dispose();super.dispose();}
-  Future<void> loadProfile() async {
-    final user=client.auth.currentUser;
-    if(user==null){if(mounted)setState(()=>loading=false);return;}
-    try{
-      final row=await client.from('user_profiles').select('full_name,phone,email,address').eq('id',user.id).maybeSingle();
-      if(row!=null){name.text=(row['full_name']??'').toString();phone.text=(row['phone']??'').toString();email.text=(row['email']??'').toString();address.text=(row['address']??'').toString();}
-    }catch(e){error='प्रोफाइल लोड नहीं हुई: $e';}
-    if(mounted)setState(()=>loading=false);
-  }
-  Future<void> saveProfile() async {
-    setState(()=>saving=true);
-    try{
-      var user=client.auth.currentUser;
-      if(user==null){
-        final session=await client.auth.signInAnonymously();
-        user=session.user;
-      }
-      if(user==null) throw Exception('अस्थायी सुरक्षित सत्र नहीं बन पाया।');
-      await client.from('user_profiles').upsert({
-        'id':user.id,
-        'full_name':name.text.trim(),
-        'phone':phone.text.trim().isEmpty?null:phone.text.trim(),
-        'email':email.text.trim().isEmpty?null:email.text.trim(),
-        'address':address.text.trim().isEmpty?null:address.text.trim(),
-        'updated_at':DateTime.now().toUtc().toIso8601String()
-      },onConflict:'id');
-      if(mounted)ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('प्रोफाइल सुरक्षित हो गई।')));
-    }catch(e){
-      if(mounted)setState(()=>error='प्रोफाइल सेव नहीं हुई: $e');
-    }finally{if(mounted)setState(()=>saving=false);}
-  }
-  Widget input(TextEditingController c,String label,{TextInputType type=TextInputType.text})=>Padding(padding:const EdgeInsets.only(bottom:12),child:TextField(controller:c,keyboardType:type,decoration:InputDecoration(labelText:label,border:const OutlineInputBorder())));
   @override Widget build(BuildContext context){
-    return Scaffold(appBar:AppBar(leading:IconButton(tooltip:'वापस जाएँ',icon:const Icon(Icons.arrow_back),onPressed:widget.onBack),title:const Text('मेरी प्रोफाइल')),
-      body:loading?const Center(child:CircularProgressIndicator()):ListView(padding:const EdgeInsets.all(18),children:[
-        const Center(child:BrandMark()),const SizedBox(height:16),
-        const Text('अपनी जानकारी भरें (सभी विकल्प वैकल्पिक हैं)',style:TextStyle(fontSize:16,fontWeight:FontWeight.bold)),
-        const SizedBox(height:12),
-        input(name,'नाम',type:TextInputType.name),
-        input(phone,'मोबाइल नंबर',type:TextInputType.phone),
-        input(address,'पता',type:TextInputType.streetAddress),
-        input(email,'Gmail / ईमेल',type:TextInputType.emailAddress),
-        ElevatedButton.icon(onPressed:saving?null:saveProfile,icon:const Icon(Icons.save),label:Text(saving?'सेव हो रहा है...':'जानकारी सेव करें')),
-        if(error!=null)Padding(padding:const EdgeInsets.only(top:10),child:Text(error!,style:const TextStyle(color:Colors.red))),
-        const SizedBox(height:12),
-        const Text('OTP या मोबाइल सत्यापन की आवश्यकता नहीं है। जानकारी भरना पूरी तरह वैकल्पिक है।',style:TextStyle(color:Colors.black54)),
-        const Divider(height:32),const Text('ऐप की भाषा',style:TextStyle(fontWeight:FontWeight.bold,fontSize:17)),
+    return Scaffold(
+      appBar:AppBar(leading:IconButton(tooltip:'वापस जाएँ',icon:const Icon(Icons.arrow_back),onPressed:widget.onBack),title:const Text('प्रोफाइल')),
+      body:ListView(padding:const EdgeInsets.all(18),children:[
+        const Center(child:BrandMark()),
+        const SizedBox(height:20),
+        const Center(child:Text('वैदिक कर्मकृति',style:TextStyle(fontSize:22,fontWeight:FontWeight.bold))),
+        const SizedBox(height:8),
+        const Center(child:Text('वैदिक ज्ञान, शास्त्र एवं संस्कारों का डिजिटल मंच।',textAlign:TextAlign.center)),
+        const Divider(height:32),
+        const Text('ऐप की भाषा',style:TextStyle(fontWeight:FontWeight.bold,fontSize:17)),
         Card(child:Column(children:[
           RadioListTile<String>(value:'hi',groupValue:widget.language,title:const Text('हिंदी'),onChanged:(v){if(v!=null)widget.onLanguageChanged(v);}),
           RadioListTile<String>(value:'sa',groupValue:widget.language,title:const Text('संस्कृत'),onChanged:(v){if(v!=null)widget.onLanguageChanged(v);}),
           RadioListTile<String>(value:'en',groupValue:widget.language,title:const Text('English'),onChanged:(v){if(v!=null)widget.onLanguageChanged(v);})
         ])),
-        const ListTile(leading:Icon(Icons.info_outline),title:Text('KARMKRITE'),subtitle:Text('वैदिक ज्ञान, शास्त्र एवं संस्कारों का डिजिटल मंच।')),
         const ListTile(leading:Icon(Icons.verified_outlined),title:Text('संस्करण'),subtitle:Text('1.0.0'))
-      ]));
+      ])
+    );
   }
 }
 
