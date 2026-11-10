@@ -284,7 +284,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
+      appBar: selectedTab == 0 ? AppBar(
         title: const BrandMark(),
         actions: [
           IconButton(
@@ -307,7 +307,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           const SizedBox(width: 6),
         ],
-      ),
+      ) : null,
       body: selectedTab == 0 ? _homeBody() : _otherTabBody(),
       bottomNavigationBar: NavigationBar(
         selectedIndex: selectedTab,
