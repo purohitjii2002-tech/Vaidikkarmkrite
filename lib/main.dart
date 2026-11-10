@@ -289,10 +289,9 @@ class _HomeScreenState extends State<HomeScreen> {
         actions: [
           IconButton(
             tooltip: tr('notifications'),
-            onPressed: () => showInfo(
+            onPressed: () => Navigator.push(
               context,
-              tr('notifications'),
-              'नई सूचनाएँ शीघ्र उपलब्ध होंगी।',
+              MaterialPageRoute(builder: (_) => const NotificationsScreen()),
             ),
             icon: const Icon(Icons.notifications_none_rounded),
           ),
@@ -1012,6 +1011,54 @@ class ProfileScreen extends StatelessWidget {
       const ListTile(leading:Icon(Icons.info_outline),title:Text('KARMKRITE'),subtitle:Text('वैदिक ज्ञान, शास्त्र एवं संस्कारों का डिजिटल मंच।')),
       const ListTile(leading:Icon(Icons.verified_outlined),title:Text('संस्करण'),subtitle:Text('1.0.0'))
     ]));
+}
+
+class NotificationsScreen extends StatefulWidget {
+  const NotificationsScreen({super.key});
+  @override
+  State<NotificationsScreen> createState() => _NotificationsScreenState();
+}
+class _NotificationsScreenState extends State<NotificationsScreen> {
+  late Future<List<Map<String,dynamic>>> future;
+  @override
+  void initState() { super.initState(); future = load(); }
+  Future<List<Map<String,dynamic>>> load() async {
+    final rows = await Supabase.instance.client
+      .from('notifications')
+      .select('id,title,message,scheduled_at,sent_at,created_at')
+      .eq('is_active', true)
+      .order('created_at', ascending: false);
+    return List<Map<String,dynamic>>.from(rows);
+  }
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(title: const Text('सूचनाएँ')),
+    body: FutureBuilder<List<Map<String,dynamic>>>(
+      future: future,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) return const Center(child:CircularProgressIndicator());
+        if (snapshot.hasError) return Center(child:ElevatedButton(onPressed:()=>setState(()=>future=load()),child:const Text('पुनः प्रयास करें')));
+        final items = snapshot.data ?? [];
+        if (items.isEmpty) return const Center(child:Text('अभी कोई नई सूचना नहीं है।'));
+        return RefreshIndicator(
+          onRefresh: () async { setState(()=>future=load()); await future; },
+          child: ListView.separated(
+            padding: const EdgeInsets.all(16),
+            itemCount: items.length,
+            separatorBuilder: (_,__)=>const SizedBox(height:8),
+            itemBuilder: (context,index) {
+              final item=items[index];
+              return Card(child:ListTile(
+                leading:const CircleAvatar(backgroundColor:Color(0xFFFFF0D5),child:Icon(Icons.notifications_active_outlined,color:Color(0xFF79502B))),
+                title:Text((item['title']??'').toString(),style:const TextStyle(fontWeight:FontWeight.bold)),
+                subtitle:Padding(padding:const EdgeInsets.only(top:6),child:Text((item['message']??'').toString())),
+              ));
+            },
+          ),
+        );
+      },
+    ),
+  );
 }
 
 // App Brand - uses the logo already uploaded in assets/images.
