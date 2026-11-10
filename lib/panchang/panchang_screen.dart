@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'panchang_engine.dart';
 
 class PanchangScreen extends StatefulWidget {
@@ -198,6 +199,16 @@ class _PanchangScreenState extends State<PanchangScreen> {
                           ),
                         ),
                       ],
+                      Card(
+                        color: const Color(0xFFFFF0D5),
+                        child: ListTile(
+                          leading: const CircleAvatar(backgroundColor: Color(0xFF79502B), child: Icon(Icons.event_available, color: Colors.white)),
+                          title: const Text('विशेष मुहूर्त', style: TextStyle(fontWeight: FontWeight.bold)),
+                          subtitle: const Text('वास्तु, विवाह, वाहन, हल, मुंडन आदि के मुहूर्त देखें'),
+                          trailing: const Icon(Icons.arrow_forward_ios, size: 17),
+                          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const MuhuratListScreen())),
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -212,4 +223,90 @@ class _PanchangScreenState extends State<PanchangScreen> {
       Text(value, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
     ]),
   ]);
+}
+
+
+class MuhuratListScreen extends StatefulWidget {
+  const MuhuratListScreen({super.key});
+  @override
+  State<MuhuratListScreen> createState() => _MuhuratListScreenState();
+}
+
+class _MuhuratListScreenState extends State<MuhuratListScreen> {
+  late Future<List<Map<String, dynamic>>> future;
+  String selectedCategory = 'सभी';
+  static const categories = ['सभी','वास्तु','विवाह','वाहन क्रय-विक्रय','हल / हल-पूजन','मुंडन','गृह प्रवेश','नामकरण','अन्य'];
+
+  @override
+  void initState() { super.initState(); future = loadMuhurats(); }
+
+  Future<List<Map<String, dynamic>>> loadMuhurats() async {
+    final rows = await Supabase.instance.client.from('muhurats')
+      .select('id, category, title_hi, title_en, muhurat_date, start_time, end_time, location, description, special_notes')
+      .eq('is_active', true).order('muhurat_date').order('sort_order');
+    return List<Map<String, dynamic>>.from(rows);
+  }
+
+  String dateLabel(dynamic value) {
+    if (value == null) return '';
+    final d = DateTime.tryParse(value.toString());
+    if (d == null) return value.toString();
+    return '${d.day.toString().padLeft(2, '0')}-${d.month.toString().padLeft(2, '0')}-${d.year}';
+  }
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(title: const Text('विशेष मुहूर्त')),
+    body: FutureBuilder<List<Map<String, dynamic>>>(
+      future: future,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
+        if (snapshot.hasError) return Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
+          const Text('मुहूर्त लोड नहीं हो सके।'),
+          ElevatedButton(onPressed: () => setState(() => future = loadMuhurats()), child: const Text('दोबारा प्रयास करें')),
+        ]));
+        final all = snapshot.data ?? [];
+        final items = selectedCategory == 'सभी' ? all : all.where((x) => (x['category'] ?? '').toString() == selectedCategory).toList();
+        return Column(children: [
+          SizedBox(height: 58, child: ListView(scrollDirection: Axis.horizontal, padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            children: categories.map((category) => Padding(padding: const EdgeInsets.only(right: 8), child: ChoiceChip(
+              label: Text(category), selected: selectedCategory == category,
+              onSelected: (_) => setState(() => selectedCategory = category),
+            ))).toList(),
+          )),
+          Expanded(child: items.isEmpty
+            ? const Center(child: Padding(padding: EdgeInsets.all(24), child: Text('इस श्रेणी के मुहूर्त अभी एडमिन द्वारा जोड़े नहीं गए हैं।', textAlign: TextAlign.center)))
+            : RefreshIndicator(onRefresh: () async { setState(() => future = loadMuhurats()); await future; },
+              child: ListView.builder(padding: const EdgeInsets.fromLTRB(14, 4, 14, 20), itemCount: items.length,
+                itemBuilder: (context, index) {
+                  final item = items[index];
+                  final time = [item['start_time'], item['end_time']].where((x) => x != null && x.toString().trim().isNotEmpty).join(' – ');
+                  return Card(margin: const EdgeInsets.only(bottom: 12), child: ExpansionTile(
+                    leading: const CircleAvatar(backgroundColor: Color(0xFFFFF0D5), child: Icon(Icons.event, color: Color(0xFF79502B))),
+                    title: Text((item['title_hi'] ?? '').toString(), style: const TextStyle(fontWeight: FontWeight.bold)),
+                    subtitle: Text([(item['category'] ?? '').toString(), dateLabel(item['muhurat_date']), time].where((x) => x.isNotEmpty).join(' • ')),
+                    childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                    children: [
+                      if ((item['location'] ?? '').toString().isNotEmpty) _detailLine(Icons.location_on, item['location'].toString()),
+                      if ((item['description'] ?? '').toString().isNotEmpty) _detailLine(Icons.info_outline, item['description'].toString()),
+                      if ((item['special_notes'] ?? '').toString().isNotEmpty) _detailLine(Icons.notes, item['special_notes'].toString()),
+                    ],
+                  ));
+                },
+              ),
+            ),
+          ),
+        ]);
+      },
+    ),
+  );
+
+  Widget _detailLine(IconData icon, String text) => Padding(
+    padding: const EdgeInsets.only(top: 8),
+    child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Icon(icon, size: 18, color: const Color(0xFF79502B)),
+      const SizedBox(width: 8),
+      Expanded(child: Text(text, style: const TextStyle(height: 1.5))),
+    ]),
+  );
 }
