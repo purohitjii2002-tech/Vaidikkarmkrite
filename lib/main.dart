@@ -922,22 +922,31 @@ class ContentDetailScreen extends StatelessWidget {
   }
 }
 
-// App Brand
+// App Brand - uses the logo already uploaded in assets/images.
 class BrandMark extends StatelessWidget {
   const BrandMark({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return const Row(
+    return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(
-          Icons.temple_hindu_rounded,
-          color: Color(0xFF79502B),
-          size: 30,
+        ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: Image.asset(
+            'assets/images/karmkrite logo.png.jpg',
+            width: 38,
+            height: 38,
+            fit: BoxFit.contain,
+            errorBuilder: (context, error, stackTrace) => const Icon(
+              Icons.temple_hindu_rounded,
+              color: Color(0xFF79502B),
+              size: 30,
+            ),
+          ),
         ),
-        SizedBox(width: 8),
-        Text(
+        const SizedBox(width: 8),
+        const Text(
           'KARMKRITE',
           style: TextStyle(
             color: Color(0xFF563719),
