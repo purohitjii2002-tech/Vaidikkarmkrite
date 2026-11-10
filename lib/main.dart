@@ -965,22 +965,85 @@ class _SavedScreenState extends State<SavedScreen>{
     }));
 }
 
-class ProfileScreen extends StatelessWidget {
-  final String language; final ValueChanged<String> onLanguageChanged; final VoidCallback onBack;
-  const ProfileScreen({super.key,required this.language,required this.onLanguageChanged,required this.onBack});
+class ProfileScreen extends StatefulWidget {
+  final String language;
+  final ValueChanged<String> onLanguageChanged;
+  final VoidCallback onBack;
+  const ProfileScreen({super.key, required this.language, required this.onLanguageChanged, required this.onBack});
   @override
-  Widget build(BuildContext context)=>Scaffold(appBar:AppBar(leading:IconButton(tooltip:'वापस जाएँ',icon:const Icon(Icons.arrow_back),onPressed:onBack),title:Text(language=='en'?'Profile & Settings':'प्रोफाइल एवं सेटिंग्स')),
-    body:ListView(padding:const EdgeInsets.all(18),children:[
-      const SizedBox(height:12),const Center(child:BrandMark()),const Center(child:Text('शास्त्र से संस्कार तक')),
-      const SizedBox(height:24),const Text('ऐप की भाषा',style:TextStyle(fontWeight:FontWeight.bold,fontSize:17)),
-      Card(child:Column(children:[
-        RadioListTile<String>(value:'hi',groupValue:language,title:const Text('हिंदी'),onChanged:(v){if(v!=null)onLanguageChanged(v);}),
-        RadioListTile<String>(value:'sa',groupValue:language,title:const Text('संस्कृत'),onChanged:(v){if(v!=null)onLanguageChanged(v);}),
-        RadioListTile<String>(value:'en',groupValue:language,title:const Text('English'),onChanged:(v){if(v!=null)onLanguageChanged(v);})
-      ])),
-      const ListTile(leading:Icon(Icons.info_outline),title:Text('KARMKRITE'),subtitle:Text('वैदिक ज्ञान, शास्त्र एवं संस्कारों का डिजिटल मंच।')),
-      const ListTile(leading:Icon(Icons.verified_outlined),title:Text('संस्करण'),subtitle:Text('1.0.0'))
-    ]));
+  State<ProfileScreen> createState() => _ProfileScreenState();
+}
+class _ProfileScreenState extends State<ProfileScreen> {
+  final phone=TextEditingController(), otp=TextEditingController(), name=TextEditingController(), email=TextEditingController(), city=TextEditingController(), address=TextEditingController(), dob=TextEditingController();
+  bool loading=true, sending=false, verifying=false, saving=false, otpSent=false;
+  String? error;
+  final client=Supabase.instance.client;
+  @override void initState(){super.initState();loadProfile();}
+  @override void dispose(){phone.dispose();otp.dispose();name.dispose();email.dispose();city.dispose();address.dispose();dob.dispose();super.dispose();}
+  Future<void> loadProfile() async {
+    final user=client.auth.currentUser;
+    if(user==null){if(mounted)setState(()=>loading=false);return;}
+    try{
+      final row=await client.from('user_profiles').select().eq('id',user.id).maybeSingle();
+      if(row!=null){name.text=(row['full_name']??'').toString();phone.text=(row['phone']??user.phone??'').toString().replaceFirst(RegExp(r'^\+91'),'');email.text=(row['email']??'').toString();city.text=(row['city']??'').toString();address.text=(row['address']??'').toString();dob.text=(row['date_of_birth']??'').toString();}
+      else{phone.text=(user.phone??'').replaceFirst(RegExp(r'^\+91'),'');email.text=user.email??'';}
+    }catch(e){error='प्रोफाइल लोड नहीं हुई: $e';}
+    if(mounted)setState(()=>loading=false);
+  }
+  Future<void> sendOtp() async {
+    final digits=phone.text.replaceAll(RegExp(r'\D'),'');
+    if(digits.length!=10){setState(()=>error='कृपया 10 अंकों का मोबाइल नंबर लिखें।');return;}
+    setState(()=>sending=true);
+    try{await client.auth.signInWithOtp(phone:'+91$digits',shouldCreateUser:true);if(mounted)setState(()=>otpSent=true);}
+    catch(e){if(mounted)setState(()=>error='OTP नहीं भेजा जा सका: $e');}
+    finally{if(mounted)setState(()=>sending=false);}
+  }
+  Future<void> verifyOtp() async {
+    if(otp.text.trim().length<4){setState(()=>error='प्राप्त OTP दर्ज करें।');return;}
+    setState(()=>verifying=true);
+    try{await client.auth.verifyOTP(phone:'+91'+phone.text.replaceAll(RegExp(r'\D'),''),token:otp.text.trim(),type:OtpType.sms);await loadProfile();if(mounted)setState(()=>error=null);}
+    catch(e){if(mounted)setState(()=>error='OTP सत्यापन नहीं हुआ: $e');}
+    finally{if(mounted)setState(()=>verifying=false);}
+  }
+  Future<void> saveProfile() async {
+    final user=client.auth.currentUser;if(user==null)return;
+    if(name.text.trim().isEmpty){setState(()=>error='अपना नाम अवश्य लिखें।');return;}
+    setState(()=>saving=true);
+    try{
+      await client.from('user_profiles').upsert({'id':user.id,'full_name':name.text.trim(),'phone':user.phone??('+91'+phone.text.trim()),'email':email.text.trim().isEmpty?null:email.text.trim(),'city':city.text.trim(),'address':address.text.trim(),'date_of_birth':dob.text.trim().isEmpty?null:dob.text.trim(),'updated_at':DateTime.now().toUtc().toIso8601String()},onConflict:'id');
+      if(mounted)ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('प्रोफाइल सुरक्षित हो गई।')));
+    }catch(e){if(mounted)setState(()=>error='प्रोफाइल सेव नहीं हुई: $e');}
+    finally{if(mounted)setState(()=>saving=false);}
+  }
+  Widget input(TextEditingController c,String label,{TextInputType type=TextInputType.text})=>Padding(padding:const EdgeInsets.only(bottom:12),child:TextField(controller:c,keyboardType:type,decoration:InputDecoration(labelText:label,border:const OutlineInputBorder())));
+  @override Widget build(BuildContext context){
+    final user=client.auth.currentUser;
+    return Scaffold(appBar:AppBar(leading:IconButton(tooltip:'वापस जाएँ',icon:const Icon(Icons.arrow_back),onPressed:widget.onBack),title:const Text('मेरी प्रोफाइल')),
+      body:loading?const Center(child:CircularProgressIndicator()):ListView(padding:const EdgeInsets.all(18),children:[
+        const Center(child:BrandMark()),const SizedBox(height:16),
+        if(user==null)...[
+          const Text('मोबाइल OTP से लॉगिन / रजिस्टर करें',style:TextStyle(fontSize:18,fontWeight:FontWeight.bold)),
+          const Text('मोबाइल नंबर पर OTP प्राप्त करके अपनी प्रोफाइल बनाएँ।'),
+          input(phone,'मोबाइल नंबर (+91)',type:TextInputType.phone),
+          if(otpSent)input(otp,'SMS से प्राप्त OTP',type:TextInputType.number),
+          ElevatedButton(onPressed:sending||verifying?null:(otpSent?verifyOtp:sendOtp),child:Text(sending?'OTP भेजा जा रहा है...':verifying?'सत्यापन हो रहा है...':otpSent?'OTP सत्यापित करें':'OTP भेजें')),
+        ]else...[
+          Text('सत्यापित मोबाइल: '+(user.phone??''),style:const TextStyle(fontWeight:FontWeight.bold,color:Colors.green)),
+          input(name,'पूरा नाम'),input(phone,'मोबाइल नंबर',type:TextInputType.phone),input(email,'ईमेल',type:TextInputType.emailAddress),input(city,'शहर'),input(address,'पूरा पता'),input(dob,'जन्मतिथि (YYYY-MM-DD)'),
+          ElevatedButton.icon(onPressed:saving?null:saveProfile,icon:const Icon(Icons.save),label:Text(saving?'सेव हो रहा है...':'प्रोफाइल सेव करें')),
+          TextButton.icon(onPressed:()async{await client.auth.signOut();if(mounted){setState(()=>loading=true);await loadProfile();}},icon:const Icon(Icons.logout),label:const Text('लॉगआउट')),
+        ],
+        if(error!=null)Padding(padding:const EdgeInsets.only(top:10),child:Text(error!,style:const TextStyle(color:Colors.red))),
+        const Divider(height:32),const Text('ऐप की भाषा',style:TextStyle(fontWeight:FontWeight.bold,fontSize:17)),
+        Card(child:Column(children:[
+          RadioListTile<String>(value:'hi',groupValue:widget.language,title:const Text('हिंदी'),onChanged:(v){if(v!=null)widget.onLanguageChanged(v);}),
+          RadioListTile<String>(value:'sa',groupValue:widget.language,title:const Text('संस्कृत'),onChanged:(v){if(v!=null)widget.onLanguageChanged(v);}),
+          RadioListTile<String>(value:'en',groupValue:widget.language,title:const Text('English'),onChanged:(v){if(v!=null)widget.onLanguageChanged(v);})
+        ])),
+        const ListTile(leading:Icon(Icons.info_outline),title:Text('KARMKRITE'),subtitle:Text('वैदिक ज्ञान, शास्त्र एवं संस्कारों का डिजिटल मंच।')),
+        const ListTile(leading:Icon(Icons.verified_outlined),title:Text('संस्करण'),subtitle:Text('1.0.0'))
+      ]));
+  }
 }
 
 class NotificationsScreen extends StatefulWidget {
