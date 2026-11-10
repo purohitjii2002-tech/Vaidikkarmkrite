@@ -1,0 +1,43 @@
+name: VAIDIKKARMKRITE APK Build
+
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build Android APK
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Generate Android project
+        run: flutter create --platforms=android --project-name vaidikkarmkrite .
+      - name: Add internet permission
+        run: |
+          FILE="android/app/src/main/AndroidManifest.xml"
+          grep -q 'android.permission.INTERNET' "$FILE" || sed -i '/<manifest/a\    <uses-permission android:name="android.permission.INTERNET"/>' "$FILE"
+      - name: Install dependencies
+        run: flutter pub get
+      - name: Generate launcher icons
+        run: dart run flutter_launcher_icons
+      - name: Build release APK
+        run: flutter build apk --release
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: VAIDIKKARMKRITE-APK
+          path: build/app/outputs/flutter-apk/app-release.apk
+          retention-days: 90
