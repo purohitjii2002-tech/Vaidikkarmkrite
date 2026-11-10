@@ -97,6 +97,132 @@ class _PanchangScreenState extends State<PanchangScreen> {
     return _time(start) + ' – ' + _time(end);
   }
 
+
+  DateTime? _partTime(DateTime? start, DateTime? end, int part, int total) {
+    if (start == null || end == null) return null;
+    return start.add(Duration(milliseconds:
+      (end.difference(start).inMilliseconds * part / total).round()));
+  }
+
+  List<Map<String, String>> _eightParts(DateTime? start, DateTime? end, List<String> names) {
+    if (start == null || end == null || names.length != 8) return [];
+    return List.generate(8, (i) {
+      final a = _partTime(start, end, i, 8)!;
+      final b = _partTime(start, end, i + 1, 8)!;
+      return {'name': names[i], 'time': '${_time(a)} – ${_time(b)}'};
+    });
+  }
+
+  List<Map<String, String>> _choghadiya(bool night) {
+    if (sunrise == null || sunset == null) return [];
+    const dayStarts = ['उद्वेग','अमृत','रोग','लाभ','शुभ','चर','काल'];
+    const nightStarts = ['शुभ','अमृत','चर','रोग','काल','लाभ','उद्वेग'];
+    const cycle = ['उद्वेग','चर','लाभ','अमृत','काल','शुभ','रोग'];
+    final weekday = selectedDate.weekday % 7;
+    final first = (night ? nightStarts : dayStarts)[weekday];
+    final startIndex = cycle.indexOf(first);
+    final names = List.generate(8, (i) => cycle[(startIndex + i) % 7]);
+    return _eightParts(night ? sunset : sunrise,
+      night ? sunrise!.add(const Duration(days: 1)) : sunset, names);
+  }
+
+  List<Map<String, String>> _horaRows() {
+    if (sunrise == null || sunset == null) return [];
+    const planets = ['शनि','गुरु','मंगल','सूर्य','शुक्र','बुध','चन्द्र'];
+    const weekdayLord = ['सूर्य','चन्द्र','मंगल','बुध','गुरु','शुक्र','शनि'];
+    var index = planets.indexOf(weekdayLord[selectedDate.weekday % 7]);
+    final nextSunrise = sunrise!.add(const Duration(days: 1));
+    final rows = <Map<String, String>>[];
+    for (var i = 0; i < 24; i++) {
+      final a = i < 12 ? _partTime(sunrise, sunset, i, 12)! :
+        _partTime(sunset, nextSunrise, i - 12, 12)!;
+      final b = i < 12 ? _partTime(sunrise, sunset, i + 1, 12)! :
+        _partTime(sunset, nextSunrise, i - 11, 12)!;
+      rows.add({'name': '${planets[index]} होरा', 'time': '${_time(a)} – ${_time(b)}'});
+      index = (index + 1) % planets.length;
+    }
+    return rows;
+  }
+
+  List<Map<String, String>> _dailyWindows() {
+    if (sunrise == null || sunset == null) return [];
+    final dayLength = sunset!.difference(sunrise!);
+    final nightEnd = sunrise!.add(const Duration(days: 1));
+    final nightLength = nightEnd.difference(sunset!);
+    final noon = sunrise!.add(Duration(milliseconds: dayLength.inMilliseconds ~/ 2));
+    final midnight = sunset!.add(Duration(milliseconds: nightLength.inMilliseconds ~/ 2));
+    String range(DateTime a, DateTime b) => '${_time(a)} – ${_time(b)}';
+    const yama = [5,4,3,2,1,7,6];
+    const gulika = [7,6,5,4,3,2,1];
+    String segment(int number) => range(
+      _partTime(sunrise, sunset, number - 1, 8)!,
+      _partTime(sunrise, sunset, number, 8)!);
+    final brahmaStart = sunrise!.subtract(const Duration(minutes: 96));
+    final brahmaEnd = sunrise!.subtract(const Duration(minutes: 48));
+    final abhijitHalf = Duration(milliseconds: dayLength.inMilliseconds ~/ 30);
+    const godhuli = Duration(minutes: 24);
+    final nishitaHalf = Duration(milliseconds: nightLength.inMilliseconds ~/ 30);
+    final weekday = selectedDate.weekday % 7;
+    return [
+      {'name':'ब्रह्म मुहूर्त','time':range(brahmaStart,brahmaEnd),'kind':'शुभ'},
+      {'name':'अभिजित मुहूर्त','time':range(noon.subtract(abhijitHalf),noon.add(abhijitHalf)),'kind':'शुभ'},
+      {'name':'गोधूलि मुहूर्त','time':range(sunset!.subtract(godhuli),sunset!.add(godhuli)),'kind':'शुभ'},
+      {'name':'निशिता काल','time':range(midnight.subtract(nishitaHalf),midnight.add(nishitaHalf)),'kind':'रात्रि'},
+      {'name':'यमगण्ड','time':segment(yama[weekday]),'kind':'अशुभ'},
+      {'name':'गुलिक काल','time':segment(gulika[weekday]),'kind':'अशुभ'},
+    ];
+  }
+
+  Widget _sectionHeading(String title, IconData icon) => Padding(
+    padding: const EdgeInsets.fromLTRB(4, 18, 4, 8),
+    child: Row(children: [Icon(icon, color: const Color(0xFF79502B)),
+      const SizedBox(width: 8), Text(title, style: const TextStyle(
+        fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF563719)))]),
+  );
+
+  Widget _timeList(List<Map<String, String>> rows) => Card(
+    color: Colors.white,
+    child: Column(children: rows.map((row) => ListTile(
+      dense: true,
+      title: Text(row['name'] ?? '', style: const TextStyle(fontWeight: FontWeight.w600)),
+      subtitle: row['kind'] == null ? null : Text(row['kind']!),
+      trailing: Text(row['time'] ?? '', style: const TextStyle(
+        color: Color(0xFF79502B), fontSize: 12, fontWeight: FontWeight.w600)),
+    )).toList()),
+  );
+
+  Widget _muhurtaDial() {
+    if (sunrise == null || sunset == null) return const SizedBox.shrink();
+    final total = sunset!.difference(sunrise!).inMilliseconds;
+    final progress = (DateTime.now().difference(sunrise!).inMilliseconds / total).clamp(0.0, 1.0);
+    return Card(
+      color: const Color(0xFFFFF7E8),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(children: [
+          SizedBox(width: 108, height: 108, child: Stack(alignment: Alignment.center, children: [
+            SizedBox.expand(child: CircularProgressIndicator(value: progress, strokeWidth: 10,
+              backgroundColor: const Color(0xFFE8D8BE),
+              valueColor: const AlwaysStoppedAnimation(Color(0xFF9B7042)))),
+            Column(mainAxisSize: MainAxisSize.min, children: [
+              const Icon(Icons.wb_sunny_outlined, color: Color(0xFF9B7042)),
+              Text('${(progress * 100).round()}%', style: const TextStyle(
+                fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF563719))),
+              const Text('दिन व्यतीत', style: TextStyle(fontSize: 10)),
+            ]),
+          ])),
+          const SizedBox(width: 14),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            const Text('आज का सूर्यकाल', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            Text('सूर्योदय ${_time(sunrise)}'),
+            Text('सूर्यास्त ${_time(sunset)}'),
+            const Text('दिन के समय का दृश्य संकेत', style: TextStyle(fontSize: 11, color: Colors.black54)),
+          ])),
+        ]),
+      ),
+    );
+  }
+
   Future<void> _chooseDate() async {
     final picked = await showDatePicker(
       context: context, initialDate: selectedDate,
@@ -190,6 +316,15 @@ class _PanchangScreenState extends State<PanchangScreen> {
                         _tile('योग', data!['yoga'].toString(), Icons.auto_awesome),
                         _tile('करण', data!['karana'].toString(), Icons.circle_outlined),
                         _tile('राहुकाल', _rahuKaal() ?? 'उपलब्ध नहीं', Icons.schedule),
+                        _sectionHeading('दैनिक मुहूर्त एवं काल', Icons.access_time),
+                        _muhurtaDial(),
+                        _timeList(_dailyWindows()),
+                        _sectionHeading('दिन का चौघड़िया', Icons.wb_sunny_outlined),
+                        _timeList(_choghadiya(false)),
+                        _sectionHeading('रात्रि का चौघड़िया', Icons.nightlight_round),
+                        _timeList(_choghadiya(true)),
+                        _sectionHeading('दिन-रात की ग्रह होरा', Icons.timelapse),
+                        _timeList(_horaRows()),
                         _tile('अयनांश (लाहिड़ी)', (data!['ayanamsha'] as double).toStringAsFixed(4) + '°', Icons.explore_outlined),
                         const Padding(
                           padding: EdgeInsets.only(top: 8),
