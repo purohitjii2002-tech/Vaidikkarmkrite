@@ -35,6 +35,16 @@ jobs:
             sed -i 's/compileSdkVersion .*/compileSdkVersion 36/' android/app/build.gradle
           fi
           grep -n 'compileSdk' android/app/build.gradle*
+          # Force the same compile SDK on Android plugin subprojects too.
+          cat >> android/build.gradle <<'GRADLE'
+          subprojects {
+            afterEvaluate { project ->
+              if (project.extensions.findByName("android") != null) {
+                project.android { compileSdkVersion 36 }
+              }
+            }
+          }
+          GRADLE
       - name: Add internet permission
         run: |
           FILE="android/app/src/main/AndroidManifest.xml"
