@@ -72,15 +72,12 @@ class PanchangEngine {
     final yogaRaw = _norm(siderealSun + siderealMoon) / (360 / 27);
     final halfTithi = (elongation / 6).floor();
 
-    final karanaIndex = halfTithi == 0
-        ? 10
-        : halfTithi == 57
-            ? 7
-            : halfTithi == 58
-                ? 8
-                : halfTithi == 59
-                    ? 9
-                    : (halfTithi - 1) % 7;
+    // The seven movable karanas repeat from the first half of
+    // Shukla Pratipada (Bava). The four fixed karanas occupy the
+    // final four half-tithis of the lunar month.
+    final karanaIndex = halfTithi >= 56
+        ? 7 + (halfTithi - 56)
+        : halfTithi % 7;
 
     return {
       'tithi': tithis[tithiNumber],
