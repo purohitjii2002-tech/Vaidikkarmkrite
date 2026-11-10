@@ -185,7 +185,7 @@ Future<List<ModuleInfo>> loadModules(String language) async {
         .from('categories')
         .select('id, name_hi, name_en, description, icon')
         .eq('is_active', true)
-        .order('created_at');
+        .order('sort_order').order('created_at');
 
     final rows = response as List;
 
