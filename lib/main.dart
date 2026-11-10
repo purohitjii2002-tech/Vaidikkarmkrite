@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'panchang/panchang_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -709,6 +710,12 @@ class _ModuleScreenState extends State<ModuleScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isPanchang = widget.module.icon == '🌞' ||
+        widget.module.title.contains('पंचांग') ||
+        widget.module.title.toLowerCase().contains('panchang');
+    if (isPanchang) {
+      return PanchangScreen(language: widget.language);
+    }
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.module.title),
