@@ -42,7 +42,6 @@ jobs:
             sed -i 's/compileSdkVersion .*/compileSdkVersion 36/' android/app/build.gradle
           fi
           grep -n 'compileSdk' android/app/build.gradle*
-          # Force the same compile SDK on Android plugin subprojects too.
           cat >> android/build.gradle <<'GRADLE'
           subprojects {
             afterEvaluate { project ->
@@ -62,8 +61,21 @@ jobs:
         run: flutter pub get
       - name: Generate app launcher icon
         run: dart run flutter_launcher_icons
-      - name: Build release APK
-        run: flutter build apk --release
+      - name: Assemble release APK with Gradle
+        run: |
+          cd android
+          ./gradlew :app:assembleRelease --no-daemon
+      - name: Normalize APK output path
+        run: |
+          mkdir -p build/app/outputs/flutter-apk
+          APK="$(find build android -type f -name 'app-release.apk' -print -quit)"
+          if [ -z "$APK" ]; then
+            echo "Release APK not found. Available APK files:"
+            find build android -type f -name '*.apk' -print || true
+            exit 1
+          fi
+          cp "$APK" build/app/outputs/flutter-apk/app-release.apk
+          ls -lh build/app/outputs/flutter-apk/app-release.apk
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
