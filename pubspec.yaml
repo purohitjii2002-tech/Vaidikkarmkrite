@@ -27,7 +27,6 @@ flutter:
   uses-material-design: true
   assets:
     - assets/images/karmkrite logo.png.jpg
-    - assets/data/india_states_districts.json
 
 flutter_launcher_icons:
   android: true
