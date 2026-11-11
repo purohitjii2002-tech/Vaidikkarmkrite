@@ -18,6 +18,7 @@ dependencies:
   pdfx: ^2.8.0
   path_provider: ^2.1.5
   crypto: ^3.0.6
+  audioplayers: ^6.1.0
   astronomia: ^1.1.1
   geolocator: ^13.0.2
   geocoding: ^3.0.0
