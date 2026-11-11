@@ -1408,6 +1408,93 @@ class _PanchangScreenState extends State<PanchangScreen> {
     ];
   }
 
+  List<Map<String, String>> _bhadraWindows() {
+    if (sunrise == null || position == null) return [];
+    final nextSunrise = PanchangEngine.solarEvent(
+      localDate: selectedDate.add(const Duration(days: 1)),
+      latitude: position!.latitude,
+      longitude: position!.longitude,
+      sunrise: true,
+    );
+    if (nextSunrise == null || !nextSunrise.isAfter(sunrise!)) return [];
+
+    bool isVishti(DateTime instant) =>
+        PanchangEngine.indicesAt(instant)['karana'] == 6;
+
+    DateTime refine(DateTime low, DateTime high, bool entering) {
+      for (var i = 0; i < 24; i++) {
+        final mid = low.add(Duration(
+          microseconds: high.difference(low).inMicroseconds ~/ 2));
+        if (isVishti(mid) == entering) {
+          high = mid;
+        } else {
+          low = mid;
+        }
+      }
+      return high;
+    }
+
+    final rows = <Map<String, String>>[];
+    var cursor = sunrise!;
+    var previous = isVishti(cursor);
+    DateTime? activeStart = previous ? cursor : null;
+    var previousTime = cursor;
+    while (cursor.isBefore(nextSunrise)) {
+      final next = cursor.add(const Duration(minutes: 1)).isAfter(nextSunrise)
+          ? nextSunrise : cursor.add(const Duration(minutes: 1));
+      final current = isVishti(next);
+      if (current != previous) {
+        final boundary = refine(previousTime, next, current);
+        if (previous) {
+          rows.add({
+            'start': _time(activeStart ?? sunrise),
+            'end': _time(boundary),
+            'startNote': activeStart == sunrise ? 'सूर्योदय पर भद्रा जारी' : '',
+          });
+          activeStart = null;
+        } else {
+          activeStart = boundary;
+        }
+      }
+      previous = current;
+      previousTime = next;
+      cursor = next;
+    }
+    if (previous) {
+      rows.add({
+        'start': _time(activeStart ?? sunrise),
+        'end': _time(nextSunrise),
+        'startNote': activeStart == sunrise ? 'सूर्योदय पर भद्रा जारी' : '',
+      });
+    }
+    return rows;
+  }
+
+  Widget _bhadraCard() {
+    final windows = _bhadraWindows();
+    return _detailCard('भद्रा (विष्टि करण)', Icons.warning_amber_rounded, [
+      _detailRow('स्थिति', windows.isEmpty ? 'आज सूर्योदय से अगले सूर्योदय तक भद्रा नहीं' :
+          'इस दिन भद्रा काल है', alternate: true),
+      if (windows.isEmpty)
+        _detailRow('भद्रा काल', 'नहीं है')
+      else
+        ...windows.map((window) => _detailRow(
+          'भद्रा काल',
+          '${window['start']} – ${window['end']}' +
+              ((window['startNote'] ?? '').isNotEmpty
+                  ? '  (${window['startNote']})' : ''),
+          alternate: true,
+        )),
+      const Padding(
+        padding: EdgeInsets.only(top: 6),
+        child: Text(
+          'भद्रा का निर्धारण विष्टि करण के समय से है। समय चयनित दिन के सूर्योदय से अगले सूर्योदय तक दिखाया गया है; सूर्योदय पर पहले से चल रही भद्रा का आरंभ इससे पहले हो सकता है।',
+          style: TextStyle(fontSize: 10, color: Color(0xFF705333)),
+        ),
+      ),
+    ]);
+  }
+
   Widget _panchakCard() {
     final window = _panchakWindow;
     final nextSunrise = PanchangEngine.solarEvent(
@@ -1456,7 +1543,7 @@ class _PanchangScreenState extends State<PanchangScreen> {
         _detailRow('करण', '${d['karana'] ?? '—'}  •  ${_time(karanaEnd)}', alternate: true, compact: true),
         _detailRow('वार', _weekday(selectedDate), compact: true),
       ]),
-      ..._specialYogaCards(),
+      _bhadraCard(),
       _panchakCard(),
       _detailCard('मास, राशि, ऋतु एवं अयन', Icons.public, [
         _detailRow('माह (अमांत)', lunarMonths['amanta'] ?? '—', alternate: true),
@@ -1496,6 +1583,7 @@ class _PanchangScreenState extends State<PanchangScreen> {
           style: TextStyle(fontSize: 12, color: Color(0xFF705333)),
         ),
       )),
+      ..._specialYogaCards(),
     ];
   }
 
