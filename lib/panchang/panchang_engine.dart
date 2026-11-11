@@ -67,6 +67,67 @@ class PanchangEngine {
     return (sun: sunLon, moon: moonLon);
   }
 
+  static double _limbAngle(DateTime utc, String limb) {
+    final positions = tropicalLongitudes(utc);
+    final ayanamsha = lahiriAyanamsha(utc);
+    final siderealSun = _norm(positions.sun - ayanamsha);
+    final siderealMoon = _norm(positions.moon - ayanamsha);
+    switch (limb) {
+      case 'tithi':
+      case 'karana':
+        return _norm(positions.moon - positions.sun);
+      case 'nakshatra':
+        return siderealMoon;
+      case 'yoga':
+        return _norm(siderealSun + siderealMoon);
+      default:
+        throw ArgumentError.value(limb, 'limb');
+    }
+  }
+
+  static int _limbIndex(DateTime utc, String limb) {
+    final angle = _limbAngle(utc, limb);
+    switch (limb) {
+      case 'tithi':
+        return (angle / 12).floor();
+      case 'karana':
+        return (angle / 6).floor();
+      case 'nakshatra':
+      case 'yoga':
+        return (angle / (360 / 27)).floor();
+      default:
+        throw ArgumentError.value(limb, 'limb');
+    }
+  }
+
+  /// Finds the next limb transition after sunrise and refines it to
+  /// approximately one-second precision using a bounded binary search.
+  static DateTime? nextLimbEnd(DateTime localSunrise, String limb) {
+    final start = localSunrise.toUtc();
+    final initialIndex = _limbIndex(start, limb);
+    var previous = start;
+    for (var minute = 15; minute <= 36 * 60; minute += 15) {
+      final current = start.add(Duration(minutes: minute));
+      if (_limbIndex(current, limb) != initialIndex) {
+        var low = previous;
+        var high = current;
+        for (var i = 0; i < 32; i++) {
+          final middle = low.add(
+            Duration(microseconds: high.difference(low).inMicroseconds ~/ 2),
+          );
+          if (_limbIndex(middle, limb) == initialIndex) {
+            low = middle;
+          } else {
+            high = middle;
+          }
+        }
+        return high.toLocal();
+      }
+      previous = current;
+    }
+    return null;
+  }
+
   static Map<String, dynamic> atSunrise(DateTime localSunrise) {
     final utc = localSunrise.toUtc();
     final positions = tropicalLongitudes(utc);
@@ -99,6 +160,10 @@ class PanchangEngine {
       'nakshatraPada': (nakshatraRaw.remainder(1) * 4).floor() + 1,
       'yoga': yogas[yogaRaw.floor() % 27],
       'karana': karanas[karanaIndex],
+      'tithiEnd': nextLimbEnd(localSunrise, 'tithi'),
+      'nakshatraEnd': nextLimbEnd(localSunrise, 'nakshatra'),
+      'yogaEnd': nextLimbEnd(localSunrise, 'yoga'),
+      'karanaEnd': nextLimbEnd(localSunrise, 'karana'),
       'sunLongitude': positions.sun,
       'moonLongitude': positions.moon,
       'ayanamsha': ayanamsha,
