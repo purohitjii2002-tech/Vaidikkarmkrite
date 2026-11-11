@@ -19,6 +19,7 @@ class _PanchangScreenState extends State<PanchangScreen> {
   Map<String, dynamic>? data;
   DateTime? sunrise, sunset;
   bool loading = true;
+  int selectedMuhuratTab = 0;
 
   @override
   void initState() { super.initState(); _load(); }
@@ -324,39 +325,20 @@ class _PanchangScreenState extends State<PanchangScreen> {
                         ]),
                       ),
                       const SizedBox(height: 14),
-                      if (data == null)
-                        const Card(child: Padding(
-                          padding: EdgeInsets.all(18),
-                          child: Text('इस तारीख के लिए सूर्योदय/सूर्यास्त उपलब्ध नहीं है।'),
-                        ))
-                      else ...[
-                        const Text('पंचांग विवरण', style: TextStyle(
-                          fontSize: 19, fontWeight: FontWeight.bold, color: Color(0xFF563719),
-                        )),
-                        const SizedBox(height: 8),
-                        _tile('तिथि', data!['tithi'].toString() + ' • ' + data!['paksha'].toString() + ' • समाप्ति ' + _time(data!['tithiEnd'] as DateTime?), Icons.brightness_3_outlined),
-                        _tile('नक्षत्र', data!['nakshatra'].toString() + ' • चरण ' + data!['nakshatraPada'].toString() + ' • समाप्ति ' + _time(data!['nakshatraEnd'] as DateTime?), Icons.star_outline),
-                        _tile('योग', data!['yoga'].toString() + ' • समाप्ति ' + _time(data!['yogaEnd'] as DateTime?), Icons.auto_awesome),
-                        _tile('करण', data!['karana'].toString() + ' • समाप्ति ' + _time(data!['karanaEnd'] as DateTime?), Icons.circle_outlined),
-                        _tile('राहुकाल', _rahuKaal() ?? 'उपलब्ध नहीं', Icons.schedule),
-                        _sectionHeading('दैनिक मुहूर्त एवं काल', Icons.access_time),
-                        _muhurtaDial(),
-                        _timeList(_dailyWindows()),
-                        _sectionHeading('दिन का चौघड़िया', Icons.wb_sunny_outlined),
-                        _timeList(_choghadiya(false)),
-                        _sectionHeading('रात्रि का चौघड़िया', Icons.nightlight_round),
-                        _timeList(_choghadiya(true)),
-                        _sectionHeading('दिन-रात की ग्रह होरा', Icons.timelapse),
-                        _timeList(_horaRows()),
-                        _tile('अयनांश (लाहिड़ी)', (data!['ayanamsha'] as double).toStringAsFixed(4) + '°', Icons.explore_outlined),
-                        const Padding(
-                          padding: EdgeInsets.only(top: 8),
-                          child: Text(
-                            'गणना स्थानीय सूर्योदय पर आधारित है। यह प्रारंभिक संस्करण है; तिथि-समाप्ति, मुहूर्त और व्रत-त्योहार का सत्यापन जारी है।',
-                            style: TextStyle(fontSize: 12, color: Colors.black54),
-                          ),
+                      _muhuratTabs(),
+                      const SizedBox(height: 12),
+                      ..._selectedTabContent(),
+                      const SizedBox(height: 10),
+                      Card(
+                        color: const Color(0xFFFFF0D5),
+                        child: ListTile(
+                          leading: const CircleAvatar(backgroundColor: Color(0xFF79502B), child: Icon(Icons.event_available, color: Colors.white)),
+                          title: const Text('विशेष मुहूर्त', style: TextStyle(fontWeight: FontWeight.bold)),
+                          subtitle: const Text('एडमिन द्वारा प्रकाशित वास्तु, विवाह, वाहन, हल-पूजन, मुंडन आदि के मुहूर्त'),
+                          trailing: const Icon(Icons.arrow_forward_ios, size: 17),
+                          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const MuhuratListScreen())),
                         ),
-                      ],
+                      ),
                       Card(
                         color: const Color(0xFFFFF0D5),
                         child: ListTile(
@@ -371,6 +353,101 @@ class _PanchangScreenState extends State<PanchangScreen> {
                   ),
                 ),
     );
+  }
+
+  static const _muhuratTabs = ['दिन', 'मुहूर्त', 'चौघड़िया', 'होरा', 'लग्न'];
+
+  Widget _muhuratTabs() => Container(
+    padding: const EdgeInsets.all(5),
+    decoration: BoxDecoration(
+      color: const Color(0xFFFFF7E8),
+      borderRadius: BorderRadius.circular(14),
+      border: Border.all(color: const Color(0xFFE9D8B9)),
+    ),
+    child: Row(
+      children: List.generate(_muhuratTabs.length, (index) => Expanded(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 2),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(10),
+            onTap: () => setState(() => selectedMuhuratTab = index),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 180),
+              padding: const EdgeInsets.symmetric(vertical: 11, horizontal: 2),
+              decoration: BoxDecoration(
+                color: selectedMuhuratTab == index ? const Color(0xFF8B5E32) : Colors.transparent,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(_muhuratTabs[index], textAlign: TextAlign.center,
+                maxLines: 1, overflow: TextOverflow.ellipsis,
+                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700,
+                  color: selectedMuhuratTab == index ? Colors.white : const Color(0xFF684521))),
+            ),
+          ),
+        ),
+      )),
+    ),
+  );
+
+  List<Widget> _selectedTabContent() {
+    if (data == null || sunrise == null || sunset == null) {
+      return [const Card(child: Padding(padding: EdgeInsets.all(18),
+        child: Text('इस तारीख के लिए पंचांग गणना उपलब्ध नहीं है।')))];
+    }
+    switch (selectedMuhuratTab) {
+      case 0:
+        return [
+          _sectionHeading('आज का पंचांग', Icons.calendar_today),
+          _tile('तिथि', '${data!['tithi']} • ${data!['paksha']} • समाप्ति ${_time(data!['tithiEnd'] as DateTime?)', Icons.brightness_3_outlined),
+          _tile('नक्षत्र', '${data!['nakshatra']} • चरण ${data!['nakshatraPada']} • समाप्ति ${_time(data!['nakshatraEnd'] as DateTime?)', Icons.star_outline),
+          _tile('योग', '${data!['yoga']} • समाप्ति ${_time(data!['yogaEnd'] as DateTime?)', Icons.auto_awesome),
+          _tile('करण', '${data!['karana']} • समाप्ति ${_time(data!['karanaEnd'] as DateTime?)', Icons.circle_outlined),
+          _tile('सूर्योदय – सूर्यास्त', '${_time(sunrise)} – ${_time(sunset)}', Icons.wb_sunny_outlined),
+          _tile('अयनांश (लाहिड़ी)', '${(data!['ayanamsha'] as double).toStringAsFixed(4)}°', Icons.explore_outlined),
+          const Padding(padding: EdgeInsets.all(8), child: Text(
+            'गणना दृक् गणित पर आधारित है। पारंपरिक उज्जैन पंचांग से तुलनात्मक सत्यापन जारी है।',
+            style: TextStyle(fontSize: 12, color: Colors.black54))),
+        ];
+      case 1:
+        return [
+          _sectionHeading('दैनिक मुहूर्त एवं काल', Icons.access_time),
+          _muhurtaDial(),
+          _timeList(_dailyWindows()),
+          _tile('राहुकाल', _rahuKaal() ?? 'उपलब्ध नहीं', Icons.schedule),
+        ];
+      case 2:
+        return [
+          _sectionHeading('दिन का चौघड़िया', Icons.wb_sunny_outlined),
+          _timeList(_choghadiya(false)),
+          _sectionHeading('रात्रि का चौघड़िया', Icons.nightlight_round),
+          _timeList(_choghadiya(true)),
+        ];
+      case 3:
+        return [
+          _sectionHeading('दिन-रात की ग्रह होरा', Icons.timelapse),
+          _timeList(_horaRows()),
+          const Padding(padding: EdgeInsets.all(8), child: Text(
+            'होरा की अवधि स्थानीय सूर्योदय और सूर्यास्त के अनुसार विभाजित की जाती है।',
+            style: TextStyle(fontSize: 12, color: Colors.black54))),
+        ];
+      case 4:
+        return [
+          _sectionHeading('लग्न समय-सारणी', Icons.auto_awesome),
+          Card(color: const Color(0xFFFFF7E8), child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: const [
+              Text('बारहों लग्न', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+              SizedBox(height: 8),
+              Text('लग्न के आरंभ और समाप्ति का समय स्थानीय अक्षांश, देशांतर और सटीक खगोलीय समय पर निर्भर करता है।'),
+              SizedBox(height: 8),
+              Text('इसकी गणना का सत्यापन पूरा होने तक समय प्रकाशित नहीं किया जाएगा।',
+                style: TextStyle(color: Color(0xFF8A4B20), fontWeight: FontWeight.w600)),
+            ]),
+          )),
+        ];
+      default:
+        return [];
+    }
   }
 
   Widget _sunInfo(String label, String value, IconData icon) => Row(children: [
