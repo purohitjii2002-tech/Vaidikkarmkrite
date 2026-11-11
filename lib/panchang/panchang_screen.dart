@@ -456,25 +456,88 @@ class _PanchangScreenState extends State<PanchangScreen> {
             style: TextStyle(fontSize: 12, color: Colors.black54))),
         ];
       case 4:
+        final lagnaRows = _lagnaRows();
         return [
           _sectionHeading('लग्न समय-सारणी', Icons.auto_awesome),
           Card(color: const Color(0xFFFFF7E8), child: Padding(
             padding: const EdgeInsets.all(16),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: const [
-              Text('बारहों लग्न', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+              Text('लग्न निकालने की गणना-विधि', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
               SizedBox(height: 8),
-              Text('लग्न के आरंभ और समाप्ति का समय स्थानीय अक्षांश, देशांतर और सटीक खगोलीय समय पर निर्भर करता है।'),
+              Text('1. चयनित स्थान का अक्षांश, देशांतर और स्थानीय समय लिया जाता है।'),
+              Text('2. जूलियन दिवस से ग्रीनविच प्रत्यक्ष नाक्षत्र समय निकालकर देशांतर जोड़ने पर स्थानीय नाक्षत्र समय मिलता है।'),
+              Text('3. स्थानीय नाक्षत्र समय, पृथ्वी के अक्षांश और क्रांतिवृत्त की तिर्यकता से सायन लग्नांश निकाला जाता है।'),
+              Text('4. सायन लग्नांश में से लाहिड़ी अयनांश घटाकर निरयन लग्न प्राप्त होता है।'),
               SizedBox(height: 8),
-              Text('इसकी गणना का सत्यापन पूरा होने तक समय प्रकाशित नहीं किया जाएगा।',
-                style: TextStyle(color: Color(0xFF8A4B20), fontWeight: FontWeight.w600)),
+              Text('राशि-सीमा (0°, 30°, 60° …) पार करने का समय खोजकर प्रत्येक लग्न का आरंभ और अंत निकाला जाता है। समय स्थानीय सूर्योदय से अगले सूर्योदय तक है।',
+                style: TextStyle(fontSize: 12, color: Color(0xFF705333))),
             ]),
           )),
+          if (lagnaRows.isEmpty)
+            const Card(child: Padding(padding: EdgeInsets.all(16),
+              child: Text('इस स्थान और तारीख के लिए लग्न समय-सारणी उपलब्ध नहीं है।')))
+          else
+            Card(color: Colors.white, child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(children: List.generate(lagnaRows.length, (i) =>
+                _detailRow(lagnaRows[i]['name']!, lagnaRows[i]['time']!, alternate: i.isEven))),
+            )),
         ];
       default:
         return [];
     }
   }
 
+
+  List<Map<String, String>> _lagnaRows() {
+    if (sunrise == null || position == null) return [];
+    final nextSunrise = PanchangEngine.solarEvent(
+      localDate: selectedDate.add(const Duration(days: 1)),
+      latitude: position!.latitude, longitude: position!.longitude,
+      sunrise: true,
+    );
+    if (nextSunrise == null || !nextSunrise.isAfter(sunrise!)) return [];
+    int signAt(DateTime instant) {
+      final longitude = PanchangEngine.ascendantSiderealLongitude(
+        instant: instant, latitude: position!.latitude,
+        longitude: position!.longitude);
+      return ((((longitude % 360) + 360) % 360) / 30).floor();
+    }
+    final rows = <Map<String, String>>[];
+    var intervalStart = sunrise!;
+    var previous = signAt(intervalStart);
+    var cursor = intervalStart;
+    while (cursor.isBefore(nextSunrise)) {
+      final next = cursor.add(const Duration(minutes: 1)).isAfter(nextSunrise)
+          ? nextSunrise : cursor.add(const Duration(minutes: 1));
+      final current = signAt(next);
+      if (current != previous) {
+        var low = cursor;
+        var high = next;
+        for (var i = 0; i < 22; i++) {
+          final mid = low.add(Duration(microseconds:
+            high.difference(low).inMicroseconds ~/ 2));
+          if (signAt(mid) == previous) {
+            low = mid;
+          } else {
+            high = mid;
+          }
+        }
+        rows.add({
+          'name': '${_rashiNames[previous]} लग्न',
+          'time': '${_time(intervalStart)} – ${_time(high)}',
+        });
+        intervalStart = high;
+        previous = current;
+      }
+      cursor = next;
+    }
+    rows.add({
+      'name': '${_rashiNames[previous]} लग्न',
+      'time': '${_time(intervalStart)} – ${_time(nextSunrise)}',
+    });
+    return rows;
+  }
 
   static const _rashiNames = ['मेष','वृषभ','मिथुन','कर्क','सिंह','कन्या','तुला','वृश्चिक','धनु','मकर','कुंभ','मीन'];
   static const _nakshatraNames = ['अश्विनी','भरणी','कृत्तिका','रोहिणी','मृगशीर्ष','आर्द्रा','पुनर्वसु','पुष्य','आश्लेषा','मघा','पूर्वा फाल्गुनी','उत्तरा फाल्गुनी','हस्त','चित्रा','स्वाती','विशाखा','अनुराधा','ज्येष्ठा','मूल','पूर्वाषाढ़ा','उत्तराषाढ़ा','श्रवण','धनिष्ठा','शतभिषा','पूर्वा भाद्रपद','उत्तरा भाद्रपद','रेवती'];
@@ -508,8 +571,8 @@ class _PanchangScreenState extends State<PanchangScreen> {
     return [
       _detailRow('बार्हस्पत्य संवत्सर (उत्तर)', northName, alternate: true),
       _detailRow('बार्हस्पत्य संवत्सर (दक्षिण)', southName),
-      _detailRow('विक्रम संवत', '2083 (दृक् पंचांग: सिद्धार्थी)', alternate: true),
-      _detailRow('गुजराती संवत', '2083 (दृक् पंचांग: कलायुक्त)'),
+      _detailRow('विक्रम संवत', '2083 — सिद्धार्थी', alternate: true),
+      _detailRow('गुजराती संवत', '2083 — कलायुक्त'),
       _detailRow('शक संवत', '1948'),
       _detailRow('कलि संवत', '5127', alternate: true),
       const Padding(padding: EdgeInsets.only(top: 6), child: Text('ये वर्ष-नाम अलग-अलग क्षेत्रीय/युग-गणना पद्धतियों के अनुसार हैं; बार्हस्पत्य संवत्सर को विक्रम संवत के नाम के रूप में न पढ़ें।', style: TextStyle(fontSize: 11, color: Color(0xFF705333)))),
@@ -626,7 +689,7 @@ class _PanchangScreenState extends State<PanchangScreen> {
       _detailCard('शिव वास एवं अग्नि वास', Icons.local_fire_department, [..._vasaRows(d)]),
       Card(color: const Color(0xFFFFF4E5), child: const Padding(
         padding: EdgeInsets.all(12),
-        child: Text('गणना स्रोत: दृक् खगोलीय गणना (Meeus आधारित Astronomia) और IMD राष्ट्रीय पंचांग से सत्यापन। अमांत/पूर्णिमांत मास, संवत्सर और चरण-सीमाओं को प्रकाशित करने से पहले संदर्भ पंचांग से मिलान आवश्यक है。',
+        child: Text('गणना स्रोत: Meeus आधारित खगोलीय गणना (Astronomia) तथा IMD राष्ट्रीय पंचांग से संदर्भ सत्यापन। अमांत/पूर्णिमांत मास, संवत्सर और चरण-सीमाओं को प्रकाशित करने से पहले संदर्भ पंचांग से मिलान आवश्यक है。',
           style: TextStyle(fontSize: 12, color: Color(0xFF705333)),
         ),
       )),
