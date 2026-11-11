@@ -1543,7 +1543,6 @@ class _PanchangScreenState extends State<PanchangScreen> {
         _detailRow('करण', '${d['karana'] ?? '—'}  •  ${_time(karanaEnd)}', alternate: true, compact: true),
         _detailRow('वार', _weekday(selectedDate), compact: true),
       ]),
-      _bhadraCard(),
       _panchakCard(),
       _detailCard('मास, राशि, ऋतु एवं अयन', Icons.public, [
         _detailRow('माह (अमांत)', lunarMonths['amanta'] ?? '—', alternate: true),
@@ -1583,7 +1582,7 @@ class _PanchangScreenState extends State<PanchangScreen> {
           style: TextStyle(fontSize: 12, color: Color(0xFF705333)),
         ),
       )),
-      ..._specialYogaCards(),
+      _bhadraCard(),
     ];
   }
 
