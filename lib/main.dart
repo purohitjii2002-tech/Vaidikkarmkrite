@@ -42,34 +42,34 @@ class _KarmKriteAppState extends State<KarmKriteApp> {
       title: 'KARMKRITE',
       theme: ThemeData(
         useMaterial3: true,
-        scaffoldBackgroundColor: const Color(0xFFF5F2E9),
+        scaffoldBackgroundColor: const Color(0xFFFAF7F0),
         colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF174C43),
-          primary: const Color(0xFF174C43),
-          secondary: const Color(0xFFD69B3D),
-          surface: const Color(0xFFFFFCF5),
+          seedColor: const Color(0xFF70451F),
+          primary: const Color(0xFF70451F),
+          secondary: const Color(0xFFD5A34B),
+          surface: const Color(0xFFFFFEFA),
         ),
         appBarTheme: const AppBarTheme(
-          backgroundColor: Color(0xFFF5F2E9),
-          foregroundColor: Color(0xFF173E37),
+          backgroundColor: Color(0xFFFAF7F0),
+          foregroundColor: Color(0xFF563719),
           elevation: 0,
           centerTitle: false,
         ),
         navigationBarTheme: NavigationBarThemeData(
-          backgroundColor: const Color(0xFFFFFCF5),
-          indicatorColor: const Color(0xFFF1E1BD),
+          backgroundColor: const Color(0xFFFFFEFA),
+          indicatorColor: const Color(0xFFF4E4C5),
           labelTextStyle: WidgetStateProperty.resolveWith((states) =>
             TextStyle(fontSize: 11, fontWeight: states.contains(WidgetState.selected)
               ? FontWeight.w800 : FontWeight.w500,
               color: states.contains(WidgetState.selected)
-                ? const Color(0xFF174C43) : const Color(0xFF817766))),
+                ? const Color(0xFF70451F) : const Color(0xFF877967))),
           iconTheme: WidgetStateProperty.resolveWith((states) => IconThemeData(
             color: states.contains(WidgetState.selected)
-              ? const Color(0xFF174C43) : const Color(0xFF817766))),
+              ? const Color(0xFF70451F) : const Color(0xFF877967))),
           elevation: 10,
         ),
         cardTheme: CardThemeData(
-          color: const Color(0xFFFFFCF5),
+          color: const Color(0xFFFFFEFA),
           elevation: 0,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         ),
@@ -526,7 +526,7 @@ class _HomeScreenState extends State<HomeScreen> {
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(26),
         gradient: const LinearGradient(
-          colors: [Color(0xFF123D36), Color(0xFF176052), Color(0xFF247A67)],
+          colors: [Color(0xFF2A1A10), Color(0xFF65401F), Color(0xFF9A6B35)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -589,7 +589,7 @@ class _HomeScreenState extends State<HomeScreen> {
     Widget action({required IconData icon, required String title,
       required String subtitle, required VoidCallback onTap}) {
       return Expanded(child: Material(
-        color: const Color(0xFFFFFCF5),
+        color: const Color(0xFFFFFEFA),
         borderRadius: BorderRadius.circular(17),
         child: InkWell(
           borderRadius: BorderRadius.circular(17),
@@ -605,11 +605,11 @@ class _HomeScreenState extends State<HomeScreen> {
               Container(width: 39, height: 39,
                 decoration: BoxDecoration(color: const Color(0xFFF3E7CB),
                   borderRadius: BorderRadius.circular(13)),
-                child: Icon(icon, color: const Color(0xFF8A5A20), size: 21)),
+                child: Icon(icon, color: const Color(0xFF9A672D), size: 21)),
               const SizedBox(width: 9),
               Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Text(title, maxLines: 1, overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(color: Color(0xFF24463D), fontSize: 12, fontWeight: FontWeight.w800)),
+                  style: const TextStyle(color: Color(0xFF563719), fontSize: 12, fontWeight: FontWeight.w800)),
                 const SizedBox(height: 3),
                 Text(subtitle, maxLines: 1, overflow: TextOverflow.ellipsis,
                   style: const TextStyle(color: Color(0xFF887B67), fontSize: 9.5)),
