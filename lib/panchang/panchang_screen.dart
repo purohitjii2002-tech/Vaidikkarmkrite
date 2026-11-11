@@ -1121,35 +1121,83 @@ class _PanchangScreenState extends State<PanchangScreen> {
     }).toList();
   }
 
-  Widget _specialYogaCard() {
-    if (_specialYogaRows.isEmpty) {
-      return _detailCard('विशेष शुभ-अशुभ योग', Icons.auto_awesome, [
-        _detailRow('आज', 'सूचीबद्ध विशेष योग नहीं', alternate: true),
+  // Show only the yogas calculated for the currently selected sunrise-to-sunrise day.
+  List<Widget> _specialYogaCards() {
+    final goodRows = _specialYogaRows
+        .where((row) => row['kind'] == 'शुभ').toList();
+    final badRows = _specialYogaRows
+        .where((row) => row['kind'] == 'अशुभ').toList();
+    final hasGood = goodRows.isNotEmpty;
+    final hasBad = badRows.isNotEmpty;
+
+    final String verdict = hasGood && hasBad
+        ? 'आज शुभ और अशुभ—दोनों प्रकार के योग बन रहे हैं।'
+        : hasGood
+            ? 'आज शुभ योग बन रहे हैं।'
+            : hasBad
+                ? 'आज अशुभ योग बन रहे हैं।'
+                : 'आज कोई सूचीबद्ध विशेष शुभ या अशुभ योग नहीं बन रहा।';
+    final Color verdictColor = hasBad
+        ? const Color(0xFF9D332B)
+        : const Color(0xFF176B43);
+    final Color verdictTint = hasBad
+        ? const Color(0xFFFFEFEC)
+        : const Color(0xFFEAF6ED);
+
+    Widget yogaList(String title, IconData icon,
+        List<Map<String, String>> rows, bool good) {
+      final color = good ? const Color(0xFF176B43) : const Color(0xFFB3261E);
+      final tint = good ? const Color(0xFFEAF6ED) : const Color(0xFFFFEFEC);
+      return _detailCard(title, icon, [
+        if (rows.isEmpty)
+          _detailRow('स्थिति', good ? 'आज कोई विशेष शुभ योग नहीं' : 'आज कोई विशेष अशुभ योग नहीं',
+              alternate: true)
+        else
+          ...rows.map((row) => Container(
+            margin: const EdgeInsets.symmetric(vertical: 3),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+            decoration: BoxDecoration(
+              color: tint,
+              borderRadius: BorderRadius.circular(9),
+            ),
+            child: Row(children: [
+              Icon(good ? Icons.check_circle : Icons.warning_amber_rounded,
+                  color: color, size: 17),
+              const SizedBox(width: 8),
+              Expanded(child: Text(row['name'] ?? '',
+                  style: TextStyle(color: color, fontWeight: FontWeight.w700))),
+              Text(good ? 'शुभ' : 'अशुभ',
+                  style: TextStyle(color: color, fontSize: 11,
+                      fontWeight: FontWeight.bold)),
+            ]),
+          )),
       ]);
     }
-    return _detailCard('विशेष शुभ-अशुभ योग', Icons.auto_awesome, [
-      ..._specialYogaRows.map((row) {
-        final good = row['kind'] == 'शुभ';
-        final color = good ? const Color(0xFF167443) : const Color(0xFFB3261E);
-        final tint = good ? const Color(0xFFE8F6EB) : const Color(0xFFFFECEA);
-        return Container(
-          margin: const EdgeInsets.symmetric(vertical: 3),
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-          decoration: BoxDecoration(color: tint, borderRadius: BorderRadius.circular(9)),
-          child: Row(children: [
-            Icon(good ? Icons.check_circle : Icons.warning_amber_rounded, color: color, size: 17),
-            const SizedBox(width: 8),
-            Expanded(child: Text(row['name']!, style: TextStyle(color: color, fontWeight: FontWeight.w700))),
-            Text(row['kind']!, style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.bold)),
-          ]),
-        );
-      }),
-      const Padding(
-        padding: EdgeInsets.only(top: 6),
-        child: Text('योग चयनित दिन के सूर्योदय से अगले सूर्योदय तक की अवधि में जाँचे गए हैं।',
-          style: TextStyle(fontSize: 10, color: Color(0xFF705333))),
-      ),
-    ]);
+
+    return [
+      _detailCard('चयनित दिन के योग • ${_date(selectedDate)}',
+          Icons.auto_awesome, [
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(11),
+          decoration: BoxDecoration(
+            color: verdictTint,
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Text(verdict, style: TextStyle(
+            color: verdictColor, fontWeight: FontWeight.w700, height: 1.4)),
+        ),
+        const Padding(
+          padding: EdgeInsets.only(top: 8),
+          child: Text(
+            'नीचे केवल इसी चयनित दिन के सूर्योदय से अगले सूर्योदय तक बनने वाले योग दिए गए हैं।',
+            style: TextStyle(fontSize: 10, color: Color(0xFF705333)),
+          ),
+        ),
+      ]),
+      yogaList('आज के शुभ योग', Icons.check_circle_outline, goodRows, true),
+      yogaList('आज के अशुभ योग', Icons.warning_amber_rounded, badRows, false),
+    ];
   }
 
   Widget _panchakCard() {
@@ -1200,7 +1248,7 @@ class _PanchangScreenState extends State<PanchangScreen> {
         _detailRow('करण', '${d['karana'] ?? '—'}  •  ${_time(karanaEnd)}', alternate: true),
         _detailRow('वार', _weekday(selectedDate)),
       ]),
-      _specialYogaCard(),
+      ..._specialYogaCards(),
       _panchakCard(),
       _detailCard('मास, राशि, ऋतु एवं अयन', Icons.public, [
         _detailRow('माह (अमांत)', lunarMonths['amanta'] ?? '—', alternate: true),
