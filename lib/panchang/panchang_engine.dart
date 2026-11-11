@@ -45,11 +45,19 @@ class PanchangEngine {
     return calendarGregorianToJD(d.year, d.month, d.day + fraction);
   }
 
-  /// Approximation to Lahiri ayanamsha; this will be calibrated in the
-  /// validation phase against published Indian panchangas.
+  /// Mean Lahiri (Chitrapaksha) ayanamsha.
+  ///
+  /// Anchored to 24°13′19″ at 2026-01-01 00:00 UTC and advanced at
+  /// 50.29 arcseconds/year. This is a mean-value model (not a full
+  /// Swiss-Ephemeris true ayanamsha with nutation).
   static double lahiriAyanamsha(DateTime utc) {
-    final decimalYear = utc.year + (utc.month - 0.5) / 12;
-    return 23.8531 + (decimalYear - 2025) * 0.013968;
+    final instant = utc.toUtc();
+    final epoch = DateTime.utc(2026, 1, 1);
+    final elapsedYears = instant.difference(epoch).inMicroseconds /
+        Duration.microsecondsPerDay / 365.2422;
+    const epochDegrees = 24 + 13 / 60 + 19 / 3600;
+    const annualPrecessionDegrees = 50.29 / 3600;
+    return epochDegrees + elapsedYears * annualPrecessionDegrees;
   }
 
   static ({double sun, double moon}) tropicalLongitudes(DateTime utc) {
@@ -72,12 +80,16 @@ class PanchangEngine {
     final yogaRaw = _norm(siderealSun + siderealMoon) / (360 / 27);
     final halfTithi = (elongation / 6).floor();
 
-    // The seven movable karanas repeat from the first half of
-    // Shukla Pratipada (Bava). The four fixed karanas occupy the
-    // final four half-tithis of the lunar month.
-    final karanaIndex = halfTithi >= 56
-        ? 7 + (halfTithi - 56)
-        : halfTithi % 7;
+    // Kimstughna is the first half of Shukla Pratipada (index 0).
+    // The seven movable karanas then repeat for 56 half-tithis;
+    // the final three are Shakuni, Chatushpada and Naga.
+    final karanaIndex = switch (halfTithi) {
+      0 => 10,
+      57 => 7,
+      58 => 8,
+      59 => 9,
+      _ => (halfTithi - 1) % 7,
+    };
 
     return {
       'tithi': tithis[tithiNumber],
