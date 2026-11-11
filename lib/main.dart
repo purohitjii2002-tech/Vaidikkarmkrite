@@ -6,6 +6,8 @@ import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:http/http.dart' as http;
+import 'package:pdfx/pdfx.dart';
 import 'panchang/panchang_screen.dart';
 
 Future<void> main() async {
@@ -908,11 +910,15 @@ class _BooksScreenState extends State<BooksScreen> {
   Future<void> openBook(Map<String,dynamic> b) async {
     final versions=List<Map<String,dynamic>>.from(b['book_versions']??[]);
     versions.sort((a,b)=>((b['version_no']??0) as num).compareTo((a['version_no']??0) as num));
-    final url=versions.isEmpty?'':(versions.first['pdf_url']??'').toString();
+    final url=versions.isEmpty?'':(versions.first['pdf_url']??'').toString().trim();
     final uri=Uri.tryParse(url);
-    if(uri==null || url.isEmpty || !await launchUrl(uri,mode:LaunchMode.externalApplication)){
-      if(mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('इस पुस्तक की PDF अभी उपलब्ध नहीं है।')));
+    if(uri==null || !uri.hasScheme || (uri.scheme!='https' && uri.scheme!='http')){
+      if(mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('इस पुस्तक की PDF का लिंक सही नहीं है।')));
+      return;
     }
+    if(!mounted)return;
+    final title=(widget.language=='en'?b['title_en']:b['title_hi'])??b['title_hi']??'पुस्तक';
+    await Navigator.push(context,MaterialPageRoute(builder:(_)=>InAppPdfReader(title:title.toString(),url:url)));
   }
   @override
   Widget build(BuildContext context) {
@@ -931,6 +937,98 @@ class _BooksScreenState extends State<BooksScreen> {
             trailing:const Icon(Icons.picture_as_pdf),onTap:()=>openBook(b)));
         }));
       }));
+  }
+}
+
+class InAppPdfReader extends StatefulWidget {
+  final String title;
+  final String url;
+  const InAppPdfReader({super.key,required this.title,required this.url});
+
+  @override
+  State<InAppPdfReader> createState()=>_InAppPdfReaderState();
+}
+
+class _InAppPdfReaderState extends State<InAppPdfReader> {
+  late Future<PdfControllerPinch> _controllerFuture;
+  PdfControllerPinch? _controller;
+
+  @override
+  void initState(){
+    super.initState();
+    _controllerFuture=_loadPdf();
+  }
+
+  Future<PdfControllerPinch> _loadPdf() async {
+    final response=await http.get(Uri.parse(widget.url)).timeout(const Duration(seconds:45));
+    if(response.statusCode<200 || response.statusCode>=300){
+      throw Exception('PDF डाउनलोड नहीं हो सकी: '+response.statusCode.toString());
+    }
+    if(response.bodyBytes.isEmpty){
+      throw Exception('PDF फ़ाइल खाली है।');
+    }
+    final controller=PdfControllerPinch(document:PdfDocument.openData(response.bodyBytes));
+    _controller=controller;
+    return controller;
+  }
+
+  @override
+  void dispose(){
+    _controller?.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context){
+    return Scaffold(
+      appBar:AppBar(
+        title:Text(widget.title,maxLines:1,overflow:TextOverflow.ellipsis),
+        actions:[
+          IconButton(
+            tooltip:'पुनः लोड करें',
+            icon:const Icon(Icons.refresh),
+            onPressed:()=>setState(()=>_controllerFuture=_loadPdf()),
+          ),
+        ],
+      ),
+      body:FutureBuilder<PdfControllerPinch>(
+        future:_controllerFuture,
+        builder:(context,snapshot){
+          if(snapshot.connectionState==ConnectionState.waiting){
+            return const Center(child:Column(mainAxisSize:MainAxisSize.min,children:[
+              CircularProgressIndicator(),
+              SizedBox(height:14),
+              Text('पुस्तक खोली जा रही है…'),
+            ]));
+          }
+          if(snapshot.hasError){
+            return Center(child:Padding(
+              padding:const EdgeInsets.all(24),
+              child:Column(mainAxisSize:MainAxisSize.min,children:[
+                const Icon(Icons.picture_as_pdf_outlined,size:52,color:Color(0xFF79502B)),
+                const SizedBox(height:12),
+                const Text('PDF अभी नहीं खुल सकी। इंटरनेट कनेक्शन जाँचकर पुनः प्रयास करें।',textAlign:TextAlign.center),
+                const SizedBox(height:14),
+                ElevatedButton.icon(
+                  onPressed:()=>setState(()=>_controllerFuture=_loadPdf()),
+                  icon:const Icon(Icons.refresh),
+                  label:const Text('पुनः प्रयास करें'),
+                ),
+              ]),
+            ));
+          }
+          return PdfViewPinch(
+            controller:snapshot.data!,
+            builders:PdfViewPinchBuilders<DefaultBuilderOptions>(
+              options:const DefaultBuilderOptions(),
+              documentLoaderBuilder:(_)=>const Center(child:CircularProgressIndicator()),
+              pageLoaderBuilder:(_)=>const Center(child:CircularProgressIndicator()),
+              errorBuilder:(_,error)=>Center(child:Text('पेज लोड नहीं हो सका: '+error.toString(),textAlign:TextAlign.center)),
+            ),
+          );
+        },
+      ),
+    );
   }
 }
 
