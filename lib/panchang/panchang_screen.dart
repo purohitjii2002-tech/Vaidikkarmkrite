@@ -97,6 +97,20 @@ class _PanchangScreenState extends State<PanchangScreen> {
     }
 
     if (position == null) {
+      // Reuse the user's last selected location when GPS is unavailable/offline.
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        final lat = prefs.getDouble('panchang_last_latitude');
+        final lon = prefs.getDouble('panchang_last_longitude');
+        final savedCity = prefs.getString('panchang_last_city');
+        if (lat != null && lon != null) {
+          position = _positionAt(lat, lon);
+          city = savedCity?.isNotEmpty == true ? savedCity! : 'पिछला चुना हुआ स्थान';
+          _manualLocationSelected = true;
+        }
+      } catch (_) {}
+    }
+    if (position == null) {
       position = _positionAt(_ujjainLatitude, _ujjainLongitude);
       city = 'उज्जैन (मानक स्थान)';
     }
@@ -296,6 +310,10 @@ class _PanchangScreenState extends State<PanchangScreen> {
     final match = selected.location;
     final newPosition = _positionAt(match.latitude, match.longitude);
     if (!mounted) return;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble('panchang_last_latitude', match.latitude);
+    await prefs.setDouble('panchang_last_longitude', match.longitude);
+    await prefs.setString('panchang_last_city', selected.label);
     setState(() {
       position = newPosition;
       city = selected.label;
