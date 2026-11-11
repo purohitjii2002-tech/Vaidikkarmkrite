@@ -131,6 +131,103 @@ class PanchangEngine {
     return null;
   }
 
+  /// Sidereal Moon longitude (Lahiri), normalized to 0..360 degrees.
+  static double siderealMoonLongitude(DateTime instant) {
+    final utc = instant.toUtc();
+    final positions = tropicalLongitudes(utc);
+    return _norm(positions.moon - lahiriAyanamsha(utc));
+  }
+
+  /// Fast limb indices at an arbitrary instant, without calculating end times.
+  static Map<String, int> indicesAt(DateTime instant) {
+    final utc = instant.toUtc();
+    final positions = tropicalLongitudes(utc);
+    final ayanamsha = lahiriAyanamsha(utc);
+    final sun = _norm(positions.sun - ayanamsha);
+    final moon = _norm(positions.moon - ayanamsha);
+    final elongation = _norm(positions.moon - positions.sun);
+    return {
+      'tithi': (elongation / 12).floor(),
+      'karana': (elongation / 6).floor(),
+      'nakshatra': (moon / (360 / 27)).floor(),
+      'sunNakshatra': (sun / (360 / 27)).floor(),
+      'yoga': (_norm(sun + moon) / (360 / 27)).floor(),
+    };
+  }
+
+  /// Panchak: Moon's sidereal longitude from 300° (Dhanishtha pada 3)
+  /// through the end of Revati at 360°. Returns the active or next interval.
+  static ({DateTime start, DateTime end, bool active})? panchakWindow(DateTime instant) {
+    final now = instant.toUtc();
+    final from = now.subtract(const Duration(days: 8));
+    final to = now.add(const Duration(days: 8));
+    final starts = <DateTime>[];
+    final ends = <DateTime>[];
+    var previous = from;
+    var previousLon = siderealMoonLongitude(previous);
+
+    DateTime refine(DateTime lowStart, DateTime highStart, {required bool entering}) {
+      var low = lowStart;
+      var high = highStart;
+      for (var i = 0; i < 36; i++) {
+        final mid = low.add(Duration(microseconds:
+            high.difference(low).inMicroseconds ~/ 2));
+        final longitude = siderealMoonLongitude(mid);
+        if (entering) {
+          if (longitude >= 300.0) {
+            high = mid;
+          } else {
+            low = mid;
+          }
+        } else {
+          if (longitude >= 300.0) {
+            low = mid;
+          } else {
+            high = mid;
+          }
+        }
+      }
+      return high;
+    }
+
+    for (var cursor = from.add(const Duration(hours: 3));
+        !cursor.isAfter(to);
+        cursor = cursor.add(const Duration(hours: 3))) {
+      final longitude = siderealMoonLongitude(cursor);
+      if (previousLon < 300.0 && longitude >= 300.0) {
+        starts.add(refine(previous, cursor, entering: true));
+      }
+      if (previousLon >= 300.0 && longitude < 10.0) {
+        ends.add(refine(previous, cursor, entering: false));
+      }
+      previous = cursor;
+      previousLon = longitude;
+    }
+
+    DateTime? selectedStart;
+    for (final value in starts) {
+      if (!value.isAfter(now)) selectedStart = value;
+    }
+    if (selectedStart != null) {
+      for (final end in ends) {
+        if (end.isAfter(selectedStart)) {
+          return (start: selectedStart.toLocal(), end: end.toLocal(),
+            active: !now.isBefore(selectedStart) && now.isBefore(end));
+        }
+      }
+    }
+    for (final start in starts) {
+      if (start.isAfter(now)) {
+        for (final end in ends) {
+          if (end.isAfter(start)) {
+            return (start: start.toLocal(), end: end.toLocal(), active: false);
+          }
+        }
+      }
+    }
+    return null;
+  }
+
   static Map<String, dynamic> atSunrise(DateTime localSunrise) {
     final utc = localSunrise.toUtc();
     final positions = tropicalLongitudes(utc);
