@@ -1245,14 +1245,14 @@ class _InAppPdfReaderState extends State<InAppPdfReader> {
                   child:Row(
                     children:[
                       SizedBox(
-                        width:34,
-                        height:36,
+                        width:42,
+                        height:44,
                         child:IconButton(
                           tooltip:'पिछला पेज',
                           padding:EdgeInsets.zero,
-                          constraints:const BoxConstraints.tightFor(width:34,height:36),
+                          constraints:const BoxConstraints.tightFor(width:42,height:44),
                           onPressed:_currentPage>1 ? ()=>_jumpToPage(controller,_currentPage-1) : null,
-                          icon:const Icon(Icons.chevron_left,size:24),
+                          icon:const Icon(Icons.chevron_left,size:29),
                         ),
                       ),
                       Expanded(
@@ -1270,7 +1270,7 @@ class _InAppPdfReaderState extends State<InAppPdfReader> {
                                     borderRadius:BorderRadius.circular(7),
                                     onTap:()=>_jumpToPage(controller,page),
                                     child:Container(
-                                      height:34,
+                                      height:42,
                                       alignment:Alignment.center,
                                       decoration:BoxDecoration(
                                         borderRadius:BorderRadius.circular(7),
@@ -1283,7 +1283,7 @@ class _InAppPdfReaderState extends State<InAppPdfReader> {
                                         child:Text(
                                           '$page',
                                           style:TextStyle(
-                                            fontSize:12,
+                                            fontSize:13,
                                             fontWeight:isCurrent ? FontWeight.bold : FontWeight.w500,
                                             color:isCurrent ? Colors.white : const Color(0xFF563719),
                                           ),
@@ -1298,14 +1298,14 @@ class _InAppPdfReaderState extends State<InAppPdfReader> {
                         ),
                       ),
                       SizedBox(
-                        width:34,
-                        height:36,
+                        width:42,
+                        height:44,
                         child:IconButton(
                           tooltip:'अगला पेज',
                           padding:EdgeInsets.zero,
-                          constraints:const BoxConstraints.tightFor(width:34,height:36),
+                          constraints:const BoxConstraints.tightFor(width:42,height:44),
                           onPressed:_totalPages>0 && _currentPage<_totalPages ? ()=>_jumpToPage(controller,_currentPage+1) : null,
-                          icon:const Icon(Icons.chevron_right,size:24),
+                          icon:const Icon(Icons.chevron_right,size:29),
                         ),
                       ),
                     ],
