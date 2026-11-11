@@ -504,7 +504,7 @@ class _PanchangScreenState extends State<PanchangScreen> {
       ];
     }
     final southName = 'पराभव';
-    final northName = date.isBefore(northStart) || !date.isBefore(nextNorth) ? 'पिछला/अगला वर्ष' : 'रौद्र';
+    final northName = date.isBefore(northStart) ? 'पूर्व चक्र (मिलान शेष)' : date.isBefore(nextNorth) ? 'रौद्र' : 'अगला चक्र (मिलान शेष)';
     return [
       _detailRow('बार्हस्पत्य संवत्सर (उत्तर)', northName, alternate: true),
       _detailRow('बार्हस्पत्य संवत्सर (दक्षिण)', southName),
