@@ -466,6 +466,27 @@ class _PanchangScreenState extends State<PanchangScreen> {
       Expanded(flex: 6, child: Text(value, style: const TextStyle(fontSize: 14, color: Color(0xFF286342), fontWeight: FontWeight.w600))),
     ]),
   );
+  List<Widget> _vasaRows(Map<String, dynamic> d) {
+    final tithiNumber = (d['tithiNumber'] as num?)?.toInt() ?? 1;
+    // DateTime: Monday=1 ... Sunday=7; traditional count is Sunday=1.
+    final weekdaySundayOne = selectedDate.weekday % 7 + 1;
+    final shiva = PanchangEngine.shivaVasa(tithiNumber);
+    final agni = PanchangEngine.agniVasa(tithiNumber, weekdaySundayOne);
+    return [
+      _detailRow('शिव वास', shiva['place']!, alternate: true),
+      _detailRow('शिव वास फल', shiva['result']!),
+      _detailRow('अग्नि वास', agni['place']!, alternate: true),
+      _detailRow('अग्नि वास फल', agni['result']!),
+      _detailRow('गणना आधार', 'तिथि ${d['tithiNumber']} • वार क्रमांक $weekdaySundayOne', alternate: true),
+      const Padding(
+        padding: EdgeInsets.only(top: 8),
+        child: Text(
+          'ये पारंपरिक मुहूर्त-संकेत हैं। तिथि बदलने पर शिव वास और अग्नि वास भी बदलेंगे; हवन/रुद्राभिषेक का अंतिम मुहूर्त स्थानीय पंचांग एवं कुल-परंपरा से मिलाएँ।',
+          style: TextStyle(fontSize: 11, color: Color(0xFF705333)),
+        ),
+      ),
+    ];
+  }
   List<Widget> _dayPanchangDetails() {
     final d = data!;
     final dayLength = sunrise != null && sunset != null ? sunset!.difference(sunrise!) : Duration.zero;
@@ -484,6 +505,9 @@ class _PanchangScreenState extends State<PanchangScreen> {
         _detailRow('नक्षत्र समाप्ति', _time(d['nakshatraEnd'] as DateTime?), alternate: true),
         _detailRow('योग समाप्ति', _time(d['yogaEnd'] as DateTime?)),
         _detailRow('करण समाप्ति', _time(d['karanaEnd'] as DateTime?), alternate: true),
+      ]),
+      _detailCard('शिव वास एवं अग्नि वास', Icons.local_fire_department, [
+        ..._vasaRows(d),
       ]),
       _detailCard('मास, राशि, ऋतु एवं अयन', Icons.public, [
         _detailRow('माह (अमांत)', 'चंद्र मास गणना सत्यापनाधीन', alternate: true),
