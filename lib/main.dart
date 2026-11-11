@@ -11,6 +11,7 @@ import 'package:http/http.dart' as http;
 import 'package:pdfx/pdfx.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:crypto/crypto.dart';
+import 'package:audioplayers/audioplayers.dart';
 import 'panchang/panchang_screen.dart';
 
 Future<void> main() async {
@@ -672,7 +673,7 @@ class _ModuleScreenState extends State<ModuleScreen> {
     final response = await Supabase.instance.client
         .from('content_items')
         .select(
-          'id, title, title_hi, title_en, description, body, type',
+          'id, title, title_hi, title_en, description, body, type, media_url, media_type, media_name',
         )
         .eq('category_id', widget.module.id)
         .eq('is_active', true)
@@ -701,6 +702,8 @@ class _ModuleScreenState extends State<ModuleScreen> {
           title: getTitle(item),
           content: (item['body'] ?? '').toString(),
           description: (item['description'] ?? '').toString(),
+          mediaUrl: (item['media_url'] ?? '').toString(),
+          mediaType: (item['media_type'] ?? '').toString(),
         ),
       ),
     );
@@ -866,30 +869,93 @@ class SavedStore {
 
 class ContentDetailScreen extends StatefulWidget {
   final String title, content, description;
-  const ContentDetailScreen({super.key, required this.title, required this.content, required this.description});
+  final String mediaUrl, mediaType;
+  const ContentDetailScreen({
+    super.key, required this.title, required this.content, required this.description,
+    this.mediaUrl = '', this.mediaType = '',
+  });
   @override
   State<ContentDetailScreen> createState() => _ContentDetailScreenState();
 }
+
 class _ContentDetailScreenState extends State<ContentDetailScreen> {
   bool saved = false;
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  PlayerState _playerState = PlayerState.stopped;
+  Duration _position = Duration.zero;
+  Duration _duration = Duration.zero;
+
   @override
-  void initState() { super.initState(); SavedStore.has(widget.title).then((v) { if (mounted) setState(() => saved = v); }); }
+  void initState() {
+    super.initState();
+    SavedStore.has(widget.title).then((v) { if (mounted) setState(() => saved = v); });
+    _audioPlayer.onPlayerStateChanged.listen((v) { if (mounted) setState(() => _playerState = v); });
+    _audioPlayer.onDurationChanged.listen((v) { if (mounted) setState(() => _duration = v); });
+    _audioPlayer.onPositionChanged.listen((v) { if (mounted) setState(() => _position = v); });
+  }
+
   Future<void> toggle() async {
-    await SavedStore.toggle({'title':widget.title,'body':widget.content,'description':widget.description,'_remove':saved});
+    await SavedStore.toggle({'title': widget.title, 'body': widget.content,
+      'description': widget.description, '_remove': saved});
     if (!mounted) return;
     setState(() => saved = !saved);
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(saved ? 'सहेज दिया गया।' : 'सहेजी गई सामग्री से हटाया गया।')));
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(saved ? 'सहेज दिया गया।' : 'सहेजी गई सामग्री से हटाया गया।')));
   }
+
+  Future<void> playPause() async {
+    if (_playerState == PlayerState.playing) {
+      await _audioPlayer.pause();
+    } else if (widget.mediaUrl.isNotEmpty) {
+      await _audioPlayer.play(UrlSource(widget.mediaUrl));
+    }
+  }
+
+  @override
+  void dispose() {
+    _audioPlayer.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(title: Text(widget.title, maxLines: 1, overflow: TextOverflow.ellipsis),
       actions: [IconButton(onPressed: toggle, icon: Icon(saved ? Icons.bookmark : Icons.bookmark_border))]),
-    body: SingleChildScrollView(padding: const EdgeInsets.all(20), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text(widget.title, style: const TextStyle(fontSize:23,fontWeight:FontWeight.bold,color:Color(0xFF563719))),
-      if (widget.description.isNotEmpty) ...[const SizedBox(height:12), Text(widget.description,style:const TextStyle(fontSize:16,color:Colors.black54))],
-      const SizedBox(height:20),
-      SelectableText(widget.content.isEmpty ? 'इस विषय की विस्तृत सामग्री शीघ्र उपलब्ध होगी।' : widget.content,style:const TextStyle(fontSize:17,height:1.8))
-    ]))
+    body: SingleChildScrollView(padding: const EdgeInsets.all(20), child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text(widget.title, style: const TextStyle(fontSize: 23, fontWeight: FontWeight.bold, color: Color(0xFF563719))),
+        if (widget.description.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          Text(widget.description, style: const TextStyle(fontSize: 16, color: Colors.black54)),
+        ],
+        if (widget.mediaType == 'image' && widget.mediaUrl.isNotEmpty) ...[
+          const SizedBox(height: 18),
+          ClipRRect(borderRadius: BorderRadius.circular(14),
+            child: Image.network(widget.mediaUrl, width: double.infinity, fit: BoxFit.contain,
+              errorBuilder: (_, __, ___) => const Padding(
+                padding: EdgeInsets.all(20), child: Text('फोटो लोड नहीं हो सकी।')))),
+        ],
+        if (widget.mediaType == 'audio' && widget.mediaUrl.isNotEmpty) ...[
+          const SizedBox(height: 18),
+          Card(child: Padding(padding: const EdgeInsets.all(12), child: Row(children: [
+            IconButton(iconSize: 38, onPressed: playPause,
+              icon: Icon(_playerState == PlayerState.playing ? Icons.pause_circle : Icons.play_circle)),
+            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text('ऑडियो सुनें', style: const TextStyle(fontWeight: FontWeight.bold)),
+              Slider(value: _duration.inMilliseconds == 0 ? 0 :
+                _position.inMilliseconds.clamp(0, _duration.inMilliseconds).toDouble(),
+                max: _duration.inMilliseconds == 0 ? 1 : _duration.inMilliseconds.toDouble(),
+                onChanged: _duration.inMilliseconds == 0 ? null :
+                  (v) => _audioPlayer.seek(Duration(milliseconds: v.round()))),
+              Text('${_position.inSeconds} / ${_duration.inSeconds} सेकंड'),
+            ])),
+          ]))),
+        ],
+        const SizedBox(height: 20),
+        SelectableText(widget.content.isEmpty ? 'इस विषय की विस्तृत सामग्री शीघ्र उपलब्ध होगी।' : widget.content,
+          style: const TextStyle(fontSize: 17, height: 1.8)),
+      ],
+    )),
   );
 }
 
