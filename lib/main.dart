@@ -1,6 +1,7 @@
 
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -1016,8 +1017,8 @@ class BrandMark extends StatelessWidget {
       children: [
         ClipRRect(
           borderRadius: BorderRadius.circular(8),
-          child: Image.asset(
-            'assets/images/karmkrite logo.png.jpg',
+          child: SvgPicture.asset(
+            'assets/images/karmkrite_logo.svg',
             width: 38,
             height: 38,
             fit: BoxFit.contain,
