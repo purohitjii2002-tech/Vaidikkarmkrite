@@ -1,7 +1,9 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
+import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'panchang_engine.dart';
 
@@ -101,6 +103,67 @@ class _PanchangScreenState extends State<PanchangScreen> {
     if (mounted) setState(() { loading = false; error = null; });
   }
 
+  Future<List<({Location location, String label})>> _searchGlobalPlaces(
+    String query,
+  ) async {
+    // Photon uses OpenStreetMap data and supports worldwide place search.
+    // Search in both Hindi and English so either script can find mapped places.
+    final results = <({Location location, String label})>[];
+    final seen = <String>{};
+    for (final language in ['hi', 'en']) {
+      final uri = Uri.https('photon.komoot.io', '/api/', {
+        'q': query,
+        'limit': '8',
+        'lang': language,
+      });
+      final response = await http.get(
+        uri,
+        headers: const {'User-Agent': 'VaidikKarmkrite/1.0 (Panchang location search)'},
+      ).timeout(const Duration(seconds: 12));
+      if (response.statusCode != 200) {
+        throw Exception('Place search service unavailable');
+      }
+      final decoded = jsonDecode(response.body) as Map<String, dynamic>;
+      final features = (decoded['features'] as List<dynamic>? ?? []);
+      for (final feature in features) {
+        final item = feature as Map<String, dynamic>;
+        final geometry = item['geometry'] as Map<String, dynamic>?;
+        final coordinates = geometry?['coordinates'] as List<dynamic>?;
+        final properties = item['properties'] as Map<String, dynamic>? ?? {};
+        if (coordinates == null || coordinates.length < 2) continue;
+        final longitude = (coordinates[0] as num).toDouble();
+        final latitude = (coordinates[1] as num).toDouble();
+        final key = '${latitude.toStringAsFixed(4)},${longitude.toStringAsFixed(4)}';
+        if (!seen.add(key)) continue;
+
+        String value(String key) => (properties[key] ?? '').toString().trim();
+        final name = value('name').isNotEmpty
+            ? value('name')
+            : (value('city').isNotEmpty ? value('city') : query);
+        final parts = <String>[
+          name,
+          value('district').isNotEmpty ? value('district') : value('county'),
+          value('state'),
+          value('country'),
+        ].where((part) => part.trim().isNotEmpty).toSet().toList();
+        final category = value('type').isNotEmpty ? value('type') : value('osm_value');
+        final label = [
+          parts.join(', '),
+          if (category.isNotEmpty) category,
+        ].join(' · ');
+        results.add((
+          location: Location(
+            latitude: latitude,
+            longitude: longitude,
+            timestamp: DateTime.now(),
+          ),
+          label: label,
+        ));
+      }
+    }
+    return results;
+  }
+
   Future<void> _chooseLocation() async {
     final controller = TextEditingController();
     Timer? searchTimer;
@@ -146,35 +209,7 @@ class _PanchangScreenState extends State<PanchangScreen> {
                     });
                     searchTimer = Timer(const Duration(milliseconds: 550), () async {
                       try {
-                        // Uses the device geocoder to find settlements and administrative areas.
-                        final matches = await locationFromAddress(query);
-                        final found = <({Location location, String label})>[];
-                        final seen = <String>{};
-                        for (final match in matches.take(8)) {
-                          var label = query;
-                          try {
-                            final marks = await placemarkFromCoordinates(
-                              match.latitude, match.longitude,
-                            );
-                            if (marks.isNotEmpty) {
-                              final p = marks.first;
-                              final parts = [
-                                p.name, p.subLocality, p.locality,
-                                p.subAdministrativeArea, p.administrativeArea,
-                                p.country,
-                              ].where((x) => x != null && x.trim().isNotEmpty)
-                               .map((x) => x!.trim()).toList();
-                              if (parts.isNotEmpty) {
-                                label = parts.toSet().join(', ');
-                              }
-                            }
-                          } catch (_) {
-                            // Keep the searched text if reverse geocoding is unavailable.
-                          }
-                          final key = '${match.latitude.toStringAsFixed(4)},'
-                              '${match.longitude.toStringAsFixed(4)}';
-                          if (seen.add(key)) found.add((location: match, label: label));
-                        }
+                        final found = await _searchGlobalPlaces(query);
                         if (!dialogContext.mounted || thisRequest != requestNumber) return;
                         setDialogState(() {
                           suggestions = found;
