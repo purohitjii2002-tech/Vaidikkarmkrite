@@ -1604,29 +1604,44 @@ class _MuhuratListScreenState extends State<MuhuratListScreen> {
   void initState() { super.initState(); future = loadMuhurats(); }
 
   Future<List<Map<String, dynamic>>> loadMuhurats() async {
-    final rows = await Supabase.instance.client.from('muhurats')
-      .select('id, category, title_hi, title_en, muhurat_date, start_time, end_time, location, description, special_notes')
-      .eq('is_active', true)
-      .order('muhurat_date', ascending: true)
-      .order('start_time', ascending: true)
-      .order('sort_order', ascending: true);
-    final result = List<Map<String, dynamic>>.from(rows);
-    // Sort again by parsed calendar date so ordering stays chronological
-    // even if a backend date value is returned in a different string format.
-    result.sort((a, b) {
-      final da = DateTime.tryParse((a['muhurat_date'] ?? '').toString());
-      final db = DateTime.tryParse((b['muhurat_date'] ?? '').toString());
-      if (da == null && db == null) return 0;
-      if (da == null) return 1;
-      if (db == null) return -1;
-      final dateCompare = DateTime(da.year, da.month, da.day)
-          .compareTo(DateTime(db.year, db.month, db.day));
-      if (dateCompare != 0) return dateCompare;
-      final ta = (a['start_time'] ?? '').toString();
-      final tb = (b['start_time'] ?? '').toString();
-      return ta.compareTo(tb);
-    });
-    return result;
+    final prefs = await SharedPreferences.getInstance();
+    const cacheKey = 'cached_special_muhurats_v1';
+    List<Map<String, dynamic>> sortRows(List<Map<String, dynamic>> result) {
+      result.sort((a, b) {
+        final da = DateTime.tryParse((a['muhurat_date'] ?? '').toString());
+        final db = DateTime.tryParse((b['muhurat_date'] ?? '').toString());
+        if (da == null && db == null) return 0;
+        if (da == null) return 1;
+        if (db == null) return -1;
+        final dateCompare = DateTime(da.year, da.month, da.day)
+            .compareTo(DateTime(db.year, db.month, db.day));
+        if (dateCompare != 0) return dateCompare;
+        return (a['start_time'] ?? '').toString()
+            .compareTo((b['start_time'] ?? '').toString());
+      });
+      return result;
+    }
+    try {
+      final rows = await Supabase.instance.client.from('muhurats')
+        .select('id, category, title_hi, title_en, muhurat_date, start_time, end_time, location, description, special_notes')
+        .eq('is_active', true)
+        .order('muhurat_date', ascending: true)
+        .order('start_time', ascending: true)
+        .order('sort_order', ascending: true);
+      final result = sortRows(List<Map<String, dynamic>>.from(rows));
+      await prefs.setString(cacheKey, jsonEncode(result));
+      return result;
+    } catch (error) {
+      debugPrint('KARMKRITE MUHURAT OFFLINE FALLBACK: $error');
+      final cached = prefs.getString(cacheKey);
+      if (cached != null && cached.isNotEmpty) {
+        return sortRows(List<Map<String, dynamic>>.from(
+          (jsonDecode(cached) as List)
+              .map((x) => Map<String, dynamic>.from(x as Map)),
+        ));
+      }
+      return [];
+    }
   }
 
   String dateKey(dynamic value) {
