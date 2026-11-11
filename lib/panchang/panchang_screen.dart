@@ -1049,6 +1049,15 @@ class _PanchangScreenState extends State<PanchangScreen> {
         final lagnaRows = _lagnaRows();
         return [
           _sectionHeading('लग्न समय-सारणी', Icons.auto_awesome),
+          if (lagnaRows.isEmpty)
+            const Card(child: Padding(padding: EdgeInsets.all(16),
+              child: Text('इस स्थान और तारीख के लिए लग्न समय-सारणी उपलब्ध नहीं है।')))
+          else
+            Card(color: Colors.white, child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(children: List.generate(lagnaRows.length, (i) =>
+                _detailRow(lagnaRows[i]['name']!, lagnaRows[i]['time']!, alternate: i.isEven))),
+            )),
           Card(color: const Color(0xFFFFF7E8), child: Padding(
             padding: const EdgeInsets.all(16),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: const [
@@ -1063,15 +1072,6 @@ class _PanchangScreenState extends State<PanchangScreen> {
                 style: TextStyle(fontSize: 12, color: Color(0xFF705333))),
             ]),
           )),
-          if (lagnaRows.isEmpty)
-            const Card(child: Padding(padding: EdgeInsets.all(16),
-              child: Text('इस स्थान और तारीख के लिए लग्न समय-सारणी उपलब्ध नहीं है।')))
-          else
-            Card(color: Colors.white, child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: Column(children: List.generate(lagnaRows.length, (i) =>
-                _detailRow(lagnaRows[i]['name']!, lagnaRows[i]['time']!, alternate: i.isEven))),
-            )),
         ];
       default:
         return [];
