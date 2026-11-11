@@ -277,7 +277,7 @@ class _PanchangScreenState extends State<PanchangScreen> {
     final isEvening=!_liveNow.isBefore(todaySet);
     final start=isDay?todayRise:(isEvening?todaySet:prevSet);
     final end=isDay?todaySet:(isEvening?nextRise:todayRise);
-    final weekday=(isDay?today:prev).weekday%7;
+    final weekday=(!isDay&&!isEvening?prev:today).weekday%7;
     const dayStarts=['उद्वेग','अमृत','रोग','लाभ','शुभ','चर','काल'];
     const nightStarts=['शुभ','अमृत','चर','रोग','काल','लाभ','उद्वेग'];
     const cycle=['उद्वेग','चर','लाभ','अमृत','काल','शुभ','रोग'];
@@ -311,7 +311,7 @@ class _PanchangScreenState extends State<PanchangScreen> {
     final nightEnd=isDay?next:(isEvening?next:rise);
     const planets=['शनि','गुरु','मंगल','सूर्य','शुक्र','बुध','चन्द्र'];
     const lords=['सूर्य','चन्द्र','मंगल','बुध','गुरु','शुक्र','शनि'];
-    final weekday=(isEvening||!isDay?prev:today).weekday%7;
+    final weekday=(!isDay&&!isEvening?prev:today).weekday%7;
     final first=planets.indexOf(lords[weekday]);
     final inDay=isDay;
     final start=inDay?dayStart:nightStart;
