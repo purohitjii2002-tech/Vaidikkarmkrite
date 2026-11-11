@@ -880,8 +880,6 @@ class _PanchangScreenState extends State<PanchangScreen> {
                           ]),
                         ]),
                       ),
-                      const SizedBox(height: 8),
-                      _liveDashboard(),
                       const SizedBox(height: 10),
                       _mainCategoryTabs(),
                       const SizedBox(height: 12),
@@ -928,32 +926,30 @@ class _PanchangScreenState extends State<PanchangScreen> {
 
   static const _muhuratTabLabels = ['दिन', 'मुहूर्त', 'चौघड़िया', 'होरा', 'लग्न'];
 
-  Widget _muhuratTabs() => Container(
-    padding: const EdgeInsets.all(5),
-    decoration: BoxDecoration(
-      color: const Color(0xFFFFF7E8),
-      borderRadius: BorderRadius.circular(14),
-      border: Border.all(color: const Color(0xFFE9D8B9)),
-    ),
+  Widget _muhuratTabs() => SingleChildScrollView(
+    scrollDirection: Axis.horizontal,
     child: Row(
-      children: List.generate(_muhuratTabLabels.length, (index) => Expanded(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 2),
-          child: InkWell(
-            borderRadius: BorderRadius.circular(10),
-            onTap: () => setState(() => selectedMuhuratTab = index),
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 180),
-              padding: const EdgeInsets.symmetric(vertical: 11, horizontal: 2),
-              decoration: BoxDecoration(
-                color: selectedMuhuratTab == index ? const Color(0xFF8B5E32) : Colors.transparent,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Text(_muhuratTabLabels[index], textAlign: TextAlign.center,
-                maxLines: 1, overflow: TextOverflow.ellipsis,
-                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700,
-                  color: selectedMuhuratTab == index ? Colors.white : const Color(0xFF684521))),
+      children: List.generate(_muhuratTabLabels.length, (index) => Padding(
+        padding: const EdgeInsets.only(right: 8),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(22),
+          onTap: () => setState(() => selectedMuhuratTab = index),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 180),
+            constraints: const BoxConstraints(minWidth: 82),
+            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+            decoration: BoxDecoration(
+              color: selectedMuhuratTab == index
+                  ? const Color(0xFF285744) : Colors.white,
+              borderRadius: BorderRadius.circular(22),
+              border: Border.all(
+                color: selectedMuhuratTab == index
+                    ? const Color(0xFF285744) : const Color(0xFFE4D7C5)),
             ),
+            child: Text(_muhuratTabLabels[index], textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700,
+                color: selectedMuhuratTab == index
+                    ? Colors.white : const Color(0xFF684521))),
           ),
         ),
       )),
@@ -1570,10 +1566,6 @@ class _PanchangScreenState extends State<PanchangScreen> {
         _detailRow('लग्न', _lagnaLabel(), alternate: true),
         _detailRow('सूर्य नक्षत्र', _sunNakshatra()),
         _detailRow('चंद्र नक्षत्र', '${d['nakshatra'] ?? '—'}', alternate: true),
-      ]),
-      _detailCard('पद, चरण', Icons.auto_awesome, [
-        _detailRow('चंद्र नक्षत्र चरण', '${d['nakshatra'] ?? '—'} — चरण ${d['nakshatraPada'] ?? '—'}', alternate: true),
-        _detailRow('चरण गणना', 'प्रत्येक नक्षत्र के 3°20′ खंड के आधार पर'),
       ]),
       _detailCard('शिव वास एवं अग्नि वास', Icons.local_fire_department, [..._vasaRows(d)]),
       Card(color: const Color(0xFFFFF4E5), child: const Padding(
