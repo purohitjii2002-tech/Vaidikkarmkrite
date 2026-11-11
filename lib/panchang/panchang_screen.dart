@@ -1637,6 +1637,20 @@ class _PanchangScreenState extends State<PanchangScreen> {
     ]);
   }
 
+  Widget _lagnaTimeCard() {
+    final rows = _lagnaRows();
+    return _detailCard('लग्न समय-सारणी', Icons.auto_awesome, [
+      _detailRow('सूर्योदय का लग्न', _lagnaLabel(), alternate: true),
+      _detailRow('सूर्य नक्षत्र', _sunNakshatra()),
+      _detailRow('चंद्र नक्षत्र', "${data?['nakshatra'] ?? '—'}", alternate: true),
+      if (rows.isEmpty)
+        _detailRow('समय-सारणी', 'इस स्थान और तारीख के लिए उपलब्ध नहीं')
+      else
+        ...rows.asMap().entries.map((entry) => _detailRow(
+          entry.value['name']!, entry.value['time']!, alternate: entry.key.isEven)),
+    ]);
+  }
+
   List<Widget> _dayPanchangDetails() {
     final d = data!;
     final nextSunrise = PanchangEngine.solarEvent(
@@ -1652,10 +1666,12 @@ class _PanchangScreenState extends State<PanchangScreen> {
     final yogaEnd = d['yogaEnd'] as DateTime?;
     final karanaEnd = d['karanaEnd'] as DateTime?;
     return [
+      // 1. Live Panchang is shown first for the current local date.
       if (selectedDate.year == _liveNow.year &&
           selectedDate.month == _liveNow.month &&
           selectedDate.day == _liveNow.day)
         _liveDashboard(),
+      // 2. Main Panchang.
       _detailCard('पंचांग', Icons.calendar_month, [
         _detailRow('तिथि', '${d['tithi'] ?? '—'}  •  ${_time(tithiEnd)}', alternate: true, compact: true),
         _detailRow('पक्ष', '${d['paksha'] ?? '—'}', compact: true),
@@ -1664,17 +1680,7 @@ class _PanchangScreenState extends State<PanchangScreen> {
         _detailRow('करण', '${d['karana'] ?? '—'}  •  ${_time(karanaEnd)}', alternate: true, compact: true),
         _detailRow('वार', _weekday(selectedDate), compact: true),
       ]),
-      _detailCard('सूर्योदय एवं दिनमान', Icons.wb_sunny, [
-        _detailRow('स्थान', city, alternate: true),
-        _detailRow('सूर्योदय', _time(sunrise)),
-        _detailRow('सूर्यास्त', _time(sunset), alternate: true),
-        _detailRow('दिन की अवधि', _detailDuration(dayLength)),
-        _detailRow('रात की अवधि', _detailDuration(nightLength), alternate: true),
-        _detailRow('चंद्रोदय', _time(moonrise)),
-        _detailRow('चंद्रास्त', _time(moonset), alternate: true),
-      ]),
-      ..._specialYogaCards(),
-      _panchakCard(),
+      // 3. Month, rashi, season and ayana.
       _detailCard('मास, राशि, ऋतु एवं अयन', Icons.public, [
         _detailRow('माह (अमांत)', lunarMonths['amanta'] ?? '—', alternate: true),
         _detailRow('माह (पूर्णिमांत)', lunarMonths['purnimanta'] ?? '—'),
@@ -1684,23 +1690,36 @@ class _PanchangScreenState extends State<PanchangScreen> {
         _detailRow('अयन', _ayana()),
         _detailRow('सौर प्रविष्टि', '${_rashi(_siderealSun())} राशि', alternate: true),
       ]),
-      _detailCard('संवत्सर एवं संवत', Icons.history, [
+      // 4. Samvatsara and Samvat.
+      _detailCard('संवत्सर एवं संवत्', Icons.history, [
         ..._samvatsaraRows(),
         _detailRow('लाहिड़ी अयनांश', '${(d['ayanamsha'] as num).toStringAsFixed(4)}°', alternate: true),
       ]),
-      _detailCard('सूर्योदय का लग्न एवं नक्षत्र', Icons.wb_twilight, [
-        _detailRow('लग्न', _lagnaLabel(), alternate: true),
-        _detailRow('सूर्य नक्षत्र', _sunNakshatra()),
-        _detailRow('चंद्र नक्षत्र', '${d['nakshatra'] ?? '—'}', alternate: true),
+      // 5. Sunrise, sunset and day length.
+      _detailCard('सूर्योदय एवं दिनमान', Icons.wb_sunny, [
+        _detailRow('स्थान', city, alternate: true),
+        _detailRow('सूर्योदय', _time(sunrise)),
+        _detailRow('सूर्यास्त', _time(sunset), alternate: true),
+        _detailRow('दिन की अवधि', _detailDuration(dayLength)),
+        _detailRow('रात की अवधि', _detailDuration(nightLength), alternate: true),
+        _detailRow('चंद्रोदय', _time(moonrise)),
+        _detailRow('चंद्रास्त', _time(moonset), alternate: true),
       ]),
-      _detailCard('शिव वास एवं अग्नि वास', Icons.local_fire_department, [..._vasaRows(d)]),
+      // 6. Complete ascendant time table.
+      _lagnaTimeCard(),
+      // 7. Panchak and other important details.
+      _panchakCard(),
+      _bhadraCard(),
       Card(color: const Color(0xFFFFF4E5), child: const Padding(
         padding: EdgeInsets.all(12),
         child: Text('गणना स्रोत: Meeus आधारित खगोलीय गणना (Astronomia) तथा IMD राष्ट्रीय पंचांग से संदर्भ सत्यापन। अमांत/पूर्णिमांत मास, संवत्सर और चरण-सीमाओं को प्रकाशित करने से पहले संदर्भ पंचांग से मिलान आवश्यक है。',
           style: TextStyle(fontSize: 12, color: Color(0xFF705333)),
         ),
       )),
-      _bhadraCard(),
+      // 8. Shiva residence and Agni residence.
+      _detailCard('शिव वास एवं अग्नि वास', Icons.local_fire_department, [..._vasaRows(d)]),
+      // 9. Auspicious and inauspicious yogas stay at the end.
+      ..._specialYogaCards(),
     ];
   }
 
