@@ -1435,53 +1435,75 @@ class _PanchangScreenState extends State<PanchangScreen> {
     );
     if (nextSunrise == null || !nextSunrise.isAfter(sunrise!)) return [];
 
-    bool isVishti(DateTime instant) =>
-        PanchangEngine.indicesAt(instant)['karana'] == 6;
+    // A Bhadra period may begin before sunrise or end after the next
+    // sunrise. Scan beyond both edges so the card reports the real
+    // Vishti boundaries rather than clipping them to the Panchang day.
+    int signatureAt(DateTime instant) {
+      final limb = PanchangEngine.indicesAt(instant);
+      if (limb['karana'] != 6) return -1;
+      return (PanchangEngine.siderealMoonLongitude(instant) / 30).floor() % 12;
+    }
 
-    DateTime refine(DateTime low, DateTime high, bool entering) {
-      for (var i = 0; i < 24; i++) {
+    DateTime refine(DateTime low, DateTime high, int oldSignature) {
+      for (var i = 0; i < 32; i++) {
         final mid = low.add(Duration(
           microseconds: high.difference(low).inMicroseconds ~/ 2));
-        if (isVishti(mid) == entering) {
-          high = mid;
-        } else {
+        if (signatureAt(mid) == oldSignature) {
           low = mid;
+        } else {
+          high = mid;
         }
       }
       return high;
     }
 
+    const signs = ['मेष','वृषभ','मिथुन','कर्क','सिंह','कन्या',
+      'तुला','वृश्चिक','धनु','मकर','कुंभ','मीन'];
+    String residence(int sign) {
+      if ([0, 1, 2, 7].contains(sign)) return 'स्वर्ग लोक';
+      if ([5, 6, 8, 9].contains(sign)) return 'पाताल लोक';
+      return 'पृथ्वी लोक';
+    }
+
+    final scanStart = sunrise!.subtract(const Duration(hours: 14));
+    final scanEnd = nextSunrise.add(const Duration(hours: 14));
     final rows = <Map<String, String>>[];
-    var cursor = sunrise!;
-    var previous = isVishti(cursor);
-    DateTime? activeStart = previous ? cursor : null;
-    var previousTime = cursor;
-    while (cursor.isBefore(nextSunrise)) {
-      final next = cursor.add(const Duration(minutes: 1)).isAfter(nextSunrise)
-          ? nextSunrise : cursor.add(const Duration(minutes: 1));
-      final current = isVishti(next);
+    var segmentStart = scanStart;
+    var previousTime = scanStart;
+    var previous = signatureAt(scanStart);
+    var cursor = scanStart;
+    while (cursor.isBefore(scanEnd)) {
+      final next = cursor.add(const Duration(minutes: 1)).isAfter(scanEnd)
+          ? scanEnd : cursor.add(const Duration(minutes: 1));
+      final current = signatureAt(next);
       if (current != previous) {
-        final boundary = refine(previousTime, next, current);
-        if (previous) {
+        final boundary = refine(previousTime, next, previous);
+        if (previous >= 0 &&
+            boundary.isAfter(sunrise!) &&
+            segmentStart.isBefore(nextSunrise)) {
           rows.add({
-            'start': _time(activeStart ?? sunrise),
-            'end': _time(boundary),
-            'startNote': activeStart == sunrise ? 'सूर्योदय पर भद्रा जारी' : '',
+            'start': _date(segmentStart) + ' ' + _time(segmentStart),
+            'end': _date(boundary) + ' ' + _time(boundary),
+            'sign': signs[previous],
+            'residence': residence(previous),
+            'kind': residence(previous) == 'पृथ्वी लोक' ? 'अशुभ' : 'अन्य लोक',
           });
-          activeStart = null;
-        } else {
-          activeStart = boundary;
         }
+        segmentStart = boundary;
       }
       previous = current;
       previousTime = next;
       cursor = next;
     }
-    if (previous) {
+    if (previous >= 0 &&
+        scanEnd.isAfter(sunrise!) &&
+        segmentStart.isBefore(nextSunrise)) {
       rows.add({
-        'start': _time(activeStart ?? sunrise),
-        'end': _time(nextSunrise),
-        'startNote': activeStart == sunrise ? 'सूर्योदय पर भद्रा जारी' : '',
+        'start': _date(segmentStart) + ' ' + _time(segmentStart),
+        'end': _date(scanEnd) + ' ' + _time(scanEnd),
+        'sign': signs[previous],
+        'residence': residence(previous),
+        'kind': residence(previous) == 'पृथ्वी लोक' ? 'अशुभ' : 'अन्य लोक',
       });
     }
     return rows;
@@ -1489,23 +1511,36 @@ class _PanchangScreenState extends State<PanchangScreen> {
 
   Widget _bhadraCard() {
     final windows = _bhadraWindows();
+    final earthActive = windows.any((w) => w['kind'] == 'अशुभ');
     return _detailCard('भद्रा (विष्टि करण)', Icons.warning_amber_rounded, [
-      _detailRow('स्थिति', windows.isEmpty ? 'आज सूर्योदय से अगले सूर्योदय तक भद्रा नहीं' :
-          'इस दिन भद्रा काल है', alternate: true),
+      _detailRow('स्थिति', windows.isEmpty ? 'इस पंचांग-दिन में भद्रा नहीं' :
+          earthActive ? 'भद्रा पृथ्वी लोक में भी रहेगी' :
+          'भद्रा है, पर गणना अनुसार स्वर्ग / पाताल लोक में', alternate: true),
       if (windows.isEmpty)
         _detailRow('भद्रा काल', 'नहीं है')
       else
-        ...windows.map((window) => _detailRow(
-          'भद्रा काल',
-          '${window['start']} – ${window['end']}' +
-              ((window['startNote'] ?? '').isNotEmpty
-                  ? '  (${window['startNote']})' : ''),
-          alternate: true,
+        ...windows.map((window) => Container(
+          margin: const EdgeInsets.symmetric(vertical: 3),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+          decoration: BoxDecoration(
+            color: window['kind'] == 'अशुभ'
+                ? const Color(0xFFFFEFEC) : const Color(0xFFEAF6ED),
+            borderRadius: BorderRadius.circular(9),
+          ),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text('${window['start']} से ${window['end']}',
+              style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
+            const SizedBox(height: 3),
+            Text('चंद्र राशि: ${window['sign']}  •  भद्रा निवास: ${window['residence']}',
+              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600,
+                color: window['kind'] == 'अशुभ'
+                  ? const Color(0xFFB3261E) : const Color(0xFF176B43))),
+          ]),
         )),
       const Padding(
         padding: EdgeInsets.only(top: 6),
         child: Text(
-          'भद्रा का निर्धारण विष्टि करण के समय से है। समय चयनित दिन के सूर्योदय से अगले सूर्योदय तक दिखाया गया है; सूर्योदय पर पहले से चल रही भद्रा का आरंभ इससे पहले हो सकता है।',
+          'भद्रा विष्टि करण से निर्धारित होती है। चंद्रमा की निरयन राशि बदलने पर भद्रा का निवास भी बदल सकता है; इसलिए अवधि को राशि-परिवर्तन पर अलग दिखाया गया है। पृथ्वी लोक वाली भद्रा में शुभ कार्य सामान्यतः टालने की परंपरा है।',
           style: TextStyle(fontSize: 10, color: Color(0xFF705333)),
         ),
       ),
