@@ -920,28 +920,51 @@ class _ModuleScreenState extends State<ModuleScreen> {
         children: [
           Container(
             width: double.infinity,
-            margin: const EdgeInsets.all(16),
+            margin: const EdgeInsets.fromLTRB(16, 12, 16, 14),
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: const Color(0xFFFFF0D5),
-              borderRadius: BorderRadius.circular(18),
+              gradient: const LinearGradient(
+                colors: [Color(0xFF342014), Color(0xFF70451F)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(23),
+              border: Border.all(color: const Color(0xFFD5A34B).withOpacity(.65)),
+              boxShadow: const [
+                BoxShadow(color: Color(0x1C342014), blurRadius: 17, offset: Offset(0, 7)),
+              ],
             ),
-            child: Column(
+            child: Row(
               children: [
-                Text(
-                  widget.module.icon,
-                  style: const TextStyle(fontSize: 42),
+                Container(
+                  width: 62,
+                  height: 62,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFF4DC).withOpacity(.13),
+                    borderRadius: BorderRadius.circular(19),
+                    border: Border.all(color: const Color(0xFFD5A34B).withOpacity(.55)),
+                  ),
+                  alignment: Alignment.center,
+                  child: Text(widget.module.icon, style: const TextStyle(fontSize: 34)),
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  widget.module.title,
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
+                const SizedBox(width: 15),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('KARMKRITE KNOWLEDGE',
+                        style: TextStyle(color: Color(0xFFE8C98E), fontSize: 9,
+                          letterSpacing: 1.5, fontWeight: FontWeight.w800)),
+                      const SizedBox(height: 5),
+                      Text(widget.module.title, maxLines: 2, overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(color: Colors.white, fontSize: 19,
+                          height: 1.2, fontWeight: FontWeight.w800)),
+                      const SizedBox(height: 5),
+                      Text(widget.module.subtitle, maxLines: 2, overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(color: Color(0xFFE8DED0), fontSize: 11)),
+                    ],
                   ),
                 ),
-                const SizedBox(height: 5),
-                Text(widget.module.subtitle),
               ],
             ),
           ),
@@ -1005,28 +1028,61 @@ class _ModuleScreenState extends State<ModuleScreen> {
                   itemBuilder: (context, index) {
                     final item = items[index];
 
-                    return Card(
-                      color: Colors.white,
+                    return Container(
                       margin: const EdgeInsets.only(bottom: 10),
-                      child: ListTile(
-                        leading: CircleAvatar(
-                          backgroundColor: const
-                          Color(0xFFFFF0D5),
-                          child: Text('${index + 1}'),
-                        ),
-                        title: Text(
-                          getTitle(item),
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFFFEFA),
+                        borderRadius: BorderRadius.circular(18),
+                        border: Border.all(color: const Color(0xFFE9DDC8)),
+                        boxShadow: const [
+                          BoxShadow(color: Color(0x0D332514), blurRadius: 12, offset: Offset(0, 4)),
+                        ],
+                      ),
+                      child: Material(
+                        color: Colors.transparent,
+                        borderRadius: BorderRadius.circular(18),
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(18),
+                          onTap: () => openContent(item),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 12),
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 43,
+                                  height: 43,
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFFAF1DF),
+                                    borderRadius: BorderRadius.circular(14),
+                                  ),
+                                  alignment: Alignment.center,
+                                  child: Text('${index + 1}',
+                                    style: const TextStyle(color: Color(0xFF805522),
+                                      fontWeight: FontWeight.w800, fontSize: 15)),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(getTitle(item), maxLines: 2, overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(color: Color(0xFF563719),
+                                          fontWeight: FontWeight.w800, fontSize: 14, height: 1.25)),
+                                      if ((item['description'] ?? '').toString().isNotEmpty) ...[
+                                        const SizedBox(height: 4),
+                                        Text((item['description'] ?? '').toString(),
+                                          maxLines: 2, overflow: TextOverflow.ellipsis,
+                                          style: const TextStyle(color: Color(0xFF817565), fontSize: 11, height: 1.3)),
+                                      ],
+                                    ],
+                                  ),
+                                ),
+                                SaveItemButton(item:{...item,'title':getTitle(item),'category':widget.module.title,'body':(item['body']??'').toString(),'description':(item['description']??'').toString()}),
+                                const Icon(Icons.chevron_right_rounded, color: Color(0xFFB9853E), size: 22),
+                              ],
+                            ),
                           ),
                         ),
-                        subtitle: Text(
-                          (item['description'] ?? '').toString(),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        trailing: Row(mainAxisSize:MainAxisSize.min,children:[SaveItemButton(item:{...item,'title':getTitle(item),'category':widget.module.title,'body':(item['body']??'').toString(),'description':(item['description']??'').toString()}),const Icon(Icons.arrow_forward_ios_rounded,size:16)]),
-                        onTap: () => openContent(item),
                       ),
                     );
                   },
@@ -1248,27 +1304,155 @@ class _BooksScreenState extends State<BooksScreen> {
   @override
   Widget build(BuildContext context) {
     final en=widget.language=='en';
-    return Scaffold(appBar:AppBar(leading:IconButton(tooltip:'वापस जाएँ',icon:const Icon(Icons.arrow_back),onPressed:widget.onBack),title:Text(en?'Digital Library':'डिजिटल पुस्तकालय')),
-      body:FutureBuilder<List<Map<String,dynamic>>>(future:future,builder:(context,s){
-        if(s.connectionState==ConnectionState.waiting)return const Center(child:CircularProgressIndicator());
-        if(s.hasError)return Center(child:Column(mainAxisSize:MainAxisSize.min,children:[const Text('पुस्तकें लोड नहीं हो सकीं।'),ElevatedButton(onPressed:()=>setState(()=>future=load()),child:const Text('पुनः प्रयास करें'))]));
-        final books=s.data??[];
-        if(books.isEmpty)return const Center(child:Padding(padding:EdgeInsets.all(28),child:Text('मास्टर एडमिन से जोड़ी गई पुस्तकें यहाँ दिखाई देंगी।',textAlign:TextAlign.center)));
-        return RefreshIndicator(onRefresh:()async=>setState(()=>future=load()),child:ListView.builder(padding:const EdgeInsets.all(14),itemCount:books.length,itemBuilder:(context,i){
-          final b=books[i]; final title=(en?b['title_en']:b['title_hi'])??b['title_hi']??'';
-          final coverUrl=(b['cover_url']??'').toString().trim();
-          return Card(child:ListTile(leading:coverUrl.isNotEmpty
-            ? ClipRRect(borderRadius:BorderRadius.circular(8),child:Image.network(
-                coverUrl,width:52,height:62,fit:BoxFit.cover,
-                errorBuilder:(_,__,___)=>const SizedBox(width:52,height:62,child:Icon(Icons.menu_book_rounded,color:Color(0xFF79502B),size:32)),
-              ))
-            : const SizedBox(width:52,height:62,child:Icon(Icons.menu_book_rounded,color:Color(0xFF79502B),size:32)),
-            title:Text(title.toString(),style:const TextStyle(fontWeight:FontWeight.bold)),
-            subtitle:Text([b['author'],b['description']].where((x)=>x!=null&&x.toString().isNotEmpty).join(' • '),maxLines:2,overflow:TextOverflow.ellipsis),
-            trailing:const Icon(Icons.picture_as_pdf),onTap:()=>openBook(b)));
-        }));
-      }));
+    return Scaffold(
+      appBar: AppBar(
+        leading: IconButton(tooltip:'वापस जाएँ', icon:const Icon(Icons.arrow_back), onPressed:widget.onBack),
+        title: Text(en?'Digital Library':'डिजिटल पुस्तकालय'),
+      ),
+      body: FutureBuilder<List<Map<String,dynamic>>>(
+        future:future,
+        builder:(context,s){
+          if(s.connectionState==ConnectionState.waiting) {
+            return const Center(child:CircularProgressIndicator(color:Color(0xFF9A6B35)));
+          }
+          if(s.hasError) {
+            return Center(child:Column(mainAxisSize:MainAxisSize.min,children:[
+              const Icon(Icons.cloud_off_rounded,size:42,color:Color(0xFF9A6B35)),
+              const SizedBox(height:12),
+              const Text('पुस्तकें लोड नहीं हो सकीं।'),
+              const SizedBox(height:10),
+              ElevatedButton(onPressed:()=>setState(()=>future=load()),child:const Text('पुनः प्रयास करें')),
+            ]));
+          }
+          final books=s.data??[];
+          return RefreshIndicator(
+            color:const Color(0xFF9A6B35),
+            onRefresh:()async { setState(()=>future=load()); await future; },
+            child: ListView(
+              padding:const EdgeInsets.fromLTRB(16,12,16,24),
+              children:[
+                Container(
+                  padding:const EdgeInsets.all(19),
+                  decoration:BoxDecoration(
+                    gradient:const LinearGradient(
+                      colors:[Color(0xFF342014),Color(0xFF70451F)],
+                      begin:Alignment.topLeft,end:Alignment.bottomRight,
+                    ),
+                    borderRadius:BorderRadius.circular(22),
+                    border:Border.all(color:const Color(0xFFD5A34B).withOpacity(.65)),
+                  ),
+                  child:Row(children:[
+                    Container(
+                      width:54,height:54,
+                      decoration:BoxDecoration(
+                        color:Colors.white.withOpacity(.12),
+                        borderRadius:BorderRadius.circular(16),
+                      ),
+                      child:const Icon(Icons.auto_stories_rounded,color:Color(0xFFFFD98B),size:29),
+                    ),
+                    const SizedBox(width:14),
+                    Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+                      Text(en?'KARMKRITE LIBRARY':'कर्मकृते डिजिटल ग्रंथालय',
+                        style:const TextStyle(color:Color(0xFFFFE2A6),fontSize:15,fontWeight:FontWeight.w800)),
+                      const SizedBox(height:5),
+                      Text(en?'Read and explore the knowledge collection':'ग्रंथों, पुस्तकों और संदर्भ सामग्री का अध्ययन करें',
+                        style:const TextStyle(color:Color(0xFFE8DED0),fontSize:11,height:1.35)),
+                    ])),
+                  ]),
+                ),
+                const SizedBox(height:20),
+                Row(children:[
+                  const Expanded(child:Text('उपलब्ध पुस्तकें',
+                    style:TextStyle(color:Color(0xFF563719),fontSize:17,fontWeight:FontWeight.w800))),
+                  Text('${books.length} पुस्तकें',
+                    style:const TextStyle(color:Color(0xFF8A765C),fontSize:11,fontWeight:FontWeight.w700)),
+                ]),
+                const SizedBox(height:10),
+                if(books.isEmpty)
+                  Container(
+                    padding:const EdgeInsets.all(24),
+                    decoration:BoxDecoration(color:const Color(0xFFFFFEFA),
+                      borderRadius:BorderRadius.circular(18),border:Border.all(color:const Color(0xFFE9DDC8))),
+                    child:const Column(children:[
+                      Icon(Icons.menu_book_rounded,size:42,color:Color(0xFFB9853E)),
+                      SizedBox(height:10),
+                      Text('मास्टर एडमिन से जोड़ी गई पुस्तकें यहाँ दिखाई देंगी।',textAlign:TextAlign.center,
+                        style:TextStyle(color:Color(0xFF817565),height:1.4)),
+                    ]),
+                  )
+                else
+                  ...books.map((b){
+                    final title=(en?b['title_en']:b['title_hi'])??b['title_hi']??'';
+                    final coverUrl=(b['cover_url']??'').toString().trim();
+                    final author=(b['author']??'').toString();
+                    final description=(b['description']??'').toString();
+                    return Container(
+                      margin:const EdgeInsets.only(bottom:12),
+                      decoration:BoxDecoration(
+                        color:const Color(0xFFFFFEFA),
+                        borderRadius:BorderRadius.circular(18),
+                        border:Border.all(color:const Color(0xFFE9DDC8)),
+                        boxShadow:const[BoxShadow(color:Color(0x0D332514),blurRadius:12,offset:Offset(0,4))],
+                      ),
+                      child:Material(
+                        color:Colors.transparent,
+                        borderRadius:BorderRadius.circular(18),
+                        child:InkWell(
+                          borderRadius:BorderRadius.circular(18),
+                          onTap:()=>openBook(b),
+                          child:Padding(
+                            padding:const EdgeInsets.all(12),
+                            child:Row(children:[
+                              ClipRRect(
+                                borderRadius:BorderRadius.circular(11),
+                                child:coverUrl.isNotEmpty
+                                  ?Image.network(coverUrl,width:62,height:78,fit:BoxFit.cover,
+                                    errorBuilder:(_,__,___)=>_bookCoverPlaceholder())
+                                  :_bookCoverPlaceholder(),
+                              ),
+                              const SizedBox(width:13),
+                              Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+                                Text(title.toString(),maxLines:2,overflow:TextOverflow.ellipsis,
+                                  style:const TextStyle(color:Color(0xFF563719),fontSize:14,fontWeight:FontWeight.w800,height:1.25)),
+                                if(author.isNotEmpty)...[
+                                  const SizedBox(height:5),
+                                  Text(author,maxLines:1,overflow:TextOverflow.ellipsis,
+                                    style:const TextStyle(color:Color(0xFF9A6B35),fontSize:11,fontWeight:FontWeight.w700)),
+                                ],
+                                if(description.isNotEmpty)...[
+                                  const SizedBox(height:4),
+                                  Text(description,maxLines:2,overflow:TextOverflow.ellipsis,
+                                    style:const TextStyle(color:Color(0xFF817565),fontSize:10.5,height:1.3)),
+                                ],
+                                const SizedBox(height:8),
+                                const Row(children:[
+                                  Icon(Icons.picture_as_pdf_rounded,size:14,color:Color(0xFFB9853E)),
+                                  SizedBox(width:5),
+                                  Text('PDF में पढ़ें',style:TextStyle(color:Color(0xFF805522),fontSize:10.5,fontWeight:FontWeight.w800)),
+                                ]),
+                              ])),
+                              const SizedBox(width:5),
+                              const Icon(Icons.chevron_right_rounded,color:Color(0xFFB9853E)),
+                            ]),
+                          ),
+                        ),
+                      ),
+                    );
+                  }),
+              ],
+            ),
+          );
+        },
+      ),
+    );
   }
+
+  Widget _bookCoverPlaceholder() => Container(
+    width:62,height:78,
+    color:const Color(0xFFFAF1DF),
+    alignment:Alignment.center,
+    child:const Icon(Icons.menu_book_rounded,color:Color(0xFFB9853E),size:30),
+  );
 }
 
 class InAppPdfReader extends StatefulWidget {
