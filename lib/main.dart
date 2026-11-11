@@ -1,5 +1,6 @@
 
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter/foundation.dart';
@@ -8,6 +9,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:http/http.dart' as http;
 import 'package:pdfx/pdfx.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:crypto/crypto.dart';
 import 'panchang/panchang_screen.dart';
 
 Future<void> main() async {
@@ -976,17 +979,54 @@ class _InAppPdfReaderState extends State<InAppPdfReader> {
     _controllerFuture=_loadPdf();
   }
 
-  Future<PdfControllerPinch> _loadPdf() async {
-    final response=await http.get(Uri.parse(widget.url)).timeout(const Duration(seconds:45));
-    if(response.statusCode<200 || response.statusCode>=300){
-      throw Exception('PDF डाउनलोड नहीं हो सकी: '+response.statusCode.toString());
+  Future<PdfControllerPinch> _loadPdf({bool forceRefresh = false}) async {
+    final appDir = await getApplicationSupportDirectory();
+    final cacheDir = Directory('${appDir.path}/pdf_cache');
+    await cacheDir.create(recursive: true);
+    final cacheKey = sha256.convert(utf8.encode(widget.url)).toString();
+    final cachedFile = File('${cacheDir.path}/$cacheKey.pdf');
+
+    // Open a previously downloaded copy immediately, including when offline.
+    if (!forceRefresh && await cachedFile.exists() && await cachedFile.length() > 0) {
+      final cachedController = PdfControllerPinch(
+        document: PdfDocument.openFile(cachedFile.path),
+      );
+      _controller = cachedController;
+      return cachedController;
     }
-    if(response.bodyBytes.isEmpty){
-      throw Exception('PDF फ़ाइल खाली है।');
+
+    try {
+      final response = await http.get(Uri.parse(widget.url))
+          .timeout(const Duration(seconds: 45));
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        throw Exception('PDF डाउनलोड नहीं हो सकी: ${response.statusCode}');
+      }
+      if (response.bodyBytes.isEmpty) {
+        throw Exception('PDF फ़ाइल खाली है।');
+      }
+
+      // Write atomically so an interrupted download never replaces a good cache.
+      final temporaryFile = File('${cachedFile.path}.part');
+      await temporaryFile.writeAsBytes(response.bodyBytes, flush: true);
+      if (await cachedFile.exists()) await cachedFile.delete();
+      await temporaryFile.rename(cachedFile.path);
+
+      final controller = PdfControllerPinch(
+        document: PdfDocument.openFile(cachedFile.path),
+      );
+      _controller = controller;
+      return controller;
+    } catch (_) {
+      // If refresh fails (or the device is offline), retain and use the old copy.
+      if (await cachedFile.exists() && await cachedFile.length() > 0) {
+        final cachedController = PdfControllerPinch(
+          document: PdfDocument.openFile(cachedFile.path),
+        );
+        _controller = cachedController;
+        return cachedController;
+      }
+      rethrow;
     }
-    final controller=PdfControllerPinch(document:PdfDocument.openData(response.bodyBytes));
-    _controller=controller;
-    return controller;
   }
 
   void _reloadPdf() {
@@ -994,7 +1034,7 @@ class _InAppPdfReaderState extends State<InAppPdfReader> {
     _controller = null;
     _currentPage = 1;
     _totalPages = 0;
-    setState(()=>_controllerFuture=_loadPdf());
+    setState(()=>_controllerFuture=_loadPdf(forceRefresh: true));
   }
 
   @override
