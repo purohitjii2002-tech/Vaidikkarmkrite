@@ -952,6 +952,9 @@ class InAppPdfReader extends StatefulWidget {
 class _InAppPdfReaderState extends State<InAppPdfReader> {
   late Future<PdfControllerPinch> _controllerFuture;
   PdfControllerPinch? _controller;
+  int _currentPage = 1;
+  int _totalPages = 0;
+  bool _rightToLeft = false;
 
   @override
   void initState(){
@@ -972,6 +975,14 @@ class _InAppPdfReaderState extends State<InAppPdfReader> {
     return controller;
   }
 
+  void _reloadPdf() {
+    _controller?.dispose();
+    _controller = null;
+    _currentPage = 1;
+    _totalPages = 0;
+    setState(()=>_controllerFuture=_loadPdf());
+  }
+
   @override
   void dispose(){
     _controller?.dispose();
@@ -985,9 +996,14 @@ class _InAppPdfReaderState extends State<InAppPdfReader> {
         title:Text(widget.title,maxLines:1,overflow:TextOverflow.ellipsis),
         actions:[
           IconButton(
+            tooltip:_rightToLeft ? 'बाएँ से दाएँ पढ़ें' : 'दाएँ से बाएँ पढ़ें',
+            icon:Icon(_rightToLeft ? Icons.format_textdirection_l_to_r : Icons.format_textdirection_r_to_l),
+            onPressed:()=>setState(()=>_rightToLeft=!_rightToLeft),
+          ),
+          IconButton(
             tooltip:'पुनः लोड करें',
             icon:const Icon(Icons.refresh),
-            onPressed:()=>setState(()=>_controllerFuture=_loadPdf()),
+            onPressed:_reloadPdf,
           ),
         ],
       ),
@@ -1010,21 +1026,71 @@ class _InAppPdfReaderState extends State<InAppPdfReader> {
                 const Text('PDF अभी नहीं खुल सकी। इंटरनेट कनेक्शन जाँचकर पुनः प्रयास करें।',textAlign:TextAlign.center),
                 const SizedBox(height:14),
                 ElevatedButton.icon(
-                  onPressed:()=>setState(()=>_controllerFuture=_loadPdf()),
+                  onPressed:_reloadPdf,
                   icon:const Icon(Icons.refresh),
                   label:const Text('पुनः प्रयास करें'),
                 ),
               ]),
             ));
           }
-          return PdfViewPinch(
-            controller:snapshot.data!,
-            builders:PdfViewPinchBuilders<DefaultBuilderOptions>(
-              options:const DefaultBuilderOptions(),
-              documentLoaderBuilder:(_)=>const Center(child:CircularProgressIndicator()),
-              pageLoaderBuilder:(_)=>const Center(child:CircularProgressIndicator()),
-              errorBuilder:(_,error)=>Center(child:Text('पेज लोड नहीं हो सका: '+error.toString(),textAlign:TextAlign.center)),
-            ),
+          final controller=snapshot.data!;
+          return Column(
+            children:[
+              Expanded(
+                child:Directionality(
+                  textDirection:_rightToLeft ? TextDirection.rtl : TextDirection.ltr,
+                  child:PdfViewPinch(
+                    controller:controller,
+                    scrollDirection:Axis.horizontal,
+                    onDocumentLoaded:(document){
+                      if(mounted) setState(()=>_totalPages=document.pagesCount);
+                    },
+                    onPageChanged:(page){
+                      if(mounted) setState(()=>_currentPage=page);
+                    },
+                    builders:PdfViewPinchBuilders<DefaultBuilderOptions>(
+                      options:const DefaultBuilderOptions(),
+                      documentLoaderBuilder:(_)=>const Center(child:CircularProgressIndicator()),
+                      pageLoaderBuilder:(_)=>const Center(child:CircularProgressIndicator()),
+                      errorBuilder:(_,error)=>Center(child:Text('पेज लोड नहीं हो सका: '+error.toString(),textAlign:TextAlign.center)),
+                    ),
+                  ),
+                ),
+              ),
+              SafeArea(
+                top:false,
+                child:Container(
+                  width:double.infinity,
+                  padding:const EdgeInsets.symmetric(horizontal:18,vertical:10),
+                  decoration:const BoxDecoration(
+                    color:Color(0xFFFFFBF3),
+                    border:Border(top:BorderSide(color:Color(0xFFE8DCCB))),
+                  ),
+                  child:Row(
+                    mainAxisAlignment:MainAxisAlignment.center,
+                    children:[
+                      IconButton(
+                        tooltip:'पिछला पेज',
+                        onPressed:_currentPage>1 ? ()=>controller.previousPage(duration:const Duration(milliseconds:220),curve:Curves.easeOut) : null,
+                        icon:const Icon(Icons.chevron_left),
+                      ),
+                      Directionality(
+                        textDirection:TextDirection.ltr,
+                        child:Text(
+                          '$_currentPage / ${_totalPages==0 ? '—' : _totalPages}',
+                          style:const TextStyle(fontSize:15,fontWeight:FontWeight.bold,color:Color(0xFF563719)),
+                        ),
+                      ),
+                      IconButton(
+                        tooltip:'अगला पेज',
+                        onPressed:_totalPages>0 && _currentPage<_totalPages ? ()=>controller.nextPage(duration:const Duration(milliseconds:220),curve:Curves.easeOut) : null,
+                        icon:const Icon(Icons.chevron_right),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
           );
         },
       ),
