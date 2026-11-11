@@ -1673,16 +1673,7 @@ class _PanchangScreenState extends State<PanchangScreen> {
         _detailRow('चंद्रोदय', _time(moonrise)),
         _detailRow('चंद्रास्त', _time(moonset), alternate: true),
       ]),
-      _detailCard('विशेष योग एवं पंचक', Icons.auto_awesome, [
-        if (_specialYogaRows.isEmpty)
-          _detailRow('विशेष योग', 'आज कोई सूचीबद्ध विशेष योग नहीं', alternate: true)
-        else
-          ..._specialYogaRows.map((row) => _detailRow(
-            row['name'] ?? 'विशेष योग',
-            '${row['time'] ?? ''} ${row['kind'] ?? ''}'.trim(),
-            alternate: true,
-          )),
-      ]),
+      ..._specialYogaCards(),
       _panchakCard(),
       _detailCard('मास, राशि, ऋतु एवं अयन', Icons.public, [
         _detailRow('माह (अमांत)', lunarMonths['amanta'] ?? '—', alternate: true),
