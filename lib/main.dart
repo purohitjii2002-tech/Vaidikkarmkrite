@@ -63,7 +63,6 @@ class AppText {
       'home': 'होम',
       'library': 'पुस्तकालय',
       'saved': 'सहेजे गए',
-      'profile': 'प्रोफाइल',
       'search': 'यहाँ खोजें...',
       'modules': 'ज्ञान के प्रमुख विभाग',
       'daily': 'आज का वैदिक विचार',
@@ -79,7 +78,6 @@ class AppText {
       'home': 'गृहम्',
       'library': 'ग्रन्थालयः',
       'saved': 'संगृहीतम्',
-      'profile': 'परिचयः',
       'search': 'अन्वेषणम्...',
       'modules': 'ज्ञानविभागाः',
       'daily': 'अद्यतनः वैदिकः विचारः',
@@ -95,7 +93,6 @@ class AppText {
       'home': 'Home',
       'library': 'Library',
       'saved': 'Saved',
-      'profile': 'Profile',
       'search': 'Search here...',
       'modules': 'Knowledge Categories',
       'daily': 'Today’s Vedic Thought',
@@ -325,10 +322,6 @@ class _HomeScreenState extends State<HomeScreen> {
           NavigationDestination(
             icon: const Icon(Icons.bookmark_border_rounded),
             label: tr('saved'),
-          ),
-          NavigationDestination(
-            icon: const Icon(Icons.person_outline_rounded),
-            label: tr('profile'),
           ),
         ],
       ),
@@ -576,7 +569,6 @@ class _HomeScreenState extends State<HomeScreen> {
     switch (selectedTab) {
       case 1: return BooksScreen(language: widget.language, onBack: () => setState(() => selectedTab = 0));
       case 2: return SavedScreen(language: widget.language, onBack: () => setState(() => selectedTab = 0));
-      case 3: return ProfileScreen(language: widget.language, onLanguageChanged: widget.onLanguageChanged, onBack: () => setState(() => selectedTab = 0));
       default: return _homeBody();
     }
   }
@@ -963,37 +955,6 @@ class _SavedScreenState extends State<SavedScreen>{
         onTap:()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>ContentDetailScreen(title:x['title']??'',content:x['body']??'',description:x['description']??''))).then((_){setState(()=>future=SavedStore.read());}),
         trailing:IconButton(icon:const Icon(Icons.delete_outline),onPressed:()async{await SavedStore.toggle({...x,'_remove':true});setState(()=>future=SavedStore.read());})));});
     }));
-}
-
-class ProfileScreen extends StatefulWidget {
-  final String language;
-  final ValueChanged<String> onLanguageChanged;
-  final VoidCallback onBack;
-  const ProfileScreen({super.key, required this.language, required this.onLanguageChanged, required this.onBack});
-  @override
-  State<ProfileScreen> createState() => _ProfileScreenState();
-}
-class _ProfileScreenState extends State<ProfileScreen> {
-  @override Widget build(BuildContext context){
-    return Scaffold(
-      appBar:AppBar(leading:IconButton(tooltip:'वापस जाएँ',icon:const Icon(Icons.arrow_back),onPressed:widget.onBack),title:const Text('प्रोफाइल')),
-      body:ListView(padding:const EdgeInsets.all(18),children:[
-        const Center(child:BrandMark()),
-        const SizedBox(height:20),
-        const Center(child:Text('वैदिक कर्मकृति',style:TextStyle(fontSize:22,fontWeight:FontWeight.bold))),
-        const SizedBox(height:8),
-        const Center(child:Text('वैदिक ज्ञान, शास्त्र एवं संस्कारों का डिजिटल मंच।',textAlign:TextAlign.center)),
-        const Divider(height:32),
-        const Text('ऐप की भाषा',style:TextStyle(fontWeight:FontWeight.bold,fontSize:17)),
-        Card(child:Column(children:[
-          RadioListTile<String>(value:'hi',groupValue:widget.language,title:const Text('हिंदी'),onChanged:(v){if(v!=null)widget.onLanguageChanged(v);}),
-          RadioListTile<String>(value:'sa',groupValue:widget.language,title:const Text('संस्कृत'),onChanged:(v){if(v!=null)widget.onLanguageChanged(v);}),
-          RadioListTile<String>(value:'en',groupValue:widget.language,title:const Text('English'),onChanged:(v){if(v!=null)widget.onLanguageChanged(v);})
-        ])),
-        const ListTile(leading:Icon(Icons.verified_outlined),title:Text('संस्करण'),subtitle:Text('1.0.0'))
-      ])
-    );
-  }
 }
 
 class NotificationsScreen extends StatefulWidget {
