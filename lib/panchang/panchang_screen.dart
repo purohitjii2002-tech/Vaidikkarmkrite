@@ -16,6 +16,7 @@ class _PanchangScreenState extends State<PanchangScreen> {
   DateTime selectedDate = DateTime.now();
   Position? position;
   String city = 'स्थान पता किया जा रहा है...';
+  bool _manualLocationSelected = false;
   String? error;
   Map<String, dynamic>? data;
   DateTime? sunrise, sunset, moonrise, moonset;
@@ -51,44 +52,45 @@ class _PanchangScreenState extends State<PanchangScreen> {
 
   Future<void> _load() async {
     if (mounted) setState(() { loading = true; error = null; });
-    try {
-      var permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
-      }
-      if (permission == LocationPermission.whileInUse ||
-          permission == LocationPermission.always) {
-        if (await Geolocator.isLocationServiceEnabled()) {
-          position = await Geolocator.getCurrentPosition(
-            locationSettings: const LocationSettings(
-              accuracy: LocationAccuracy.medium,
-              timeLimit: Duration(seconds: 15),
-            ),
-          );
-          try {
-            final places = await placemarkFromCoordinates(
-              position!.latitude, position!.longitude,
+    if (!_manualLocationSelected) {
+      try {
+        var permission = await Geolocator.checkPermission();
+        if (permission == LocationPermission.denied) {
+          permission = await Geolocator.requestPermission();
+        }
+        if (permission == LocationPermission.whileInUse ||
+            permission == LocationPermission.always) {
+          if (await Geolocator.isLocationServiceEnabled()) {
+            position = await Geolocator.getCurrentPosition(
+              locationSettings: const LocationSettings(
+                accuracy: LocationAccuracy.medium,
+                timeLimit: Duration(seconds: 15),
+              ),
             );
-            if (places.isNotEmpty) {
-              final p = places.first;
-              city = [p.locality, p.subAdministrativeArea, p.administrativeArea]
-                  .where((x) => x != null && x.trim().isNotEmpty).toSet().join(', ');
-            } else {
+            try {
+              final places = await placemarkFromCoordinates(
+                position!.latitude, position!.longitude,
+              );
+              if (places.isNotEmpty) {
+                final p = places.first;
+                city = [p.locality, p.subAdministrativeArea, p.administrativeArea]
+                    .where((x) => x != null && x.trim().isNotEmpty).toSet().join(', ');
+              } else {
+                city = 'वर्तमान स्थान';
+              }
+            } catch (_) {
               city = 'वर्तमान स्थान';
             }
-          } catch (_) {
-            city = 'वर्तमान स्थान';
+          } else {
+            position = null;
           }
         } else {
           position = null;
         }
-      } else {
+      } catch (_) {
+        // Permission denied, GPS disabled, timeout, or location service failure.
         position = null;
       }
-    } catch (_) {
-      // Permission denied, GPS disabled, timeout, or location service failure:
-      // show a useful Panchang for Ujjain instead of a blocking error.
-      position = null;
     }
 
     if (position == null) {
@@ -97,6 +99,79 @@ class _PanchangScreenState extends State<PanchangScreen> {
     }
     _calculate();
     if (mounted) setState(() { loading = false; error = null; });
+  }
+
+  Future<void> _chooseLocation() async {
+    final controller = TextEditingController();
+    final query = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('पंचांग के लिए स्थान चुनें'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          textInputAction: TextInputAction.search,
+          decoration: const InputDecoration(
+            hintText: 'शहर / गाँव का नाम लिखें',
+            prefixIcon: Icon(Icons.search),
+            border: OutlineInputBorder(),
+          ),
+          onSubmitted: (value) => Navigator.pop(dialogContext, value.trim()),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('रद्द करें'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, controller.text.trim()),
+            child: const Text('स्थान चुनें'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (query == null || query.trim().isEmpty || !mounted) return;
+
+    setState(() => loading = true);
+    try {
+      final matches = await locationFromAddress(query.trim());
+      if (matches.isEmpty) {
+        throw Exception('स्थान नहीं मिला');
+      }
+      final match = matches.first;
+      final newPosition = _positionAt(match.latitude, match.longitude);
+      var newCity = query.trim();
+      try {
+        final places = await placemarkFromCoordinates(
+          match.latitude, match.longitude,
+        );
+        if (places.isNotEmpty) {
+          final p = places.first;
+          final resolved = [
+            p.locality, p.subLocality, p.subAdministrativeArea,
+            p.administrativeArea, p.country,
+          ].where((x) => x != null && x.trim().isNotEmpty).toSet().join(', ');
+          if (resolved.isNotEmpty) newCity = resolved;
+        }
+      } catch (_) {
+        // Keep the searched place name if reverse geocoding is unavailable.
+      }
+      if (!mounted) return;
+      setState(() {
+        position = newPosition;
+        city = newCity;
+        _manualLocationSelected = true;
+        _calculate();
+        loading = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => loading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('यह स्थान नहीं मिला। कृपया शहर या गाँव का सही नाम लिखें।')),
+      );
+    }
   }
 
   void _calculate() {
@@ -628,13 +703,22 @@ class _PanchangScreenState extends State<PanchangScreen> {
                           borderRadius: BorderRadius.circular(9),
                           border: Border.all(color: const Color(0xFFE9D8B9)),
                         ),
-                        child: Row(children: [
-                          const Icon(Icons.location_on_outlined, size: 13, color: Color(0xFF79502B)),
-                          const SizedBox(width: 6),
-                          Expanded(child: Text(city, maxLines: 1, overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF684521)))),
-                          const Text('स्थान', style: TextStyle(fontSize: 9, color: Color(0xFF98652D))),
-                        ]),
+                        child: Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(9),
+                            onTap: _chooseLocation,
+                            child: Row(children: [
+                              const Icon(Icons.location_on_outlined, size: 13, color: Color(0xFF79502B)),
+                              const SizedBox(width: 6),
+                              Expanded(child: Text(city, maxLines: 1, overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF684521)))),
+                              const Text('स्थान बदलें', style: TextStyle(fontSize: 9, color: Color(0xFF98652D))),
+                              const SizedBox(width: 3),
+                              const Icon(Icons.edit_location_alt_outlined, size: 14, color: Color(0xFF79502B)),
+                            ]),
+                          ),
+                        ),
                       ),
                       const SizedBox(height: 4),
                       Container(
