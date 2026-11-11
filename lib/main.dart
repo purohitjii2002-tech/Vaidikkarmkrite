@@ -955,6 +955,20 @@ class _InAppPdfReaderState extends State<InAppPdfReader> {
   int _currentPage = 1;
   int _totalPages = 0;
   bool _rightToLeft = false;
+  final TextEditingController _pageSearchController = TextEditingController();
+
+  void _goToPage(PdfControllerPinch controller) {
+    final page = int.tryParse(_pageSearchController.text.trim());
+    if (page == null || page < 1 || page > _totalPages) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content:Text('कृपया 1 से $_totalPages के बीच सही पेज नंबर लिखें।')),
+      );
+      return;
+    }
+    FocusScope.of(context).unfocus();
+    controller.jumpToPage(page);
+    setState(()=>_currentPage=page);
+  }
 
   @override
   void initState(){
@@ -985,6 +999,7 @@ class _InAppPdfReaderState extends State<InAppPdfReader> {
 
   @override
   void dispose(){
+    _pageSearchController.dispose();
     _controller?.dispose();
     super.dispose();
   }
@@ -1036,6 +1051,34 @@ class _InAppPdfReaderState extends State<InAppPdfReader> {
           final controller=snapshot.data!;
           return Column(
             children:[
+              Padding(
+                padding:const EdgeInsets.fromLTRB(12,8,12,8),
+                child:Row(
+                  children:[
+                    const Icon(Icons.search,color:Color(0xFF79502B)),
+                    const SizedBox(width:8),
+                    Expanded(
+                      child:TextField(
+                        controller:_pageSearchController,
+                        keyboardType:TextInputType.number,
+                        textInputAction:TextInputAction.go,
+                        decoration:InputDecoration(
+                          hintText:'पेज नंबर लिखें',
+                          isDense:true,
+                          contentPadding:const EdgeInsets.symmetric(horizontal:12,vertical:11),
+                          border:OutlineInputBorder(borderRadius:BorderRadius.circular(10)),
+                        ),
+                        onSubmitted:(_)=>_goToPage(controller),
+                      ),
+                    ),
+                    const SizedBox(width:8),
+                    ElevatedButton(
+                      onPressed:()=>_goToPage(controller),
+                      child:const Text('जाएँ'),
+                    ),
+                  ],
+                ),
+              ),
               Expanded(
                 child:Directionality(
                   textDirection:_rightToLeft ? TextDirection.rtl : TextDirection.ltr,
