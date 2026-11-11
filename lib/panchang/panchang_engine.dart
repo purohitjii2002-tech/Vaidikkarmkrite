@@ -216,9 +216,9 @@ class PanchangEngine {
   }) {
     final utc = instant.toUtc();
     final jd = julianDay(utc);
-    final utcHours = utc.hour + utc.minute / 60 + utc.second / 3600;
-    final greenwichSidereal = sid.apparent0UT(jd) +
-        (utcHours * 1.00273790935 * 2 * math.pi / 24);
+    // astronomia.apparent(jd) returns Greenwich apparent sidereal time
+    // in sidereal seconds, not radians. Convert seconds -> degrees -> radians.
+    final greenwichSidereal = _rad(sid.apparent(jd) / 240.0);
     final localSidereal = greenwichSidereal + _rad(longitude);
     final t = (jd - 2451545.0) / 36525.0;
     final obliquity = _rad(23.439291 - 0.0130042 * t);
