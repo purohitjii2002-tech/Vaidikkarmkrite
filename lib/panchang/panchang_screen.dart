@@ -544,8 +544,7 @@ class _PanchangScreenState extends State<PanchangScreen> {
     );
     final dayLength = sunrise != null && sunset != null ? sunset!.difference(sunrise!) : Duration.zero;
     final nightLength = sunset != null && nextSunrise != null ? nextSunrise.difference(sunset!) : Duration.zero;
-    final vikram = selectedDate.year + (selectedDate.month >= 4 ? 57 : 56);
-    final shaka = selectedDate.year - (selectedDate.month >= 3 ? 78 : 79);
+    final lunarMonths = PanchangEngine.lunarMonthLabels(sunrise ?? selectedDate);
     final tithiEnd = d['tithiEnd'] as DateTime?;
     final nakshatraEnd = d['nakshatraEnd'] as DateTime?;
     final yogaEnd = d['yogaEnd'] as DateTime?;
@@ -554,14 +553,14 @@ class _PanchangScreenState extends State<PanchangScreen> {
       _detailCard('पंचांग', Icons.calendar_month, [
         _detailRow('तिथि', '${d['tithi'] ?? '—'}  •  ${_time(tithiEnd)}', alternate: true),
         _detailRow('पक्ष', '${d['paksha'] ?? '—'}'),
-        _detailRow('नक्षत्र', '${d['nakshatra'] ?? '—'}  •  ${_time(nakshatraEnd)}', alternate: true),
+        _detailRow('नक्षत्र', '${d['nakshatra'] ?? '—'} • चरण ${d['nakshatraPada'] ?? '—'} • ${_time(nakshatraEnd)}', alternate: true),
         _detailRow('योग', '${d['yoga'] ?? '—'}  •  ${_time(yogaEnd)}'),
         _detailRow('करण', '${d['karana'] ?? '—'}  •  ${_time(karanaEnd)}', alternate: true),
         _detailRow('वार', _weekday(selectedDate)),
       ]),
       _detailCard('मास, राशि, ऋतु एवं अयन', Icons.public, [
-        _detailRow('माह (अमांत)', 'सत्यापनाधीन — अमावस्या-आधारित', alternate: true),
-        _detailRow('माह (पूर्णिमांत)', 'सत्यापनाधीन — पूर्णिमा-आधारित'),
+        _detailRow('माह (अमांत)', lunarMonths['amanta'] ?? '—', alternate: true),
+        _detailRow('माह (पूर्णिमांत)', lunarMonths['purnimanta'] ?? '—'),
         _detailRow('चंद्र राशि', _rashi(_siderealMoon()), alternate: true),
         _detailRow('सूर्य राशि', _rashi(_siderealSun())),
         _detailRow('ऋतु', _ritu(), alternate: true),
@@ -571,10 +570,10 @@ class _PanchangScreenState extends State<PanchangScreen> {
       _detailCard('संवत्सर एवं संवत', Icons.history, [
         _detailRow('संवत्सर', '60-वर्षीय चक्र — सत्यापनाधीन', alternate: true),
         _detailRow('संवत्सर (दक्षिण)', 'क्षेत्रीय पद्धति — सत्यापनाधीन'),
-        _detailRow('विक्रम संवत', '$vikram विक्रम संवत', alternate: true),
-        _detailRow('गुजराती संवत', 'दीपावली-आधारित गणना सत्यापनाधीन'),
-        _detailRow('शक संवत', '$shaka शक संवत', alternate: true),
-        _detailRow('कलि संवत', '${selectedDate.year + 3101} कलि संवत'),
+        _detailRow('विक्रम संवत', 'संदर्भ-पंचांग मिलान शेष', alternate: true),
+        _detailRow('गुजराती संवत', 'दीपावली-आधारित — मिलान शेष'),
+        _detailRow('शक संवत', 'राष्ट्रीय पंचांग से मिलान शेष', alternate: true),
+        _detailRow('कलि संवत', 'परंपरागत युग-गणना का मिलान शेष'),
         _detailRow('लाहिड़ी अयनांश', '${(d['ayanamsha'] as num).toStringAsFixed(4)}°', alternate: true),
       ]),
       _detailCard('सूर्योदय एवं दिनमान', Icons.wb_sunny, [
@@ -592,10 +591,8 @@ class _PanchangScreenState extends State<PanchangScreen> {
         _detailRow('चंद्र नक्षत्र', '${d['nakshatra'] ?? '—'}', alternate: true),
       ]),
       _detailCard('पद, चरण', Icons.auto_awesome, [
-        _detailRow('नक्षत्र चरण 1', 'चरण की सीमा-सारणी जोड़ना शेष', alternate: true),
-        _detailRow('नक्षत्र चरण 2', 'चरण की सीमा-सारणी जोड़ना शेष'),
-        _detailRow('नक्षत्र चरण 3', 'चरण की सीमा-सारणी जोड़ना शेष', alternate: true),
-        _detailRow('नक्षत्र चरण 4', 'चरण की सीमा-सारणी जोड़ना शेष'),
+        _detailRow('चंद्र नक्षत्र चरण', '${d['nakshatra'] ?? '—'} — चरण ${d['nakshatraPada'] ?? '—'}', alternate: true),
+        _detailRow('चरण गणना', 'प्रत्येक नक्षत्र के 3°20′ खंड के आधार पर'),
       ]),
       _detailCard('शिव वास एवं अग्नि वास', Icons.local_fire_department, [..._vasaRows(d)]),
       Card(color: const Color(0xFFFFF4E5), child: const Padding(
