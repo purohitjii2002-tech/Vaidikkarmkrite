@@ -25,6 +25,8 @@ jobs:
           cache: true
       - name: Generate Android project
         run: flutter create --platforms=android --project-name vaidikkarmkrite .
+      - name: Remove generated Flutter template test
+        run: rm -f test/widget_test.dart
       - name: Keep Gradle outputs inside the Flutter project
         run: |
           if [ -f android/build.gradle.kts ]; then
