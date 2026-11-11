@@ -386,18 +386,7 @@ class _PanchangScreenState extends State<PanchangScreen> {
     }
     switch (selectedMuhuratTab) {
       case 0:
-        return [
-          _sectionHeading('आज का पंचांग', Icons.calendar_today),
-          _tile('तिथि', '${data!['tithi']} • ${data!['paksha']} • समाप्ति ${_time(data!['tithiEnd'] as DateTime?)}', Icons.brightness_3_outlined),
-          _tile('नक्षत्र', '${data!['nakshatra']} • चरण ${data!['nakshatraPada']} • समाप्ति ${_time(data!['nakshatraEnd'] as DateTime?)}', Icons.star_outline),
-          _tile('योग', '${data!['yoga']} • समाप्ति ${_time(data!['yogaEnd'] as DateTime?)}', Icons.auto_awesome),
-          _tile('करण', '${data!['karana']} • समाप्ति ${_time(data!['karanaEnd'] as DateTime?)}', Icons.circle_outlined),
-          _tile('सूर्योदय – सूर्यास्त', '${_time(sunrise)} – ${_time(sunset)}', Icons.wb_sunny_outlined),
-          _tile('अयनांश (लाहिड़ी)', '${(data!['ayanamsha'] as double).toStringAsFixed(4)}°', Icons.explore_outlined),
-          const Padding(padding: EdgeInsets.all(8), child: Text(
-            'गणना दृक् गणित पर आधारित है। पारंपरिक उज्जैन पंचांग से तुलनात्मक सत्यापन जारी है।',
-            style: TextStyle(fontSize: 12, color: Colors.black54))),
-        ];
+        return _dayPanchangDetails();
       case 1:
         return [
           _sectionHeading('दैनिक मुहूर्त एवं काल', Icons.access_time),
@@ -438,6 +427,102 @@ class _PanchangScreenState extends State<PanchangScreen> {
       default:
         return [];
     }
+  }
+
+
+  static const _rashiNames = ['मेष','वृषभ','मिथुन','कर्क','सिंह','कन्या','तुला','वृश्चिक','धनु','मकर','कुंभ','मीन'];
+  static const _nakshatraNames = ['अश्विनी','भरणी','कृत्तिका','रोहिणी','मृगशीर्ष','आर्द्रा','पुनर्वसु','पुष्य','आश्लेषा','मघा','पूर्वा फाल्गुनी','उत्तरा फाल्गुनी','हस्त','चित्रा','स्वाती','विशाखा','अनुराधा','ज्येष्ठा','मूल','पूर्वाषाढ़ा','उत्तराषाढ़ा','श्रवण','धनिष्ठा','शतभिषा','पूर्वा भाद्रपद','उत्तरा भाद्रपद','रेवती'];
+  int _siderealSign(double longitude) => ((((longitude % 360) + 360) % 360) / 30).floor();
+  String _rashi(double longitude) => _rashiNames[_siderealSign(longitude)];
+  double _siderealSun() => ((data!['sunLongitude'] as num).toDouble() - (data!['ayanamsha'] as num).toDouble());
+  double _siderealMoon() => ((data!['moonLongitude'] as num).toDouble() - (data!['ayanamsha'] as num).toDouble());
+  String _sunNakshatra() {
+    final lon = (_siderealSun() % 360 + 360) % 360;
+    return _nakshatraNames[(lon / (360 / 27)).floor() % 27];
+  }
+  String _ritu() {
+    const seasons = ['वसंत','वसंत','ग्रीष्म','ग्रीष्म','वर्षा','वर्षा','शरद','शरद','हेमंत','हेमंत','शिशिर','शिशिर'];
+    return seasons[_siderealSign(_siderealSun())];
+  }
+  String _ayana() => (_siderealSign(_siderealSun()) >= 9 || _siderealSign(_siderealSun()) <= 2) ? 'उत्तरायण' : 'दक्षिणायन';
+  String _detailDuration(Duration d) => '${d.inHours.toString().padLeft(2,'0')}:${(d.inMinutes%60).toString().padLeft(2,'0')}:${(d.inSeconds%60).toString().padLeft(2,'0')}';
+  Widget _detailCard(String title, IconData icon, List<Widget> children) => Card(
+    color: Colors.white, elevation: 1,
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+    child: Padding(padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      child: Column(children: [
+        Row(children: [Icon(icon, color: const Color(0xFF79502B)), const SizedBox(width: 8),
+          Text(title, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: Color(0xFF234536)))]),
+        const Divider(height: 18), ...children,
+      ]),
+    ),
+  );
+  Widget _detailRow(String label, String value, {bool alternate = false}) => Container(
+    color: alternate ? const Color(0xFFFFF6E9) : Colors.transparent,
+    padding: const EdgeInsets.symmetric(vertical: 7, horizontal: 4),
+    child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Expanded(flex: 5, child: Text(label, textAlign: TextAlign.right, style: const TextStyle(fontSize: 13, color: Color(0xFF98652D)))),
+      const SizedBox(width: 12),
+      Expanded(flex: 6, child: Text(value, style: const TextStyle(fontSize: 14, color: Color(0xFF286342), fontWeight: FontWeight.w600))),
+    ]),
+  );
+  List<Widget> _dayPanchangDetails() {
+    final d = data!;
+    final dayLength = sunrise != null && sunset != null ? sunset!.difference(sunrise!) : Duration.zero;
+    final nightLength = const Duration(days: 1) - dayLength;
+    final vikram = selectedDate.year + (selectedDate.month >= 4 ? 57 : 56);
+    final shaka = selectedDate.year - (selectedDate.month >= 3 ? 78 : 79);
+    return [
+      _detailCard('पंचांग विवरण', Icons.calendar_month, [
+        _detailRow('तिथि', '${d['tithi'] ?? '—'}', alternate: true),
+        _detailRow('पक्ष', '${d['paksha'] ?? '—'}'),
+        _detailRow('नक्षत्र', '${d['nakshatra'] ?? '—'}', alternate: true),
+        _detailRow('योग', '${d['yoga'] ?? '—'}'),
+        _detailRow('करण', '${d['karana'] ?? '—'}', alternate: true),
+        _detailRow('वार', _weekday(selectedDate)),
+        _detailRow('तिथि समाप्ति', _time(d['tithiEnd'] as DateTime?)),
+        _detailRow('नक्षत्र समाप्ति', _time(d['nakshatraEnd'] as DateTime?), alternate: true),
+        _detailRow('योग समाप्ति', _time(d['yogaEnd'] as DateTime?)),
+        _detailRow('करण समाप्ति', _time(d['karanaEnd'] as DateTime?), alternate: true),
+      ]),
+      _detailCard('मास, राशि, ऋतु एवं अयन', Icons.public, [
+        _detailRow('माह (अमांत)', 'चंद्र मास गणना सत्यापनाधीन', alternate: true),
+        _detailRow('माह (पूर्णिमांत)', 'चंद्र मास गणना सत्यापनाधीन'),
+        _detailRow('चंद्र राशि', _rashi(_siderealMoon()), alternate: true),
+        _detailRow('सूर्य राशि', _rashi(_siderealSun())),
+        _detailRow('ऋतु', _ritu(), alternate: true),
+        _detailRow('अयन', _ayana()),
+        _detailRow('सौर मास / प्रविष्टि', '${_rashi(_siderealSun())} सौर मास', alternate: true),
+      ]),
+      _detailCard('संवत्सर एवं संवत', Icons.history, [
+        _detailRow('संवत्सर नाम', '60-वर्षीय चक्र सत्यापनाधीन', alternate: true),
+        _detailRow('विक्रम संवत', '$vikram विक्रम संवत'),
+        _detailRow('गुजराती संवत', 'क्षेत्रीय संवत गणना सत्यापनाधीन', alternate: true),
+        _detailRow('शक संवत', '$shaka शक संवत'),
+        _detailRow('कलि संवत', '${selectedDate.year + 3101} कलि संवत', alternate: true),
+        _detailRow('लाहिड़ी अयनांश', '${(d['ayanamsha'] as num).toStringAsFixed(4)}°'),
+      ]),
+      _detailCard('सूर्योदय एवं दिनमान', Icons.wb_sunny, [
+        _detailRow('स्थान', city, alternate: true),
+        _detailRow('सूर्योदय', _time(sunrise)),
+        _detailRow('सूर्यास्त', _time(sunset), alternate: true),
+        _detailRow('दिन की अवधि', _detailDuration(dayLength)),
+        _detailRow('रात की अवधि', _detailDuration(nightLength), alternate: true),
+      ]),
+      _detailCard('सूर्योदय समय का ज्योतिषीय विवरण', Icons.wb_twilight, [
+        _detailRow('सूर्य नक्षत्र', _sunNakshatra(), alternate: true),
+        _detailRow('चंद्र नक्षत्र', '${d['nakshatra'] ?? '—'}'),
+        _detailRow('चंद्र नक्षत्र चरण', '${d['nakshatraPada'] ?? '—'}', alternate: true),
+        _detailRow('लग्न', 'सटीक लग्न गणना सत्यापनाधीन'),
+        _detailRow('चंद्रोदय', 'खगोलीय गणना सत्यापनाधीन', alternate: true),
+        _detailRow('चंद्रास्त', 'खगोलीय गणना सत्यापनाधीन'),
+      ]),
+      Card(color: const Color(0xFFFFF4E5), child: const Padding(
+        padding: EdgeInsets.all(12),
+        child: Text('सूचना: तिथि, नक्षत्र, योग और करण दृक् गणित से निकाले जा रहे हैं। मास, संवत्सर, चंद्रोदय-चंद्रास्त, लग्न तथा पर्व-निर्णय के परिणाम पारंपरिक उज्जैन पंचांग से सत्यापन के बाद ही अंतिम माने जाएँगे।',
+          style: TextStyle(fontSize: 12, color: Color(0xFF705333))),
+      )),
+    ];
   }
 
   Widget _sunInfo(String label, String value, IconData icon) => Row(children: [
