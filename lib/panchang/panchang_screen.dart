@@ -1217,7 +1217,8 @@ class _PanchangScreenState extends State<PanchangScreen> {
     const dagdha = [12, 11, 5, 3, 6, 8, 9];
     const visha = [4, 6, 7, 2, 8, 9, 7];
     const hutashana = [12, 6, 7, 8, 9, 10, 11];
-    const kakrach = [12, 11, 10, 9, 8, 7, 6];
+    // Sunday=1 ... Saturday=7. Krakach (Kakrach) is formed
+    // when weekday number + paksha-local tithi number equals 13.
     const anandadiNames = [
       'आनन्द','कालदण्ड','धूम्र','धाता','सौम्य','ध्वांक्ष','केतु','श्रीवत्स',
       'वज्र','मुद्गर','छत्र','मित्र','मानस','पद्म','लुम्ब','उत्पात',
@@ -1266,17 +1267,22 @@ class _PanchangScreenState extends State<PanchangScreen> {
       if (dagdha[weekday] == tithiNo) mark('दग्ध योग', false);
       if (visha[weekday] == tithiNo) mark('विष योग', false);
       if (hutashana[weekday] == tithiNo) mark('हुताशन योग', false);
-      if (kakrach[weekday] == tithiNo) mark('काक्रच / क्रकच योग', false);
+      if ((weekday + 1 + tithiNo) == 13) {
+        mark('काक्रच / क्रकच योग', false);
+      }
       if (jwalamukhi) mark('ज्वालामुखी योग', false);
 
       final extendedNak = nak <= 20 ? nak : nak + 1;
       final anandadiIndex = (extendedNak - anandadiStart[weekday] + 28) % 28;
       final anandadi = anandadiNames[anandadiIndex];
-      if (anandadiAshubh.contains(anandadi)) {
-        final display = anandadi == 'ध्वांक्ष' ? 'ध्वांक्ष (ध्वाक्ष)' :
-            anandadi == 'लुम्ब' ? 'लुम्ब / लंबक' : anandadi;
-        mark(display + ' योग', false);
-      }
+      final anandadiDisplay = anandadi == 'ध्वांक्ष'
+          ? 'ध्वांक्ष (ध्वाक्ष)'
+          : anandadi == 'लुम्ब' ? 'लुम्ब / लंबक' : anandadi;
+      // Always report the active Anandadi yoga, not only the inauspicious
+      // subset. The traditional inauspicious subset is highlighted red;
+      // the remaining named yogas are shown as auspicious in this table.
+      mark('$anandadiDisplay (आनन्दादि) योग',
+          !anandadiAshubh.contains(anandadi));
       return found;
     }
 
