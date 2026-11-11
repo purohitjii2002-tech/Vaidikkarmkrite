@@ -31,12 +31,13 @@ flutter:
   assets:
     - assets/images/karmkrite logo.png.jpg
     - assets/images/karmkrite_logo.svg
+    - assets/images/karmkrite_vedic_emblem png.png
     - assets/images/karmkrite_logo.png
 
 flutter_launcher_icons:
   android: true
   ios: false
-  image_path: "assets/images/karmkrite_logo.png"
+  image_path: "assets/images/karmkrite_vedic_emblem png.png"
   adaptive_icon_background: "#FFFFFF"
-  adaptive_icon_foreground: "assets/images/karmkrite_logo.png"
+  adaptive_icon_foreground: "assets/images/karmkrite_vedic_emblem png.png"
   min_sdk_android: 21
