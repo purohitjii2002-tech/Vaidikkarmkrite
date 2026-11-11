@@ -35,7 +35,21 @@ class _PanchangScreenState extends State<PanchangScreen> {
   void initState() {
     super.initState();
     _liveTimer = Timer.periodic(const Duration(seconds: 20), (_) {
-      if (mounted) setState(() => _liveNow = DateTime.now());
+      if (!mounted) return;
+      final now = DateTime.now();
+      final oldLiveDay = DateTime(_liveNow.year, _liveNow.month, _liveNow.day);
+      final newLiveDay = DateTime(now.year, now.month, now.day);
+      final wasFollowingToday = selectedDate.year == oldLiveDay.year &&
+          selectedDate.month == oldLiveDay.month &&
+          selectedDate.day == oldLiveDay.day;
+      setState(() {
+        _liveNow = now;
+        // Keep the live Panchang on the new civil date after local midnight.
+        if (wasFollowingToday && oldLiveDay != newLiveDay) {
+          selectedDate = newLiveDay;
+          _calculate();
+        }
+      });
     });
     _load();
   }
@@ -699,6 +713,19 @@ class _PanchangScreenState extends State<PanchangScreen> {
           Row(children:[const Icon(Icons.auto_awesome,color:Color(0xFFFFD88A)),const SizedBox(width:8),const Expanded(child:Text('अभी का पंचांग',style:TextStyle(color:Colors.white,fontSize:19,fontWeight:FontWeight.bold))),Text(_time(_liveNow),style:const TextStyle(color:Color(0xFFFFE2A8),fontWeight:FontWeight.bold))]),
           const SizedBox(height:5),
           Text('लाइव गणना • हर 20 सेकंड में अद्यतन',style:TextStyle(color:Colors.white.withOpacity(.75),fontSize:11)),
+          const SizedBox(height:10),
+          Row(children:[
+            Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+              const Text('आज की दिनांक एवं वार',style:TextStyle(color:Color(0xFFFFE2A8),fontSize:10)),
+              const SizedBox(height:3),
+              Text('${_weekday(_liveNow)} • ${_date(_liveNow)}',style:const TextStyle(color:Colors.white,fontWeight:FontWeight.w700,fontSize:13)),
+            ])),
+            Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.end,children:[
+              const Text('सूर्योदय  /  सूर्यास्त',style:TextStyle(color:Color(0xFFFFE2A8),fontSize:10)),
+              const SizedBox(height:3),
+              Text('${_time(sunrise)}  /  ${_time(sunset)}',style:const TextStyle(color:Colors.white,fontWeight:FontWeight.w700,fontSize:12)),
+            ])),
+          ]),
           const SizedBox(height:10),
           Row(children:[
             info('वर्तमान तिथि','${instantData['tithi']}','${instantData['paksha']} • ${_remaining(tithiEnd)}',Icons.calendar_today,color:Colors.white,tint:const Color(0xFF315C4D)),
@@ -1625,6 +1652,10 @@ class _PanchangScreenState extends State<PanchangScreen> {
     final yogaEnd = d['yogaEnd'] as DateTime?;
     final karanaEnd = d['karanaEnd'] as DateTime?;
     return [
+      if (selectedDate.year == _liveNow.year &&
+          selectedDate.month == _liveNow.month &&
+          selectedDate.day == _liveNow.day)
+        _liveDashboard(),
       _detailCard('पंचांग', Icons.calendar_month, [
         _detailRow('तिथि', '${d['tithi'] ?? '—'}  •  ${_time(tithiEnd)}', alternate: true, compact: true),
         _detailRow('पक्ष', '${d['paksha'] ?? '—'}', compact: true),
@@ -1632,6 +1663,25 @@ class _PanchangScreenState extends State<PanchangScreen> {
         _detailRow('योग', '${d['yoga'] ?? '—'}  •  ${_time(yogaEnd)}', compact: true),
         _detailRow('करण', '${d['karana'] ?? '—'}  •  ${_time(karanaEnd)}', alternate: true, compact: true),
         _detailRow('वार', _weekday(selectedDate), compact: true),
+      ]),
+      _detailCard('सूर्योदय एवं दिनमान', Icons.wb_sunny, [
+        _detailRow('स्थान', city, alternate: true),
+        _detailRow('सूर्योदय', _time(sunrise)),
+        _detailRow('सूर्यास्त', _time(sunset), alternate: true),
+        _detailRow('दिन की अवधि', _detailDuration(dayLength)),
+        _detailRow('रात की अवधि', _detailDuration(nightLength), alternate: true),
+        _detailRow('चंद्रोदय', _time(moonrise)),
+        _detailRow('चंद्रास्त', _time(moonset), alternate: true),
+      ]),
+      _detailCard('विशेष योग एवं पंचक', Icons.auto_awesome, [
+        if (_specialYogaRows.isEmpty)
+          _detailRow('विशेष योग', 'आज कोई सूचीबद्ध विशेष योग नहीं', alternate: true)
+        else
+          ..._specialYogaRows.map((row) => _detailRow(
+            row['name'] ?? 'विशेष योग',
+            '${row['time'] ?? ''} ${row['kind'] ?? ''}'.trim(),
+            alternate: true,
+          )),
       ]),
       _panchakCard(),
       _detailCard('मास, राशि, ऋतु एवं अयन', Icons.public, [
@@ -1647,16 +1697,7 @@ class _PanchangScreenState extends State<PanchangScreen> {
         ..._samvatsaraRows(),
         _detailRow('लाहिड़ी अयनांश', '${(d['ayanamsha'] as num).toStringAsFixed(4)}°', alternate: true),
       ]),
-      _detailCard('सूर्योदय एवं दिनमान', Icons.wb_sunny, [
-        _detailRow('स्थान', city, alternate: true),
-        _detailRow('सूर्योदय', _time(sunrise)),
-        _detailRow('सूर्यास्त', _time(sunset), alternate: true),
-        _detailRow('दिन की अवधि', _detailDuration(dayLength)),
-        _detailRow('रात की अवधि', _detailDuration(nightLength), alternate: true),
-        _detailRow('चंद्रोदय', _time(moonrise)),
-        _detailRow('चंद्रास्त', _time(moonset), alternate: true),
-      ]),
-      _detailCard('सूर्योदय', Icons.wb_twilight, [
+      _detailCard('सूर्योदय का लग्न एवं नक्षत्र', Icons.wb_twilight, [
         _detailRow('लग्न', _lagnaLabel(), alternate: true),
         _detailRow('सूर्य नक्षत्र', _sunNakshatra()),
         _detailRow('चंद्र नक्षत्र', '${d['nakshatra'] ?? '—'}', alternate: true),
