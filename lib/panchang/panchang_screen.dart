@@ -19,6 +19,8 @@ class _PanchangScreenState extends State<PanchangScreen> {
   String? error;
   Map<String, dynamic>? data;
   DateTime? sunrise, sunset, moonrise, moonset;
+  List<Map<String, String>> _specialYogaRows = [];
+  ({DateTime start, DateTime end, bool active})? _panchakWindow;
   double? sunriseAscendant;
   bool loading = true;
   int selectedMuhuratTab = 0;
@@ -110,6 +112,16 @@ class _PanchangScreenState extends State<PanchangScreen> {
     );
     data = sunrise != null && sunset != null
         ? PanchangEngine.atSunrise(sunrise!) : null;
+    final nextSunrise = PanchangEngine.solarEvent(
+      localDate: date.add(const Duration(days: 1)),
+      latitude: position!.latitude, longitude: position!.longitude,
+      sunrise: true,
+    );
+    _specialYogaRows = sunrise != null && nextSunrise != null
+        ? _calculateSpecialYogas(sunrise!, nextSunrise, date.weekday % 7)
+        : [];
+    _panchakWindow = sunrise == null ? null
+        : PanchangEngine.panchakWindow(sunrise!);
     if (position != null && sunrise != null) {
       final lunar = PanchangEngine.moonEvents(localDate: date,
         latitude: position!.latitude, longitude: position!.longitude);
@@ -155,7 +167,10 @@ class _PanchangScreenState extends State<PanchangScreen> {
     return List.generate(8, (i) {
       final a = _partTime(start, end, i, 8)!;
       final b = _partTime(start, end, i + 1, 8)!;
-      return {'name': names[i], 'time': '${_time(a)} – ${_time(b)}'};
+      final name = names[i];
+      final good = ['अमृत','शुभ','लाभ','चर'].contains(name);
+      return {'name': name, 'time': _time(a) + ' – ' + _time(b),
+        'kind': good ? 'शुभ' : 'अशुभ'};
     });
   }
 
@@ -469,6 +484,13 @@ class _PanchangScreenState extends State<PanchangScreen> {
             info('नक्षत्र • चरण','${nak} • ${pada}','${_remaining(nakEnd)}',Icons.star,color:Colors.white,tint:const Color(0xFF315C4D)),
             info('वर्तमान लग्न',_rashi(lagna),' ${_remaining(lagnaEnd)}',Icons.explore,color:Colors.white,tint:const Color(0xFF315C4D)),
           ]),
+          Row(children:[
+            info('वर्तमान करण',instantData['karana']?.toString() ?? '—',
+              _remaining(instantData['karanaEnd'] as DateTime?),Icons.brightness_5,
+              color:Colors.white,tint:const Color(0xFF315C4D)),
+            info('करण समाप्ति',_time(instantData['karanaEnd'] as DateTime?),
+              'अभी के समय से गणना',Icons.schedule,color:Colors.white,tint:const Color(0xFF315C4D)),
+          ]),
         ]),
       ),
       const SizedBox(height:8),
@@ -489,13 +511,24 @@ class _PanchangScreenState extends State<PanchangScreen> {
 
   Widget _timeList(List<Map<String, String>> rows) => Card(
     color: Colors.white,
-    child: Column(children: rows.map((row) => ListTile(
-      dense: true,
-      title: Text(row['name'] ?? '', style: const TextStyle(fontWeight: FontWeight.w600)),
-      subtitle: row['kind'] == null ? null : Text(row['kind']!),
-      trailing: Text(row['time'] ?? '', style: const TextStyle(
-        color: Color(0xFF79502B), fontSize: 12, fontWeight: FontWeight.w600)),
-    )).toList()),
+    child: Column(children: rows.map((row) {
+      final kind = row['kind'];
+      final good = kind == 'शुभ';
+      final bad = kind == 'अशुभ';
+      final color = good ? const Color(0xFF167443) :
+          bad ? const Color(0xFFB3261E) : const Color(0xFF79502B);
+      final tint = good ? const Color(0xFFE8F6EB) :
+          bad ? const Color(0xFFFFECEA) : Colors.transparent;
+      return ListTile(
+        dense: true, tileColor: tint,
+        leading: kind == null ? null : Icon(
+          good ? Icons.check_circle_outline : Icons.warning_amber_rounded,
+          color: color, size: 18),
+        title: Text(row['name'] ?? '', style: TextStyle(fontWeight: FontWeight.w600, color: color)),
+        subtitle: kind == null ? null : Text(kind, style: TextStyle(color: color, fontSize: 11)),
+        trailing: Text(row['time'] ?? '', style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.w700)),
+      );
+    }).toList()),
   );
 
   Widget _muhurtaDial() {
@@ -528,6 +561,14 @@ class _PanchangScreenState extends State<PanchangScreen> {
         ]),
       ),
     );
+  }
+
+  void _changeDate(int days) {
+    final next = selectedDate.add(Duration(days: days));
+    setState(() {
+      selectedDate = DateTime(next.year, next.month, next.day);
+      _calculate();
+    });
   }
 
   Future<void> _chooseDate() async {
@@ -580,27 +621,42 @@ class _PanchangScreenState extends State<PanchangScreen> {
                     padding: const EdgeInsets.fromLTRB(14, 8, 14, 24),
                     children: [
                       Container(
-                        padding: const EdgeInsets.all(18),
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                         decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(20),
-                          gradient: const LinearGradient(
-                            colors: [Color(0xFF6B4528), Color(0xFF9B7042)],
-                          ),
+                          color: const Color(0xFFFFF0D5),
+                          borderRadius: BorderRadius.circular(9),
+                          border: Border.all(color: const Color(0xFFE9D8B9)),
                         ),
-                        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        child: Row(children: [
+                          const Icon(Icons.location_on_outlined, size: 16, color: Color(0xFF79502B)),
+                          const SizedBox(width: 6),
+                          Expanded(child: Text(city, maxLines: 1, overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF684521)))),
+                          const Text('स्थान', style: TextStyle(fontSize: 10, color: Color(0xFF98652D))),
+                        ]),
+                      ),
+                      const SizedBox(height: 7),
+                      Container(
+                        padding: const EdgeInsets.fromLTRB(8, 7, 8, 10),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(16),
+                          gradient: const LinearGradient(colors: [Color(0xFF6B4528), Color(0xFF9B7042)]),
+                        ),
+                        child: Column(children: [
                           Row(children: [
-                            const Icon(Icons.location_on, color: Color(0xFFFFD88A)),
-                            const SizedBox(width: 6),
-                            Expanded(child: Text(city, style: const TextStyle(color: Colors.white))),
-                            TextButton(onPressed: _chooseDate,
-                              child: const Text('तारीख बदलें', style: TextStyle(color: Colors.white))),
+                            IconButton(tooltip: 'पिछली तारीख', onPressed: () => _changeDate(-1),
+                              icon: const Icon(Icons.chevron_left, color: Colors.white, size: 28),
+                              visualDensity: VisualDensity.compact),
+                            Expanded(child: Column(children: [
+                              Text(_weekday(selectedDate), style: const TextStyle(color: Colors.white70, fontSize: 12)),
+                              Text(_date(selectedDate), style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
+                            ])),
+                            IconButton(tooltip: 'अगली तारीख', onPressed: () => _changeDate(1),
+                              icon: const Icon(Icons.chevron_right, color: Colors.white, size: 28),
+                              visualDensity: VisualDensity.compact),
                           ]),
-                          const SizedBox(height: 8),
-                          Text(_weekday(selectedDate), style: const TextStyle(color: Colors.white70)),
-                          Text(_date(selectedDate), style: const TextStyle(
-                            color: Colors.white, fontSize: 26, fontWeight: FontWeight.bold,
-                          )),
-                          const SizedBox(height: 12),
+                          const Divider(color: Color(0x66FFFFFF), height: 8),
                           Row(children: [
                             Expanded(child: _sunInfo('सूर्योदय', _time(sunrise), Icons.wb_sunny_outlined)),
                             Expanded(child: _sunInfo('सूर्यास्त', _time(sunset), Icons.wb_twilight)),
@@ -902,6 +958,140 @@ class _PanchangScreenState extends State<PanchangScreen> {
     ];
   }
 
+  List<Map<String, String>> _calculateSpecialYogas(
+      DateTime dayStart, DateTime nextSunrise, int weekday) {
+    const sarvartha = <List<int>>[
+      [0, 7, 11, 12, 18, 20, 25], [3, 4, 7, 16, 21],
+      [0, 2, 8, 25], [2, 3, 4, 12, 16], [0, 6, 7, 16, 26],
+      [0, 6, 16, 21, 26], [3, 14, 21],
+    ];
+    const amritSiddhi = [12, 4, 0, 16, 7, 26, 3];
+    const siddhaTithis = <int, List<int>>{
+      5: [1, 6, 11], 3: [2, 7, 12], 2: [3, 8, 13],
+      6: [4, 9, 14], 4: [5, 10, 15],
+    };
+    const amritTithis = <int, List<int>>{
+      0: [1, 6, 11], 1: [2, 7, 12], 2: [1, 6, 11],
+      3: [3, 8, 13], 4: [4, 9, 14], 5: [2, 7, 12],
+      6: [5, 10, 15],
+    };
+    const dagdha = [12, 11, 5, 3, 6, 8, 9];
+    const visha = [4, 6, 7, 2, 8, 9, 7];
+    const hutashana = [12, 6, 7, 8, 9, 10, 11];
+    const kakrach = [12, 11, 10, 9, 8, 7, 6];
+    const anandadiNames = [
+      'आनन्द','कालदण्ड','धूम्र','धाता','सौम्य','ध्वांक्ष','केतु','श्रीवत्स',
+      'वज्र','मुद्गर','छत्र','मित्र','मानस','पद्म','लुम्ब','उत्पात',
+      'मृत्यु','काण','सिद्धि','शुभ','अमृत','मुसल','गद','मातंग',
+      'राक्षस','चर','सुस्थिर','प्रवर्धमान',
+    ];
+    const anandadiStart = [0, 4, 8, 12, 16, 20, 24];
+    const anandadiAshubh = {
+      'कालदण्ड','धूम्र','ध्वांक्ष','वज्र','मुद्गर','लुम्ब','उत्पात',
+      'मृत्यु','काण','मुसल','गद','राक्षस',
+    };
+    final found = <String, bool>{};
+    void mark(String name, bool good) => found[name] = good;
+    var cursor = dayStart;
+    while (cursor.isBefore(nextSunrise)) {
+      final limb = PanchangEngine.indicesAt(cursor);
+      final tithiNo = (limb['tithi']! % 15) + 1;
+      final nak = limb['nakshatra']!;
+      final sunNak = limb['sunNakshatra']!;
+      final jwalamukhi =
+          (tithiNo == 1 && nak == 18) || (tithiNo == 5 && nak == 1) ||
+          (tithiNo == 8 && nak == 2) || (tithiNo == 9 && nak == 3) ||
+          (tithiNo == 10 && nak == 8);
+      if (sarvartha[weekday].contains(nak)) mark('सर्वार्थ सिद्धि योग', true);
+      if (amritSiddhi[weekday] == nak) mark('अमृत सिद्धि योग', true);
+      if (weekday == 0 && nak == 7) mark('रवि पुष्य योग', true);
+      if (weekday == 4 && nak == 7) mark('गुरु पुष्य योग', true);
+      final fromSun = ((nak - sunNak + 27) % 27) + 1;
+      if ([4, 6, 9, 10, 13, 20].contains(fromSun)) mark('रवि योग', true);
+      if ([0, 2, 6].contains(weekday) && [2, 7, 12].contains(tithiNo) &&
+          [4, 13, 22].contains(nak)) mark('द्विपुष्कर योग', true);
+      if ([0, 2, 6].contains(weekday) && [2, 7, 12].contains(tithiNo) &&
+          [2, 6, 11, 15, 20, 24].contains(nak)) mark('त्रिपुष्कर योग', true);
+      if (siddhaTithis[weekday]?.contains(tithiNo) == true) mark('सिद्ध योग', true);
+      if (amritTithis[weekday]?.contains(tithiNo) == true) mark('अमृत योग', true);
+      if (dagdha[weekday] == tithiNo || (weekday == 3 && tithiNo == 2)) mark('दग्ध योग', false);
+      if (visha[weekday] == tithiNo) mark('विष योग', false);
+      if (hutashana[weekday] == tithiNo) mark('हुताशन योग', false);
+      if (kakrach[weekday] == tithiNo) mark('काक्रच / क्रकच योग', false);
+      if (jwalamukhi) mark('ज्वालामुखी योग', false);
+
+      final extendedNak = nak <= 20 ? nak : nak + 1;
+      final anandadiIndex = (extendedNak - anandadiStart[weekday] + 28) % 28;
+      final anandadi = anandadiNames[anandadiIndex];
+      if (anandadiAshubh.contains(anandadi)) {
+        final display = anandadi == 'ध्वांक्ष' ? 'ध्वांक्ष (ध्वाक्ष)' :
+            anandadi == 'लुम्ब' ? 'लुम्ब / लंबक' : anandadi;
+        mark(display + ' योग', false);
+      }
+      cursor = cursor.add(const Duration(minutes: 5));
+    }
+    return found.entries.map((entry) => {
+      'name': entry.key, 'kind': entry.value ? 'शुभ' : 'अशुभ',
+    }).toList();
+  }
+
+  Widget _specialYogaCard() {
+    if (_specialYogaRows.isEmpty) {
+      return _detailCard('विशेष शुभ-अशुभ योग', Icons.auto_awesome, [
+        _detailRow('आज', 'सूचीबद्ध विशेष योग नहीं', alternate: true),
+      ]);
+    }
+    return _detailCard('विशेष शुभ-अशुभ योग', Icons.auto_awesome, [
+      ..._specialYogaRows.map((row) {
+        final good = row['kind'] == 'शुभ';
+        final color = good ? const Color(0xFF167443) : const Color(0xFFB3261E);
+        final tint = good ? const Color(0xFFE8F6EB) : const Color(0xFFFFECEA);
+        return Container(
+          margin: const EdgeInsets.symmetric(vertical: 3),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          decoration: BoxDecoration(color: tint, borderRadius: BorderRadius.circular(9)),
+          child: Row(children: [
+            Icon(good ? Icons.check_circle : Icons.warning_amber_rounded, color: color, size: 17),
+            const SizedBox(width: 8),
+            Expanded(child: Text(row['name']!, style: TextStyle(color: color, fontWeight: FontWeight.w700))),
+            Text(row['kind']!, style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.bold)),
+          ]),
+        );
+      }),
+      const Padding(
+        padding: EdgeInsets.only(top: 6),
+        child: Text('योग चयनित दिन के सूर्योदय से अगले सूर्योदय तक की अवधि में जाँचे गए हैं।',
+          style: TextStyle(fontSize: 10, color: Color(0xFF705333))),
+      ),
+    ]);
+  }
+
+  Widget _panchakCard() {
+    final window = _panchakWindow;
+    final nextSunrise = PanchangEngine.solarEvent(
+      localDate: selectedDate.add(const Duration(days: 1)),
+      latitude: position!.latitude, longitude: position!.longitude, sunrise: true,
+    );
+    final beginsToday = window != null && window.start.isAfter(sunrise!) &&
+        nextSunrise != null && window.start.isBefore(nextSunrise);
+    final active = window != null && (window.active ||
+        (beginsToday && window.start.isBefore(_liveNow)));
+    final status = active ? 'पंचक चल रहा है' :
+        beginsToday ? 'आज पंचक आरंभ होगा' : 'आज पंचक नहीं है';
+    final details = window == null ? 'समय गणना उपलब्ध नहीं' :
+        _date(window.start) + ' ' + _time(window.start) + ' – ' +
+        _date(window.end) + ' ' + _time(window.end);
+    return _detailCard('पंचक', Icons.nights_stay_outlined, [
+      _detailRow('स्थिति', status, alternate: true),
+      _detailRow('आरंभ – समाप्ति', details),
+      const Padding(
+        padding: EdgeInsets.only(top: 6),
+        child: Text('पंचक चंद्रमा के निरयन कुंभ राशि के 0° से मीन राशि के अंत (रेवती नक्षत्र समाप्ति) तक रहने पर माना गया है।',
+          style: TextStyle(fontSize: 10, color: Color(0xFF705333))),
+      ),
+    ]);
+  }
+
   List<Widget> _dayPanchangDetails() {
     final d = data!;
     final nextSunrise = PanchangEngine.solarEvent(
@@ -925,6 +1115,8 @@ class _PanchangScreenState extends State<PanchangScreen> {
         _detailRow('करण', '${d['karana'] ?? '—'}  •  ${_time(karanaEnd)}', alternate: true),
         _detailRow('वार', _weekday(selectedDate)),
       ]),
+      _specialYogaCard(),
+      _panchakCard(),
       _detailCard('मास, राशि, ऋतु एवं अयन', Icons.public, [
         _detailRow('माह (अमांत)', lunarMonths['amanta'] ?? '—', alternate: true),
         _detailRow('माह (पूर्णिमांत)', lunarMonths['purnimanta'] ?? '—'),
