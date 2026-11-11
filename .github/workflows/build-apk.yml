@@ -64,6 +64,8 @@ jobs:
           rsvg-convert -w 512 -h 512 assets/images/karmkrite_logo.svg > assets/images/karmkrite_logo.png
       - name: Install dependencies
         run: flutter pub get
+      - name: Run Panchang numerical regression tests
+        run: flutter test
       - name: Generate app launcher icon
         run: dart run flutter_launcher_icons
       - name: Assemble release APK with Gradle
