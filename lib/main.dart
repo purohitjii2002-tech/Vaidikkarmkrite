@@ -1212,47 +1212,109 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: Text(widget.title, maxLines: 1, overflow: TextOverflow.ellipsis),
-      actions: [IconButton(onPressed: toggle, icon: Icon(saved ? Icons.bookmark : Icons.bookmark_border))]),
-    body: SingleChildScrollView(padding: const EdgeInsets.all(20), child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(widget.title, style: const TextStyle(fontSize: 23, fontWeight: FontWeight.bold, color: Color(0xFF563719))),
-        if (widget.description.isNotEmpty) ...[
-          const SizedBox(height: 12),
-          Text(widget.description, style: const TextStyle(fontSize: 16, color: Colors.black54)),
-        ],
+    appBar: AppBar(
+      title: const BrandMark(),
+      actions: [
+        IconButton(
+          tooltip: saved ? 'सहेजी गई सामग्री से हटाएँ' : 'सहेजें',
+          onPressed: toggle,
+          icon: Icon(saved ? Icons.bookmark_rounded : Icons.bookmark_border_rounded),
+        ),
+        const SizedBox(width: 6),
+      ],
+    ),
+    body: SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.fromLTRB(18, 20, 18, 20),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(22),
+            gradient: const LinearGradient(
+              begin: Alignment.topLeft, end: Alignment.bottomRight,
+              colors: [Color(0xFF49301F), Color(0xFF79502E), Color(0xFF9A7044)],
+            ),
+            border: Border.all(color: const Color(0xFFD9B879), width: 0.8),
+            boxShadow: const [BoxShadow(color: Color(0x18000000), blurRadius: 15, offset: Offset(0, 6))],
+          ),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Row(children: [
+              const Icon(Icons.auto_stories_rounded, color: Color(0xFFE8C987), size: 18),
+              const SizedBox(width: 7),
+              const Text('KARMKRITE  •  ज्ञान-संग्रह',
+                style: TextStyle(color: Color(0xFFE8C987), fontSize: 10, fontWeight: FontWeight.w800, letterSpacing: 1.1)),
+              const Spacer(),
+              if (saved) const Icon(Icons.bookmark_rounded, color: Color(0xFFE8C987), size: 18),
+            ]),
+            const SizedBox(height: 13),
+            Text(widget.title, style: const TextStyle(
+              fontSize: 24, height: 1.3, fontWeight: FontWeight.w800, color: Colors.white)),
+            if (widget.description.isNotEmpty) ...[
+              const SizedBox(height: 9),
+              Text(widget.description, style: const TextStyle(
+                fontSize: 14, height: 1.55, color: Color(0xFFEFE3D1))),
+            ],
+          ]),
+        ),
         if (widget.mediaType == 'image' && widget.mediaUrl.isNotEmpty) ...[
           const SizedBox(height: 18),
-          ClipRRect(borderRadius: BorderRadius.circular(14),
-            child: _cachedMediaFile != null && _cachedMediaFile!.existsSync()
-                ? Image.file(_cachedMediaFile!, width: double.infinity, fit: BoxFit.contain)
-                : _mediaLoading
-                    ? const SizedBox(height: 180, child: Center(child: CircularProgressIndicator()))
-                    : const Padding(
-                        padding: EdgeInsets.all(20),
-                        child: Text('फोटो ऑफलाइन उपलब्ध नहीं है। इंटरनेट चालू करके इसे एक बार खोलें।'))),
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(color: const Color(0xFFFFFEFA),
+              borderRadius: BorderRadius.circular(18), border: Border.all(color: const Color(0xFFE9DCC8))),
+            child: ClipRRect(borderRadius: BorderRadius.circular(12),
+              child: _cachedMediaFile != null && _cachedMediaFile!.existsSync()
+                  ? Image.file(_cachedMediaFile!, width: double.infinity, fit: BoxFit.contain)
+                  : _mediaLoading
+                      ? const SizedBox(height: 180, child: Center(child: CircularProgressIndicator()))
+                      : const Padding(padding: EdgeInsets.all(20),
+                          child: Text('फोटो ऑफलाइन उपलब्ध नहीं है। इंटरनेट चालू करके इसे एक बार खोलें।'))),
+          ),
         ],
         if (widget.mediaType == 'audio' && widget.mediaUrl.isNotEmpty) ...[
           const SizedBox(height: 18),
-          Card(child: Padding(padding: const EdgeInsets.all(12), child: Row(children: [
-            IconButton(iconSize: 38, onPressed: playPause,
-              icon: Icon(_playerState == PlayerState.playing ? Icons.pause_circle : Icons.play_circle)),
-            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text('ऑडियो सुनें', style: const TextStyle(fontWeight: FontWeight.bold)),
-              Slider(value: _duration.inMilliseconds == 0 ? 0 :
-                _position.inMilliseconds.clamp(0, _duration.inMilliseconds).toDouble(),
-                max: _duration.inMilliseconds == 0 ? 1 : _duration.inMilliseconds.toDouble(),
-                onChanged: _duration.inMilliseconds == 0 ? null :
-                  (v) => _audioPlayer.seek(Duration(milliseconds: v.round()))),
-              Text('${_position.inSeconds} / ${_duration.inSeconds} सेकंड'),
+          Card(
+            color: const Color(0xFFFFFEFA),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18),
+              side: const BorderSide(color: Color(0xFFE9DCC8))),
+            child: Padding(padding: const EdgeInsets.fromLTRB(12, 12, 16, 10), child: Row(children: [
+              IconButton(
+                iconSize: 42, color: const Color(0xFF79502B), onPressed: playPause,
+                icon: Icon(_playerState == PlayerState.playing ? Icons.pause_circle_filled_rounded : Icons.play_circle_fill_rounded)),
+              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                const Text('ऑडियो सुनें', style: TextStyle(fontWeight: FontWeight.w800, color: Color(0xFF563719))),
+                Slider(value: _duration.inMilliseconds == 0 ? 0 :
+                  _position.inMilliseconds.clamp(0, _duration.inMilliseconds).toDouble(),
+                  max: _duration.inMilliseconds == 0 ? 1 : _duration.inMilliseconds.toDouble(),
+                  activeColor: const Color(0xFF9A7044),
+                  onChanged: _duration.inMilliseconds == 0 ? null :
+                    (v) => _audioPlayer.seek(Duration(milliseconds: v.round()))),
+                Text('${_position.inSeconds} / ${_duration.inSeconds} सेकंड',
+                  style: const TextStyle(fontSize: 11, color: Color(0xFF8B7965))),
+              ])),
             ])),
-          ]))),
+          ),
         ],
-        const SizedBox(height: 20),
-        SelectableText(widget.content.isEmpty ? 'इस विषय की विस्तृत सामग्री शीघ्र उपलब्ध होगी।' : widget.content,
-          style: const TextStyle(fontSize: 17, height: 1.8)),
-      ],
-    )),
+        const SizedBox(height: 22),
+        Row(children: [
+          Container(width: 4, height: 22, decoration: BoxDecoration(
+            color: const Color(0xFFD5A34B), borderRadius: BorderRadius.circular(4))),
+          const SizedBox(width: 9),
+          const Text('विस्तृत जानकारी', style: TextStyle(
+            fontSize: 17, fontWeight: FontWeight.w800, color: Color(0xFF563719))),
+        ]),
+        const SizedBox(height: 12),
+        Container(
+          width: double.infinity, padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(color: const Color(0xFFFFFEFA),
+            borderRadius: BorderRadius.circular(18), border: Border.all(color: const Color(0xFFECE2D3))),
+          child: SelectableText(
+            widget.content.isEmpty ? 'इस विषय की विस्तृत सामग्री शीघ्र उपलब्ध होगी।' : widget.content,
+            style: const TextStyle(fontSize: 16, height: 1.9, color: Color(0xFF3F352B))),
+        ),
+      ]),
+    ),
   );
 }
 
