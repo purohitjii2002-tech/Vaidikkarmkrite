@@ -1337,11 +1337,13 @@ class _SavedScreenState extends State<SavedScreen>{
     body:FutureBuilder<List<Map<String,dynamic>>>(future:future,builder:(context,s){
       if(s.connectionState==ConnectionState.waiting)return const Center(child:CircularProgressIndicator());
       final items=s.data??[];
-      if(items.isEmpty)return const Center(child:Padding(padding:EdgeInsets.all(28),child:Text('लेख पर बुकमार्क दबाएँ, वह यहाँ दिखाई देगा।',textAlign:TextAlign.center)));
-      return ListView.builder(padding:const EdgeInsets.all(14),itemCount:items.length,itemBuilder:(context,i){final x=items[i];return Card(child:ListTile(
-        leading:const Icon(Icons.bookmark,color:Color(0xFF79502B)),title:Text(x['title']??''),subtitle:Text(x['description']??'',maxLines:2,overflow:TextOverflow.ellipsis),
-        onTap:()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>ContentDetailScreen(title:x['title']??'',content:x['body']??'',description:x['description']??''))).then((_){setState(()=>future=SavedStore.read());}),
-        trailing:IconButton(icon:const Icon(Icons.delete_outline),onPressed:()async{await SavedStore.toggle({...x,'_remove':true});setState(()=>future=SavedStore.read());})));});
+      if(items.isEmpty)return const Center(child:Padding(padding:EdgeInsets.all(28),child:Text('किसी सामग्री, फोटो, ऑडियो या विचार के बुकमार्क बटन को दबाएँ। वह यहाँ दिखाई देगा।',textAlign:TextAlign.center)));
+      return ListView.builder(padding:const EdgeInsets.all(14),itemCount:items.length,itemBuilder:(context,i){final x=items[i];final image=x['media_type']=='image'?(x['media_url']??'').toString():'';
+        return Card(child:ListTile(
+        leading:image.isNotEmpty?ClipRRect(borderRadius:BorderRadius.circular(8),child:Image.network(image,width:48,height:54,fit:BoxFit.cover,errorBuilder:(_,__,___)=>const Icon(Icons.image_not_supported))):Icon(x['media_type']=='audio'?Icons.headphones:Icons.bookmark,color:const Color(0xFF79502B)),
+        title:Text((x['title']??'').toString()),subtitle:Text((x['description']??x['category']??'').toString(),maxLines:2,overflow:TextOverflow.ellipsis),
+        onTap:()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>ContentDetailScreen(title:(x['title']??'').toString(),content:(x['body']??'').toString(),description:(x['description']??'').toString(),mediaUrl:(x['media_url']??'').toString(),mediaType:(x['media_type']??'').toString(),savedItem:x))).then((_){setState(()=>future=SavedStore.read());}),
+        trailing:IconButton(icon:const Icon(Icons.delete_outline),tooltip:'हटाएँ',onPressed:()async{await SavedStore.toggle({...x,'_remove':true});setState(()=>future=SavedStore.read());})));});
     }));
 }
 
