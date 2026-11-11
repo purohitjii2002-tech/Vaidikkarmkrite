@@ -232,6 +232,106 @@ class _PanchangScreenState extends State<PanchangScreen> {
     ];
   }
 
+  // Current and next sunrise-based muhurta windows for the live dashboard.
+  List<Map<String, dynamic>> _liveMuhurtaWindows() {
+    if (position == null) return [];
+    const rahu = [8, 2, 7, 5, 6, 4, 3];
+    const yama = [5, 4, 3, 2, 1, 7, 6];
+    const gulika = [7, 6, 5, 4, 3, 2, 1];
+    // Traditional weekday-wise daytime Durmuhurta numbers, Sunday first.
+    const durmuhurta = [[14], [9, 12], [4], [8], [6, 12], [4, 9], [1, 2]];
+    final rows = <Map<String, dynamic>>[];
+    for (var offset = 0; offset <= 1; offset++) {
+      final day = DateTime(_liveNow.year, _liveNow.month, _liveNow.day)
+          .add(Duration(days: offset));
+      final rise = PanchangEngine.solarEvent(localDate: day,
+          latitude: position!.latitude, longitude: position!.longitude,
+          sunrise: true);
+      final set = PanchangEngine.solarEvent(localDate: day,
+          latitude: position!.latitude, longitude: position!.longitude,
+          sunrise: false);
+      if (rise == null || set == null) continue;
+      final nextRise = PanchangEngine.solarEvent(localDate: day.add(const Duration(days: 1)),
+          latitude: position!.latitude, longitude: position!.longitude,
+          sunrise: true);
+      final dayMs = set.difference(rise).inMilliseconds;
+      final weekday = day.weekday % 7;
+      void add(String name, DateTime start, DateTime end, String kind) {
+        rows.add({'name': name, 'start': start, 'end': end, 'kind': kind});
+      }
+      DateTime part(int n, int total, {bool night = false}) {
+        final a = night ? set : rise;
+        final b = night ? (nextRise ?? set.add(const Duration(days: 1))) : set;
+        return a.add(Duration(milliseconds:
+            (b.difference(a).inMilliseconds * n / total).round()));
+      }
+      // Abhijit is the eighth daytime muhurta; Wednesday is traditionally avoided.
+      if (weekday != DateTime.wednesday % 7) {
+        final half = Duration(milliseconds: dayMs ~/ 30);
+        final noon = rise.add(Duration(milliseconds: dayMs ~/ 2));
+        add('अभिजित मुहूर्त', noon.subtract(half), noon.add(half), 'शुभ');
+      }
+      add('राहु काल', part(rahu[weekday] - 1, 8), part(rahu[weekday], 8), 'अशुभ');
+      add('यमघण्ट / यमगण्ड', part(yama[weekday] - 1, 8), part(yama[weekday], 8), 'अशुभ');
+      add('गुलिक काल', part(gulika[weekday] - 1, 8), part(gulika[weekday], 8), 'अशुभ');
+      for (final n in durmuhurta[weekday]) {
+        add('दुर्मुहूर्त', part(n - 1, 15), part(n, 15), 'अशुभ');
+      }
+    }
+    rows.sort((a, b) => (a['start'] as DateTime).compareTo(b['start'] as DateTime));
+    return rows;
+  }
+
+  Widget _liveMuhurtaPanel() {
+    final windows = _liveMuhurtaWindows();
+    final active = windows.where((w) =>
+      !_liveNow.isBefore(w['start'] as DateTime) &&
+      _liveNow.isBefore(w['end'] as DateTime)).toList();
+    final upcoming = windows.where((w) =>
+      (w['start'] as DateTime).isAfter(_liveNow)).toList();
+    final next = upcoming.isEmpty ? null : upcoming.first;
+    final hasActive = active.isNotEmpty;
+    final color = hasActive ? const Color(0xFFB3261E) : const Color(0xFF167443);
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.fromLTRB(4, 8, 4, 4),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: hasActive ? const Color(0xFFFFEFED) : const Color(0xFFEAF6EC),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: color.withOpacity(.22)),
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          Icon(Icons.schedule, color: color, size: 19),
+          const SizedBox(width: 7),
+          const Expanded(child: Text('अभी कौन-सा मुहूर्त / काल चल रहा है?',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14))),
+          Text('LIVE', style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.bold)),
+        ]),
+        const SizedBox(height: 8),
+        if (hasActive) ...active.map((w) => Padding(
+          padding: const EdgeInsets.only(top: 5),
+          child: Row(children: [
+            Icon(Icons.circle, size: 8, color: color),
+            const SizedBox(width: 7),
+            Expanded(child: Text('${w['name']} चल रहा है',
+              style: TextStyle(color: color, fontWeight: FontWeight.w700))),
+            Text(_remaining(w['end'] as DateTime),
+              style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w600)),
+          ]),
+        )) else
+          const Text('अभी अभिजित, राहु, गुलिक, यमघण्ट या दुर्मुहूर्त में से कोई काल नहीं चल रहा।',
+            style: TextStyle(color: Color(0xFF286342), fontWeight: FontWeight.w600)),
+        if (!hasActive && next != null) ...[
+          const SizedBox(height: 6),
+          Text('अगला: ${next['name']} • ${_time(next['start'] as DateTime)}–${_time(next['end'] as DateTime)}',
+            style: const TextStyle(fontSize: 12, color: Color(0xFF654321))),
+        ],
+      ]),
+    );
+  }
+
   String _remaining(DateTime? end) {
     if (end == null) return 'समाप्ति समय उपलब्ध नहीं';
     final left = end.difference(_liveNow);
@@ -376,6 +476,7 @@ class _PanchangScreenState extends State<PanchangScreen> {
         if(ch!=null) info('वर्तमान चौघड़िया',ch.name,'${ch.good?'शुभ':'अशुभ'} • ${_time(ch.start)}–${_time(ch.end)} • ${_remaining(ch.end)}',Icons.timelapse,color:ch.good?const Color(0xFF167443):const Color(0xFFB3261E),tint:ch.good?const Color(0xFFE6F5E9):const Color(0xFFFFE9E7)),
         if(hora!=null) info('वर्तमान होरा','${hora.planet} ग्रह','${_time(hora.start)}–${_time(hora.end)} • ${_remaining(hora.end)}',Icons.public,color:const Color(0xFF654321)),
       ]),
+      _liveMuhurtaPanel(),
     ]);
   }
 
