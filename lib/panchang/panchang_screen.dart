@@ -1246,8 +1246,7 @@ class _PanchangScreenState extends State<PanchangScreen> {
       if (mrityuTithis[weekday]?.contains(tithiNo) == true) {
         mark('मृत्यु योग', false);
       }
-      if (dagdha[weekday] == tithiNo ||
-          (weekday == 3 && tithiNo == 2)) mark('दग्ध योग', false);
+      if (dagdha[weekday] == tithiNo) mark('दग्ध योग', false);
       if (visha[weekday] == tithiNo) mark('विष योग', false);
       if (hutashana[weekday] == tithiNo) mark('हुताशन योग', false);
       if (kakrach[weekday] == tithiNo) mark('काक्रच / क्रकच योग', false);
