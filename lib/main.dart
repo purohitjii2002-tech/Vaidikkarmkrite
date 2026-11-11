@@ -905,10 +905,25 @@ class _BooksScreenState extends State<BooksScreen> {
   @override
   void initState(){super.initState();future=load();}
   Future<List<Map<String,dynamic>>> load() async {
-    final rows=await Supabase.instance.client.from('books')
-      .select('id,title_hi,title_en,author,description,cover_url,book_versions(pdf_url,version_no)')
-      .eq('is_active',true).order('created_at',ascending:false);
-    return List<Map<String,dynamic>>.from(rows);
+    final prefs = await SharedPreferences.getInstance();
+    try {
+      final rows = await Supabase.instance.client.from('books')
+        .select('id,title_hi,title_en,author,description,cover_url,book_versions(pdf_url,version_no)')
+        .eq('is_active',true).order('created_at',ascending:false);
+      final books = List<Map<String,dynamic>>.from(rows);
+      // Keep book details and PDF version URLs available for offline reopening.
+      await prefs.setString('cached_library_books', jsonEncode(books));
+      return books;
+    } catch (error) {
+      final cached = prefs.getString('cached_library_books');
+      if (cached != null && cached.isNotEmpty) {
+        return List<Map<String,dynamic>>.from(
+          (jsonDecode(cached) as List).map((item) =>
+            Map<String,dynamic>.from(item as Map)),
+        );
+      }
+      rethrow;
+    }
   }
   Future<void> openBook(Map<String,dynamic> b) async {
     final versions=List<Map<String,dynamic>>.from(b['book_versions']??[]);
