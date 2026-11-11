@@ -477,7 +477,9 @@ class _PanchangScreenState extends State<PanchangScreen> {
     final weekday = selectedDate.weekday % 7;
     return [
       {'name':'ब्रह्म मुहूर्त','time':range(brahmaStart,brahmaEnd),'kind':'शुभ'},
-      {'name':'अभिजित मुहूर्त','time':range(noon.subtract(abhijitHalf),noon.add(abhijitHalf)),'kind':'शुभ'},
+      // Muhurta Chintamani, Vivaha-prakarana 6.54: Abhijit is prohibited on Wednesday.
+      if (weekday != DateTime.wednesday % 7)
+        {'name':'अभिजित मुहूर्त','time':range(noon.subtract(abhijitHalf),noon.add(abhijitHalf)),'kind':'शुभ'},
       {'name':'गोधूलि मुहूर्त','time':range(sunset!.subtract(godhuli),sunset!.add(godhuli)),'kind':'शुभ'},
       {'name':'निशिता काल','time':range(midnight.subtract(nishitaHalf),midnight.add(nishitaHalf)),'kind':'रात्रि'},
       {'name':'यमगण्ड','time':segment(yama[weekday]),'kind':'अशुभ'},
