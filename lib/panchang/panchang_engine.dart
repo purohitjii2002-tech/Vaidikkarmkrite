@@ -160,7 +160,7 @@ class PanchangEngine {
   static ({DateTime start, DateTime end, bool active})? panchakWindow(DateTime instant) {
     final now = instant.toUtc();
     final from = now.subtract(const Duration(days: 8));
-    final to = now.add(const Duration(days: 8));
+    final to = now.add(const Duration(days: 35));
     final starts = <DateTime>[];
     final ends = <DateTime>[];
     var previous = from;
