@@ -3,6 +3,9 @@ import 'dart:math' as math;
 import 'package:astronomia/astronomia.dart';
 import 'package:astronomia/solar.dart' as solar;
 import 'package:astronomia/moonposition.dart' as moon;
+import 'package:astronomia/rise.dart' as rise;
+import 'package:astronomia/sidereal.dart' as sid;
+import 'package:astronomia/coord.dart' as coord;
 
 /// Local astronomical calculations for Vaidik Karmkrite.
 /// Tithi/nakshatra/yoga are evaluated at the location's local sunrise.
@@ -169,6 +172,63 @@ class PanchangEngine {
       'ayanamsha': ayanamsha,
       'engine': 'Meeus algorithms (MIT astronomia) + Karmkrite Panchang rules',
     };
+  }
+
+  /// Geocentric moonrise and moonset using Meeus rise/set interpolation.
+  /// Longitude is east-positive in the app; astronomia uses west-positive.
+  static ({DateTime? rise, DateTime? set, DateTime? transit}) moonEvents({
+    required DateTime localDate,
+    required double latitude,
+    required double longitude,
+  }) {
+    final utcMidnight = DateTime.utc(localDate.year, localDate.month, localDate.day);
+    final jd = julianDay(utcMidnight);
+    final theta0 = sid.apparent0UT(jd);
+    final result = rise.moonTimes(
+      jd,
+      _rad(latitude),
+      _rad(-longitude),
+      69,
+      theta0,
+      (jde) {
+        final p = moon.position(jde);
+        final eps = _rad(23.4393);
+        final eq = coord.eclToEq(p.lon, p.lat, math.sin(eps), math.cos(eps));
+        return (ra: eq.ra, dec: eq.dec, parallax: moon.parallax(p.delta));
+      },
+    );
+    if (result == null) return (rise: null, set: null, transit: null);
+    DateTime fromUtSeconds(double seconds) =>
+        utcMidnight.add(Duration(milliseconds: (seconds * 1000).round())).toLocal();
+    return (
+      rise: fromUtSeconds(result.rise),
+      set: fromUtSeconds(result.set),
+      transit: fromUtSeconds(result.transit),
+    );
+  }
+
+  /// Geometric ascendant at a given instant, using local apparent sidereal
+  /// time, true obliquity approximation and Lahiri sidereal correction.
+  static double ascendantSiderealLongitude({
+    required DateTime instant,
+    required double latitude,
+    required double longitude,
+  }) {
+    final utc = instant.toUtc();
+    final jd = julianDay(utc);
+    final utcHours = utc.hour + utc.minute / 60 + utc.second / 3600;
+    final greenwichSidereal = sid.apparent0UT(jd) +
+        (utcHours * 1.00273790935 * 2 * math.pi / 24);
+    final localSidereal = greenwichSidereal + _rad(longitude);
+    final t = (jd - 2451545.0) / 36525.0;
+    final obliquity = _rad(23.439291 - 0.0130042 * t);
+    final theta = localSidereal;
+    final tropicalAscendant = _norm(_deg(math.atan2(
+      math.cos(theta),
+      -(math.sin(theta) * math.cos(obliquity) +
+          math.tan(_rad(latitude)) * math.sin(obliquity)),
+    )));
+    return _norm(tropicalAscendant - lahiriAyanamsha(utc));
   }
 
   /// Traditional Shiva-vasa calculation: (tithi number × 2 + 5) mod 7.
