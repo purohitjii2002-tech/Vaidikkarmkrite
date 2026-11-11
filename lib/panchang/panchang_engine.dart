@@ -370,39 +370,35 @@ class PanchangEngine {
       'formula': '($tithiNumber + $weekdaySundayOne + 1) ÷ 4'};
   }
 
-  /// NOAA solar event approximation. Longitude is east-positive.
+  /// Solar rise/set using Meeus chapter 15 three-day interpolation.
+  /// The standard solar altitude (-0°50′) includes the upper limb and
+  /// mean atmospheric refraction. App longitudes are east-positive;
+  /// astronomia expects west-positive.
   static DateTime? solarEvent({
     required DateTime localDate,
     required double latitude,
     required double longitude,
     required bool sunrise,
   }) {
-    final day = DateTime(localDate.year, localDate.month, localDate.day)
-        .difference(DateTime(localDate.year, 1, 1)).inDays + 1;
-    final lngHour = longitude / 15;
-    final t = day + ((sunrise ? 6 : 18) - lngHour) / 24;
-    final meanAnomaly = 0.9856 * t - 3.289;
-    final trueLongitude = _norm(meanAnomaly +
-        1.916 * math.sin(_rad(meanAnomaly)) +
-        0.020 * math.sin(2 * _rad(meanAnomaly)) + 282.634);
-    var rightAscension = _norm(_deg(math.atan(
-        0.91764 * math.tan(_rad(trueLongitude)))));
-    rightAscension += (trueLongitude ~/ 90) * 90 -
-        (rightAscension ~/ 90) * 90;
-    rightAscension /= 15;
-    final sinDeclination = 0.39782 * math.sin(_rad(trueLongitude));
-    final cosDeclination = math.cos(math.asin(sinDeclination));
-    final cosHourAngle = (math.cos(_rad(90.833)) -
-        sinDeclination * math.sin(_rad(latitude))) /
-        (cosDeclination * math.cos(_rad(latitude)));
-    if (cosHourAngle.abs() > 1) return null;
-    final hourAngle = (sunrise
-        ? 360 - _deg(math.acos(cosHourAngle))
-        : _deg(math.acos(cosHourAngle))) / 15;
-    final localMeanTime = hourAngle + rightAscension - 0.06571 * t - 6.622;
-    final utcHour = (localMeanTime - lngHour) % 24;
     final utcMidnight = DateTime.utc(localDate.year, localDate.month, localDate.day);
-    return utcMidnight.add(Duration(milliseconds: (utcHour * 3600000).round()))
+    final jd = julianDay(utcMidnight);
+    final th0 = sid.apparent0UT(jd);
+    final p0 = solar.apparentEquatorial(jd - 1);
+    final p1 = solar.apparentEquatorial(jd);
+    final p2 = solar.apparentEquatorial(jd + 1);
+    final result = rise.times(
+      _rad(latitude),
+      _rad(-longitude),
+      69,
+      rise.stdh0Solar,
+      th0,
+      [p0.ra, p1.ra, p2.ra],
+      [p0.dec, p1.dec, p2.dec],
+    );
+    if (result == null) return null;
+    final seconds = sunrise ? result.rise : result.set;
+    return utcMidnight
+        .add(Duration(milliseconds: (seconds * 1000).round()))
         .toLocal();
   }
 }
