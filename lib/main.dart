@@ -696,72 +696,125 @@ class ModuleCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const palettes = <List<Color>>[
-      [Color(0xFFF4E5C8), Color(0xFFFFFBF2), Color(0xFF9A6829)],
-      [Color(0xFFDDECE4), Color(0xFFF7FBF7), Color(0xFF28634F)],
-      [Color(0xFFE9E2F2), Color(0xFFFCFAFF), Color(0xFF66518B)],
-      [Color(0xFFF5E1D9), Color(0xFFFFFAF7), Color(0xFF9A5540)],
-      [Color(0xFFDDE9F0), Color(0xFFF8FBFD), Color(0xFF3E687D)],
-      [Color(0xFFF1E7C9), Color(0xFFFFFCF4), Color(0xFF8B702A)],
-    ];
-    final templateIndex = modules.indexWhere((item) => item.title == module.title);
-    final index = (templateIndex < 0 ? module.title.hashCode.abs() : templateIndex) % palettes.length;
-    final palette = palettes[index];
+    const ink = Color(0xFF563719);
+    const gold = Color(0xFFB9853E);
+    const muted = Color(0xFF817565);
     return Material(
-      color: Colors.transparent,
+      color: const Color(0xFFFFFEFA),
+      borderRadius: BorderRadius.circular(22),
       child: InkWell(
-        borderRadius: BorderRadius.circular(21),
+        borderRadius: BorderRadius.circular(22),
         onTap: onTap,
         child: Ink(
           decoration: BoxDecoration(
-            gradient: LinearGradient(colors: [palette[0], palette[1]],
-              begin: Alignment.topLeft, end: Alignment.bottomRight),
-            borderRadius: BorderRadius.circular(21),
-            border: Border.all(color: palette[0].withOpacity(.95), width: 1.1),
-            boxShadow: const [BoxShadow(color: Color(0x12332616), blurRadius: 13, offset: Offset(0, 5))],
-          ),
-          child: Stack(children: [
-            Positioned(right: -17, top: -18,
-              child: Container(width: 92, height: 92,
-                decoration: BoxDecoration(shape: BoxShape.circle,
-                  color: palette[2].withOpacity(.055)))),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(14, 14, 13, 13),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                    Container(width: 49, height: 49,
-                      decoration: BoxDecoration(color: Colors.white.withOpacity(.82),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: palette[2].withOpacity(.12))),
-                      alignment: Alignment.center,
-                      child: Text(module.icon, style: const TextStyle(fontSize: 27))),
-                    Container(width: 29, height: 29,
-                      decoration: BoxDecoration(color: palette[2].withOpacity(.10),
-                        shape: BoxShape.circle),
-                      child: Icon(Icons.arrow_outward_rounded, size: 16, color: palette[2])),
-                  ]),
-                  Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text(module.title, maxLines: 2, overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontSize: 15, height: 1.2,
-                        fontWeight: FontWeight.w800, color: palette[2])),
-                    const SizedBox(height: 6),
-                    Text(module.subtitle, maxLines: 2, overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontSize: 10.5, height: 1.35, color: Color(0xFF766D60))),
-                    const SizedBox(height: 10),
-                    Row(children: [
-                      Text('अध्ययन करें', style: TextStyle(color: palette[2],
-                        fontSize: 10, fontWeight: FontWeight.w800)),
-                      const SizedBox(width: 5),
-                      Icon(Icons.east_rounded, size: 13, color: palette[2]),
-                    ]),
-                  ]),
-                ],
+            color: const Color(0xFFFFFEFA),
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(color: const Color(0xFFE9DDC8), width: 1),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x102B1A0D),
+                blurRadius: 16,
+                offset: Offset(0, 6),
               ),
+            ],
+          ),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(15, 15, 14, 14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Container(
+                      width: 52,
+                      height: 52,
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFFFFF3D9), Color(0xFFF1DFBA)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(17),
+                        border: Border.all(color: const Color(0xFFE8D3A8)),
+                      ),
+                      alignment: Alignment.center,
+                      child: Text(module.icon, style: const TextStyle(fontSize: 27)),
+                    ),
+                    Container(
+                      width: 30,
+                      height: 30,
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFFAF4E9),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.arrow_outward_rounded, size: 16, color: gold),
+                    ),
+                  ],
+                ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFAF4E9),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: const Text(
+                        'ज्ञान विभाग',
+                        style: TextStyle(
+                          color: gold,
+                          fontSize: 9,
+                          letterSpacing: .35,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 9),
+                    Text(
+                      module.title,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 15,
+                        height: 1.22,
+                        fontWeight: FontWeight.w800,
+                        color: ink,
+                      ),
+                    ),
+                    const SizedBox(height: 5),
+                    Text(
+                      module.subtitle,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 10.5,
+                        height: 1.35,
+                        color: muted,
+                      ),
+                    ),
+                    const SizedBox(height: 11),
+                    Row(
+                      children: [
+                        const Text(
+                          'अध्ययन करें',
+                          style: TextStyle(
+                            color: ink,
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        const SizedBox(width: 5),
+                        const Icon(Icons.east_rounded, size: 14, color: gold),
+                      ],
+                    ),
+                  ],
+                ),
+              ],
             ),
-          ]),
+          ),
         ),
       ),
     );
