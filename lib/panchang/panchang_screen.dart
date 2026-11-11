@@ -480,7 +480,41 @@ class _PanchangScreenState extends State<PanchangScreen> {
   static const _nakshatraNames = ['अश्विनी','भरणी','कृत्तिका','रोहिणी','मृगशीर्ष','आर्द्रा','पुनर्वसु','पुष्य','आश्लेषा','मघा','पूर्वा फाल्गुनी','उत्तरा फाल्गुनी','हस्त','चित्रा','स्वाती','विशाखा','अनुराधा','ज्येष्ठा','मूल','पूर्वाषाढ़ा','उत्तराषाढ़ा','श्रवण','धनिष्ठा','शतभिषा','पूर्वा भाद्रपद','उत्तरा भाद्रपद','रेवती'];
   int _siderealSign(double longitude) => ((((longitude % 360) + 360) % 360) / 30).floor();
   String _rashi(double longitude) => _rashiNames[_siderealSign(longitude)];
-  String _lagnaLabel() => sunriseAscendant == null ? 'गणना उपलब्ध नहीं' : '${_rashi(sunriseAscendant!)} (${sunriseAscendant!.toStringAsFixed(2)}°)';
+  String _lagnaLabel() {
+    if (sunriseAscendant == null) return 'गणना उपलब्ध नहीं';
+    final longitude = (sunriseAscendant! % 360 + 360) % 360;
+    final degreeInRashi = longitude % 30;
+    final degrees = degreeInRashi.floor();
+    final minutes = ((degreeInRashi - degrees) * 60).round();
+    return '${_rashi(longitude)} ${degrees}°${minutes.toString().padLeft(2, '0')}′';
+  }
+
+  List<Widget> _samvatsaraRows() {
+    final date = DateTime(selectedDate.year, selectedDate.month, selectedDate.day);
+    final southStart = DateTime(2026, 4, 14);
+    final northStart = DateTime(2026, 5, 7);
+    final nextSouth = DateTime(2027, 4, 14);
+    final nextNorth = DateTime(2027, 5, 7);
+    final supported = !date.isBefore(southStart) && date.isBefore(nextSouth);
+    if (!supported) {
+      return [
+        _detailRow('बार्हस्पत्य संवत्सर', 'चयनित वर्ष का संदर्भ मिलान शेष', alternate: true),
+        _detailRow('दक्षिण भारतीय पद्धति', 'चयनित वर्ष का संदर्भ मिलान शेष'),
+        _detailRow('विक्रम / शक / कलि संवत', 'संदर्भ-पंचांग मिलान शेष', alternate: true),
+      ];
+    }
+    final southName = 'पराभव';
+    final northName = date.isBefore(northStart) || !date.isBefore(nextNorth) ? 'पिछला/अगला वर्ष' : 'रौद्र';
+    return [
+      _detailRow('बार्हस्पत्य संवत्सर (उत्तर)', northName, alternate: true),
+      _detailRow('बार्हस्पत्य संवत्सर (दक्षिण)', southName),
+      _detailRow('विक्रम संवत', '2083 (दृक् पंचांग: सिद्धार्थी)', alternate: true),
+      _detailRow('गुजराती संवत', '2083 (दृक् पंचांग: कलायुक्त)'),
+      _detailRow('शक संवत', '1948'),
+      _detailRow('कलि संवत', '5127', alternate: true),
+      const Padding(padding: EdgeInsets.only(top: 6), child: Text('ये वर्ष-नाम अलग-अलग क्षेत्रीय/युग-गणना पद्धतियों के अनुसार हैं; बार्हस्पत्य संवत्सर को विक्रम संवत के नाम के रूप में न पढ़ें।', style: TextStyle(fontSize: 11, color: Color(0xFF705333)))),
+    ];
+  }
   double _siderealSun() => ((data!['sunLongitude'] as num).toDouble() - (data!['ayanamsha'] as num).toDouble());
   double _siderealMoon() => ((data!['moonLongitude'] as num).toDouble() - (data!['ayanamsha'] as num).toDouble());
   String _sunNakshatra() {
@@ -568,12 +602,7 @@ class _PanchangScreenState extends State<PanchangScreen> {
         _detailRow('सौर प्रविष्टि', '${_rashi(_siderealSun())} राशि', alternate: true),
       ]),
       _detailCard('संवत्सर एवं संवत', Icons.history, [
-        _detailRow('संवत्सर', '60-वर्षीय चक्र — सत्यापनाधीन', alternate: true),
-        _detailRow('संवत्सर (दक्षिण)', 'क्षेत्रीय पद्धति — सत्यापनाधीन'),
-        _detailRow('विक्रम संवत', 'संदर्भ-पंचांग मिलान शेष', alternate: true),
-        _detailRow('गुजराती संवत', 'दीपावली-आधारित — मिलान शेष'),
-        _detailRow('शक संवत', 'राष्ट्रीय पंचांग से मिलान शेष', alternate: true),
-        _detailRow('कलि संवत', 'परंपरागत युग-गणना का मिलान शेष'),
+        ..._samvatsaraRows(),
         _detailRow('लाहिड़ी अयनांश', '${(d['ayanamsha'] as num).toStringAsFixed(4)}°', alternate: true),
       ]),
       _detailCard('सूर्योदय एवं दिनमान', Icons.wb_sunny, [
