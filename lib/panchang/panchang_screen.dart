@@ -146,8 +146,13 @@ class _PanchangScreenState extends State<PanchangScreen> {
     final first = (night ? nightStarts : dayStarts)[weekday];
     final startIndex = cycle.indexOf(first);
     final names = List.generate(8, (i) => cycle[(startIndex + i) % 7]);
+    final nextSunrise = PanchangEngine.solarEvent(
+      localDate: selectedDate.add(const Duration(days: 1)),
+      latitude: position!.latitude, longitude: position!.longitude,
+      sunrise: true,
+    );
     return _eightParts(night ? sunset : sunrise,
-      night ? sunrise!.add(const Duration(days: 1)) : sunset, names);
+      night ? nextSunrise : sunset, names);
   }
 
   List<Map<String, String>> _horaRows() {
@@ -155,7 +160,11 @@ class _PanchangScreenState extends State<PanchangScreen> {
     const planets = ['शनि','गुरु','मंगल','सूर्य','शुक्र','बुध','चन्द्र'];
     const weekdayLord = ['सूर्य','चन्द्र','मंगल','बुध','गुरु','शुक्र','शनि'];
     var index = planets.indexOf(weekdayLord[selectedDate.weekday % 7]);
-    final nextSunrise = sunrise!.add(const Duration(days: 1));
+    final nextSunrise = PanchangEngine.solarEvent(
+      localDate: selectedDate.add(const Duration(days: 1)),
+      latitude: position!.latitude, longitude: position!.longitude,
+      sunrise: true,
+    ) ?? sunrise!.add(const Duration(days: 1));
     final rows = <Map<String, String>>[];
     for (var i = 0; i < 24; i++) {
       final a = i < 12 ? _partTime(sunrise, sunset, i, 12)! :
@@ -171,7 +180,11 @@ class _PanchangScreenState extends State<PanchangScreen> {
   List<Map<String, String>> _dailyWindows() {
     if (sunrise == null || sunset == null) return [];
     final dayLength = sunset!.difference(sunrise!);
-    final nightEnd = sunrise!.add(const Duration(days: 1));
+    final nightEnd = PanchangEngine.solarEvent(
+      localDate: selectedDate.add(const Duration(days: 1)),
+      latitude: position!.latitude, longitude: position!.longitude,
+      sunrise: true,
+    ) ?? sunrise!.add(const Duration(days: 1));
     final nightLength = nightEnd.difference(sunset!);
     final noon = sunrise!.add(Duration(milliseconds: dayLength.inMilliseconds ~/ 2));
     final midnight = sunset!.add(Duration(milliseconds: nightLength.inMilliseconds ~/ 2));
@@ -329,21 +342,44 @@ class _PanchangScreenState extends State<PanchangScreen> {
                       const SizedBox(height: 12),
                       ..._selectedTabContent(),
                       const SizedBox(height: 10),
-                      Card(
-                        color: const Color(0xFFFFF0D5),
-                        child: ListTile(
-                          leading: const CircleAvatar(backgroundColor: Color(0xFF79502B), child: Icon(Icons.event_available, color: Colors.white)),
-                          title: const Text('विशेष मुहूर्त', style: TextStyle(fontWeight: FontWeight.bold)),
-                          subtitle: const Text('एडमिन द्वारा प्रकाशित वास्तु, विवाह, वाहन, हल-पूजन, मुंडन आदि के मुहूर्त'),
-                          trailing: const Icon(Icons.arrow_forward_ios, size: 17),
-                          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const MuhuratListScreen())),
-                        ),
-                      ),
+                      _mainCategoryTabs(),
+                      const SizedBox(height: 12),
                     ],
                   ),
                 ),
     );
   }
+
+  Widget _mainCategoryTabs() => Row(children: [
+    Expanded(child: Card(
+      color: const Color(0xFF8B5E32),
+      child: const Padding(
+        padding: EdgeInsets.symmetric(vertical: 14, horizontal: 8),
+        child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+          Icon(Icons.calendar_month, color: Colors.white, size: 19),
+          SizedBox(width: 7),
+          Text('पंचांग', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        ]),
+      ),
+    )),
+    const SizedBox(width: 10),
+    Expanded(child: Card(
+      color: const Color(0xFFFFF0D5),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: () => Navigator.push(context,
+          MaterialPageRoute(builder: (_) => const MuhuratListScreen())),
+        child: const Padding(
+          padding: EdgeInsets.symmetric(vertical: 14, horizontal: 8),
+          child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+            Icon(Icons.event_available, color: Color(0xFF79502B), size: 19),
+            SizedBox(width: 7),
+            Text('विशेष मुहूर्त', style: TextStyle(color: Color(0xFF79502B), fontWeight: FontWeight.bold)),
+          ]),
+        ),
+      ),
+    )),
+  ]);
 
   static const _muhuratTabLabels = ['दिन', 'मुहूर्त', 'चौघड़िया', 'होरा', 'लग्न'];
 
