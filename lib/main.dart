@@ -1149,7 +1149,7 @@ class _InAppPdfReaderState extends State<InAppPdfReader> {
                     builders:PdfViewPinchBuilders<DefaultBuilderOptions>(
                       options:const DefaultBuilderOptions(),
                       documentLoaderBuilder:(_)=>const Center(child:CircularProgressIndicator()),
-                      pageLoaderBuilder:(_)=>const Center(child:CircularProgressIndicator()),
+                      pageLoaderBuilder:(_)=>const ColoredBox(color:Colors.white),
                       errorBuilder:(_,error)=>Center(child:Text('पेज लोड नहीं हो सका: '+error.toString(),textAlign:TextAlign.center)),
                     ),
                   ),
@@ -1169,7 +1169,7 @@ class _InAppPdfReaderState extends State<InAppPdfReader> {
                     children:[
                       IconButton(
                         tooltip:'पिछला पेज',
-                        onPressed:_currentPage>1 ? ()=>controller.previousPage(duration:const Duration(milliseconds:220),curve:Curves.easeOut) : null,
+                        onPressed:_currentPage>1 ? ()=>controller.jumpToPage(_currentPage-1) : null,
                         icon:const Icon(Icons.chevron_left),
                       ),
                       Directionality(
@@ -1181,7 +1181,7 @@ class _InAppPdfReaderState extends State<InAppPdfReader> {
                       ),
                       IconButton(
                         tooltip:'अगला पेज',
-                        onPressed:_totalPages>0 && _currentPage<_totalPages ? ()=>controller.nextPage(duration:const Duration(milliseconds:220),curve:Curves.easeOut) : null,
+                        onPressed:_totalPages>0 && _currentPage<_totalPages ? ()=>controller.jumpToPage(_currentPage+1) : null,
                         icon:const Icon(Icons.chevron_right),
                       ),
                     ],
