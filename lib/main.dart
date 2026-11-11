@@ -42,16 +42,36 @@ class _KarmKriteAppState extends State<KarmKriteApp> {
       title: 'KARMKRITE',
       theme: ThemeData(
         useMaterial3: true,
-        scaffoldBackgroundColor: const Color(0xFFFFFBF3),
+        scaffoldBackgroundColor: const Color(0xFFF5F2E9),
         colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF79502B),
-          primary: const Color(0xFF79502B),
-          secondary: const Color(0xFFD5A34B),
+          seedColor: const Color(0xFF174C43),
+          primary: const Color(0xFF174C43),
+          secondary: const Color(0xFFD69B3D),
+          surface: const Color(0xFFFFFCF5),
         ),
         appBarTheme: const AppBarTheme(
-          backgroundColor: Color(0xFFFFFBF3),
-          foregroundColor: Color(0xFF563719),
+          backgroundColor: Color(0xFFF5F2E9),
+          foregroundColor: Color(0xFF173E37),
           elevation: 0,
+          centerTitle: false,
+        ),
+        navigationBarTheme: NavigationBarThemeData(
+          backgroundColor: const Color(0xFFFFFCF5),
+          indicatorColor: const Color(0xFFF1E1BD),
+          labelTextStyle: WidgetStateProperty.resolveWith((states) =>
+            TextStyle(fontSize: 11, fontWeight: states.contains(WidgetState.selected)
+              ? FontWeight.w800 : FontWeight.w500,
+              color: states.contains(WidgetState.selected)
+                ? const Color(0xFF174C43) : const Color(0xFF817766))),
+          iconTheme: WidgetStateProperty.resolveWith((states) => IconThemeData(
+            color: states.contains(WidgetState.selected)
+              ? const Color(0xFF174C43) : const Color(0xFF817766))),
+          elevation: 10,
+        ),
+        cardTheme: CardThemeData(
+          color: const Color(0xFFFFFCF5),
+          elevation: 0,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         ),
       ),
       home: HomeScreen(
@@ -419,7 +439,9 @@ class _HomeScreenState extends State<HomeScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _welcomeBanner(),
-                const SizedBox(height: 12),
+                const SizedBox(height: 14),
+                _quickAccessStrip(),
+                const SizedBox(height: 14),
                 const HomeBanners(),
                 const SizedBox(height: 8),
                 TextField(
@@ -464,7 +486,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       crossAxisCount: 2,
                       crossAxisSpacing: 12,
                       mainAxisSpacing: 12,
-                      childAspectRatio: 0.94,
+                      childAspectRatio: 0.88,
                     ),
                     itemBuilder: (context, index) {
                       final module = filteredModules[index];
@@ -496,54 +518,119 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _welcomeBanner() {
+    final now = DateTime.now();
+    const months = ['जनवरी','फरवरी','मार्च','अप्रैल','मई','जून','जुलाई','अगस्त','सितंबर','अक्टूबर','नवंबर','दिसंबर'];
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(22, 22, 18, 22),
+      padding: const EdgeInsets.fromLTRB(20, 19, 18, 20),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(28),
+        borderRadius: BorderRadius.circular(26),
         gradient: const LinearGradient(
-          colors: [Color(0xFF24180F), Color(0xFF65401F), Color(0xFF9A6B35)],
+          colors: [Color(0xFF123D36), Color(0xFF176052), Color(0xFF247A67)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        boxShadow: [BoxShadow(color: Color(0x332D1B0D), blurRadius: 18, offset: Offset(0, 9))],
+        border: Border.all(color: const Color(0xFFD8B46B).withOpacity(.75), width: 1),
+        boxShadow: const [BoxShadow(color: Color(0x24133D35), blurRadius: 20, offset: Offset(0, 9))],
       ),
       child: Stack(
         children: [
-          Positioned(right: -4, top: -18, child: Icon(Icons.spa_rounded, size: 128, color: Color(0x18FFE0A3))),
+          Positioned(right: -18, top: -24,
+            child: Icon(Icons.spa_rounded, size: 150, color: Colors.white.withOpacity(.055))),
+          Positioned(right: 8, bottom: -25,
+            child: Icon(Icons.temple_hindu_rounded, size: 102, color: const Color(0xFFDDBB79).withOpacity(.10))),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(children: [
-                Container(width: 42, height: 42, decoration: BoxDecoration(
-                  shape: BoxShape.circle, border: Border.all(color: Color(0x99E8C27D)),
-                  color: Color(0x22FFFFFF)),
-                  child: const Center(child: Text('ॐ', style: TextStyle(fontSize: 25, color: Color(0xFFFFD88A)))),
+                Container(width: 43, height: 43,
+                  decoration: BoxDecoration(shape: BoxShape.circle,
+                    color: const Color(0xFFFFF5DE).withOpacity(.13),
+                    border: Border.all(color: const Color(0xFFE7C987), width: 1.2)),
+                  child: const Center(child: Text('ॐ', style: TextStyle(
+                    fontSize: 26, color: Color(0xFFFFD98B), fontWeight: FontWeight.w600))),
                 ),
-                const SizedBox(width: 10),
-                const Text('KARMKRITE • वैदिक ज्ञान', style: TextStyle(
-                  color: Color(0xFFFFDFA8), fontSize: 11, letterSpacing: 1.3, fontWeight: FontWeight.w700)),
+                const SizedBox(width: 11),
+                const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text('KARMKRITE', style: TextStyle(color: Color(0xFFFFE2A6),
+                    fontSize: 12, letterSpacing: 2.0, fontWeight: FontWeight.w900)),
+                  SizedBox(height: 2),
+                  Text('वैदिक ज्ञान • परंपरा • संस्कार', style: TextStyle(
+                    color: Color(0xFFE5F0E9), fontSize: 10, letterSpacing: .35)),
+                ])),
+                Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(color: Colors.white.withOpacity(.10),
+                    borderRadius: BorderRadius.circular(30), border: Border.all(color: Colors.white24)),
+                  child: Text('${now.day} ${months[now.month-1]}',
+                    style: const TextStyle(color: Color(0xFFFFE7BC), fontSize: 10, fontWeight: FontWeight.w700))),
               ]),
               const SizedBox(height: 22),
               Text(tr('welcome'), style: const TextStyle(
                 color: Colors.white, fontSize: 25, height: 1.18, fontWeight: FontWeight.w800)),
-              const SizedBox(height: 9),
+              const SizedBox(height: 8),
               const Text('भारतीय ज्ञान, वैदिक परंपरा और संस्कारों का आपका अपना डिजिटल मंच।',
-                style: TextStyle(color: Color(0xFFF6E9D6), fontSize: 13, height: 1.55)),
-              const SizedBox(height: 18),
-              Container(height: 1, width: 76, color: Color(0xFFE5BD77)),
-              const SizedBox(height: 12),
-              const Row(children: [
-                Icon(Icons.auto_awesome, size: 14, color: Color(0xFFFFD88A)),
-                SizedBox(width: 7),
-                Text('परंपरा • ज्ञान • साधना', style: TextStyle(
-                  color: Color(0xFFFFE7BE), fontSize: 11, letterSpacing: .8, fontWeight: FontWeight.w600)),
+                style: TextStyle(color: Color(0xFFE3EEE8), fontSize: 12.5, height: 1.55)),
+              const SizedBox(height: 17),
+              Row(children: [
+                Container(width: 34, height: 2, decoration: BoxDecoration(
+                  color: const Color(0xFFE6BE70), borderRadius: BorderRadius.circular(4))),
+                const SizedBox(width: 8),
+                const Text('ज्ञान से जीवन को आलोकित करें',
+                  style: TextStyle(color: Color(0xFFFFE3B0), fontSize: 10.5, fontWeight: FontWeight.w600)),
               ]),
             ],
           ),
         ],
       ),
     );
+  }
+
+  Widget _quickAccessStrip() {
+    Widget action({required IconData icon, required String title,
+      required String subtitle, required VoidCallback onTap}) {
+      return Expanded(child: Material(
+        color: const Color(0xFFFFFCF5),
+        borderRadius: BorderRadius.circular(17),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(17),
+          onTap: onTap,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 13),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(17),
+              border: Border.all(color: const Color(0xFFE7DDC9)),
+              boxShadow: const [BoxShadow(color: Color(0x0B332514), blurRadius: 9, offset: Offset(0, 3))],
+            ),
+            child: Row(children: [
+              Container(width: 39, height: 39,
+                decoration: BoxDecoration(color: const Color(0xFFF3E7CB),
+                  borderRadius: BorderRadius.circular(13)),
+                child: Icon(icon, color: const Color(0xFF8A5A20), size: 21)),
+              const SizedBox(width: 9),
+              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(title, maxLines: 1, overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(color: Color(0xFF24463D), fontSize: 12, fontWeight: FontWeight.w800)),
+                const SizedBox(height: 3),
+                Text(subtitle, maxLines: 1, overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(color: Color(0xFF887B67), fontSize: 9.5)),
+              ])),
+            ]),
+          ),
+        ),
+      ));
+    }
+    return Row(children: [
+      action(icon: Icons.calendar_month_rounded, title: 'आज का पंचांग',
+        subtitle: 'तिथि • नक्षत्र • मुहूर्त', onTap: () {
+          Navigator.push(context, MaterialPageRoute(
+            builder: (_) => PanchangScreen(language: widget.language)));
+        }),
+      const SizedBox(width: 10),
+      action(icon: Icons.menu_book_rounded, title: 'ज्ञान पुस्तकालय',
+        subtitle: 'ग्रंथ • मंत्र • विधियाँ', onTap: () {
+          setState(() => selectedTab = 1);
+        }),
+    ]);
   }
 
   Widget _dailyThought() {
@@ -609,50 +696,72 @@ class ModuleCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final palettes = <List<Color>>[
-      [const Color(0xFFFFF0D8), const Color(0xFFFFFAF1)],
-      [const Color(0xFFE8F0E7), const Color(0xFFF8FBF5)],
-      [const Color(0xFFF4E8F0), const Color(0xFFFFF8FC)],
-      [const Color(0xFFE8EFF8), const Color(0xFFF8FAFE)],
-      [const Color(0xFFFFEBD9), const Color(0xFFFFF8F0)],
-      [const Color(0xFFECE9F7), const Color(0xFFFAF9FE)],
+    const palettes = <List<Color>>[
+      [Color(0xFFF4E5C8), Color(0xFFFFFBF2), Color(0xFF9A6829)],
+      [Color(0xFFDDECE4), Color(0xFFF7FBF7), Color(0xFF28634F)],
+      [Color(0xFFE9E2F2), Color(0xFFFCFAFF), Color(0xFF66518B)],
+      [Color(0xFFF5E1D9), Color(0xFFFFFAF7), Color(0xFF9A5540)],
+      [Color(0xFFDDE9F0), Color(0xFFF8FBFD), Color(0xFF3E687D)],
+      [Color(0xFFF1E7C9), Color(0xFFFFFCF4), Color(0xFF8B702A)],
     ];
-    final index = module.title.hashCode.abs() % palettes.length;
+    final templateIndex = modules.indexWhere((item) => item.title == module.title);
+    final index = (templateIndex < 0 ? module.title.hashCode.abs() : templateIndex) % palettes.length;
+    final palette = palettes[index];
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        borderRadius: BorderRadius.circular(22),
+        borderRadius: BorderRadius.circular(21),
         onTap: onTap,
         child: Ink(
           decoration: BoxDecoration(
-            gradient: LinearGradient(colors: palettes[index], begin: Alignment.topLeft, end: Alignment.bottomRight),
-            borderRadius: BorderRadius.circular(22),
-            border: Border.all(color: const Color(0xFFE9DDCC)),
-            boxShadow: const [BoxShadow(color: Color(0x12000000), blurRadius: 12, offset: Offset(0, 5))],
+            gradient: LinearGradient(colors: [palette[0], palette[1]],
+              begin: Alignment.topLeft, end: Alignment.bottomRight),
+            borderRadius: BorderRadius.circular(21),
+            border: Border.all(color: palette[0].withOpacity(.95), width: 1.1),
+            boxShadow: const [BoxShadow(color: Color(0x12332616), blurRadius: 13, offset: Offset(0, 5))],
           ),
-          child: Padding(
-            padding: const EdgeInsets.all(15),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                  Container(width: 48, height: 48,
-                    decoration: BoxDecoration(color: Colors.white.withOpacity(.78), borderRadius: BorderRadius.circular(16)),
-                    alignment: Alignment.center,
-                    child: Text(module.icon, style: const TextStyle(fontSize: 27))),
-                  const Icon(Icons.arrow_outward_rounded, size: 18, color: Color(0xFF8C6A45)),
-                ]),
-                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(module.title, maxLines: 2, overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontSize: 15, height: 1.2, fontWeight: FontWeight.w800, color: Color(0xFF442B18))),
-                  const SizedBox(height: 6),
-                  Text(module.subtitle, maxLines: 2, overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontSize: 11, height: 1.35, color: Color(0xFF78634F))),
-                ]),
-              ],
+          child: Stack(children: [
+            Positioned(right: -17, top: -18,
+              child: Container(width: 92, height: 92,
+                decoration: BoxDecoration(shape: BoxShape.circle,
+                  color: palette[2].withOpacity(.055)))),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(14, 14, 13, 13),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                    Container(width: 49, height: 49,
+                      decoration: BoxDecoration(color: Colors.white.withOpacity(.82),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: palette[2].withOpacity(.12))),
+                      alignment: Alignment.center,
+                      child: Text(module.icon, style: const TextStyle(fontSize: 27))),
+                    Container(width: 29, height: 29,
+                      decoration: BoxDecoration(color: palette[2].withOpacity(.10),
+                        shape: BoxShape.circle),
+                      child: Icon(Icons.arrow_outward_rounded, size: 16, color: palette[2])),
+                  ]),
+                  Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text(module.title, maxLines: 2, overflow: TextOverflow.ellipsis,
+                      style: TextStyle(fontSize: 15, height: 1.2,
+                        fontWeight: FontWeight.w800, color: palette[2])),
+                    const SizedBox(height: 6),
+                    Text(module.subtitle, maxLines: 2, overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontSize: 10.5, height: 1.35, color: Color(0xFF766D60))),
+                    const SizedBox(height: 10),
+                    Row(children: [
+                      Text('अध्ययन करें', style: TextStyle(color: palette[2],
+                        fontSize: 10, fontWeight: FontWeight.w800)),
+                      const SizedBox(width: 5),
+                      Icon(Icons.east_rounded, size: 13, color: palette[2]),
+                    ]),
+                  ]),
+                ],
+              ),
             ),
-          ),
+          ]),
         ),
       ),
     );
