@@ -17,7 +17,8 @@ class _PanchangScreenState extends State<PanchangScreen> {
   String city = 'स्थान पता किया जा रहा है...';
   String? error;
   Map<String, dynamic>? data;
-  DateTime? sunrise, sunset;
+  DateTime? sunrise, sunset, moonrise, moonset;
+  double? sunriseAscendant;
   bool loading = true;
   int selectedMuhuratTab = 0;
 
@@ -97,6 +98,15 @@ class _PanchangScreenState extends State<PanchangScreen> {
     );
     data = sunrise != null && sunset != null
         ? PanchangEngine.atSunrise(sunrise!) : null;
+    if (position != null && sunrise != null) {
+      final lunar = PanchangEngine.moonEvents(localDate: date,
+        latitude: position!.latitude, longitude: position!.longitude);
+      moonrise = lunar.rise;
+      moonset = lunar.set;
+      sunriseAscendant = PanchangEngine.ascendantSiderealLongitude(
+        instant: sunrise!, latitude: position!.latitude,
+        longitude: position!.longitude);
+    } else { moonrise = null; moonset = null; sunriseAscendant = null; }
   }
 
   String _date(DateTime d) => d.day.toString().padLeft(2, '0') + '/' +
@@ -470,6 +480,7 @@ class _PanchangScreenState extends State<PanchangScreen> {
   static const _nakshatraNames = ['अश्विनी','भरणी','कृत्तिका','रोहिणी','मृगशीर्ष','आर्द्रा','पुनर्वसु','पुष्य','आश्लेषा','मघा','पूर्वा फाल्गुनी','उत्तरा फाल्गुनी','हस्त','चित्रा','स्वाती','विशाखा','अनुराधा','ज्येष्ठा','मूल','पूर्वाषाढ़ा','उत्तराषाढ़ा','श्रवण','धनिष्ठा','शतभिषा','पूर्वा भाद्रपद','उत्तरा भाद्रपद','रेवती'];
   int _siderealSign(double longitude) => ((((longitude % 360) + 360) % 360) / 30).floor();
   String _rashi(double longitude) => _rashiNames[_siderealSign(longitude)];
+  String _lagnaLabel() => sunriseAscendant == null ? 'गणना उपलब्ध नहीं' : '${_rashi(sunriseAscendant!)} (${sunriseAscendant!.toStringAsFixed(2)}°)';
   double _siderealSun() => ((data!['sunLongitude'] as num).toDouble() - (data!['ayanamsha'] as num).toDouble());
   double _siderealMoon() => ((data!['moonLongitude'] as num).toDouble() - (data!['ayanamsha'] as num).toDouble());
   String _sunNakshatra() {
@@ -523,44 +534,48 @@ class _PanchangScreenState extends State<PanchangScreen> {
       ),
     ];
   }
+
   List<Widget> _dayPanchangDetails() {
     final d = data!;
+    final nextSunrise = PanchangEngine.solarEvent(
+      localDate: selectedDate.add(const Duration(days: 1)),
+      latitude: position!.latitude, longitude: position!.longitude,
+      sunrise: true,
+    );
     final dayLength = sunrise != null && sunset != null ? sunset!.difference(sunrise!) : Duration.zero;
-    final nightLength = const Duration(days: 1) - dayLength;
+    final nightLength = sunset != null && nextSunrise != null ? nextSunrise.difference(sunset!) : Duration.zero;
     final vikram = selectedDate.year + (selectedDate.month >= 4 ? 57 : 56);
     final shaka = selectedDate.year - (selectedDate.month >= 3 ? 78 : 79);
+    final tithiEnd = d['tithiEnd'] as DateTime?;
+    final nakshatraEnd = d['nakshatraEnd'] as DateTime?;
+    final yogaEnd = d['yogaEnd'] as DateTime?;
+    final karanaEnd = d['karanaEnd'] as DateTime?;
     return [
-      _detailCard('पंचांग विवरण', Icons.calendar_month, [
-        _detailRow('तिथि', '${d['tithi'] ?? '—'}', alternate: true),
+      _detailCard('पंचांग', Icons.calendar_month, [
+        _detailRow('तिथि', '${d['tithi'] ?? '—'}  •  ${_time(tithiEnd)}', alternate: true),
         _detailRow('पक्ष', '${d['paksha'] ?? '—'}'),
-        _detailRow('नक्षत्र', '${d['nakshatra'] ?? '—'}', alternate: true),
-        _detailRow('योग', '${d['yoga'] ?? '—'}'),
-        _detailRow('करण', '${d['karana'] ?? '—'}', alternate: true),
+        _detailRow('नक्षत्र', '${d['nakshatra'] ?? '—'}  •  ${_time(nakshatraEnd)}', alternate: true),
+        _detailRow('योग', '${d['yoga'] ?? '—'}  •  ${_time(yogaEnd)}'),
+        _detailRow('करण', '${d['karana'] ?? '—'}  •  ${_time(karanaEnd)}', alternate: true),
         _detailRow('वार', _weekday(selectedDate)),
-        _detailRow('तिथि समाप्ति', _time(d['tithiEnd'] as DateTime?)),
-        _detailRow('नक्षत्र समाप्ति', _time(d['nakshatraEnd'] as DateTime?), alternate: true),
-        _detailRow('योग समाप्ति', _time(d['yogaEnd'] as DateTime?)),
-        _detailRow('करण समाप्ति', _time(d['karanaEnd'] as DateTime?), alternate: true),
-      ]),
-      _detailCard('शिव वास एवं अग्नि वास', Icons.local_fire_department, [
-        ..._vasaRows(d),
       ]),
       _detailCard('मास, राशि, ऋतु एवं अयन', Icons.public, [
-        _detailRow('माह (अमांत)', 'चंद्र मास गणना सत्यापनाधीन', alternate: true),
-        _detailRow('माह (पूर्णिमांत)', 'चंद्र मास गणना सत्यापनाधीन'),
+        _detailRow('माह (अमांत)', 'सत्यापनाधीन — अमावस्या-आधारित', alternate: true),
+        _detailRow('माह (पूर्णिमांत)', 'सत्यापनाधीन — पूर्णिमा-आधारित'),
         _detailRow('चंद्र राशि', _rashi(_siderealMoon()), alternate: true),
         _detailRow('सूर्य राशि', _rashi(_siderealSun())),
         _detailRow('ऋतु', _ritu(), alternate: true),
         _detailRow('अयन', _ayana()),
-        _detailRow('सौर मास / प्रविष्टि', '${_rashi(_siderealSun())} सौर मास', alternate: true),
+        _detailRow('सौर प्रविष्टि', '${_rashi(_siderealSun())} राशि', alternate: true),
       ]),
       _detailCard('संवत्सर एवं संवत', Icons.history, [
-        _detailRow('संवत्सर नाम', '60-वर्षीय चक्र सत्यापनाधीन', alternate: true),
-        _detailRow('विक्रम संवत', '$vikram विक्रम संवत'),
-        _detailRow('गुजराती संवत', 'क्षेत्रीय संवत गणना सत्यापनाधीन', alternate: true),
-        _detailRow('शक संवत', '$shaka शक संवत'),
-        _detailRow('कलि संवत', '${selectedDate.year + 3101} कलि संवत', alternate: true),
-        _detailRow('लाहिड़ी अयनांश', '${(d['ayanamsha'] as num).toStringAsFixed(4)}°'),
+        _detailRow('संवत्सर', '60-वर्षीय चक्र — सत्यापनाधीन', alternate: true),
+        _detailRow('संवत्सर (दक्षिण)', 'क्षेत्रीय पद्धति — सत्यापनाधीन'),
+        _detailRow('विक्रम संवत', '$vikram विक्रम संवत', alternate: true),
+        _detailRow('गुजराती संवत', 'दीपावली-आधारित गणना सत्यापनाधीन'),
+        _detailRow('शक संवत', '$shaka शक संवत', alternate: true),
+        _detailRow('कलि संवत', '${selectedDate.year + 3101} कलि संवत'),
+        _detailRow('लाहिड़ी अयनांश', '${(d['ayanamsha'] as num).toStringAsFixed(4)}°', alternate: true),
       ]),
       _detailCard('सूर्योदय एवं दिनमान', Icons.wb_sunny, [
         _detailRow('स्थान', city, alternate: true),
@@ -568,19 +583,26 @@ class _PanchangScreenState extends State<PanchangScreen> {
         _detailRow('सूर्यास्त', _time(sunset), alternate: true),
         _detailRow('दिन की अवधि', _detailDuration(dayLength)),
         _detailRow('रात की अवधि', _detailDuration(nightLength), alternate: true),
+        _detailRow('चंद्रोदय', _time(moonrise)),
+        _detailRow('चंद्रास्त', _time(moonset), alternate: true),
       ]),
-      _detailCard('सूर्योदय समय का ज्योतिषीय विवरण', Icons.wb_twilight, [
-        _detailRow('सूर्य नक्षत्र', _sunNakshatra(), alternate: true),
-        _detailRow('चंद्र नक्षत्र', '${d['nakshatra'] ?? '—'}'),
-        _detailRow('चंद्र नक्षत्र चरण', '${d['nakshatraPada'] ?? '—'}', alternate: true),
-        _detailRow('लग्न', 'सटीक लग्न गणना सत्यापनाधीन'),
-        _detailRow('चंद्रोदय', 'खगोलीय गणना सत्यापनाधीन', alternate: true),
-        _detailRow('चंद्रास्त', 'खगोलीय गणना सत्यापनाधीन'),
+      _detailCard('सूर्योदय', Icons.wb_twilight, [
+        _detailRow('लग्न', _lagnaLabel(), alternate: true),
+        _detailRow('सूर्य नक्षत्र', _sunNakshatra()),
+        _detailRow('चंद्र नक्षत्र', '${d['nakshatra'] ?? '—'}', alternate: true),
       ]),
+      _detailCard('पद, चरण', Icons.auto_awesome, [
+        _detailRow('नक्षत्र चरण 1', 'चरण की सीमा-सारणी जोड़ना शेष', alternate: true),
+        _detailRow('नक्षत्र चरण 2', 'चरण की सीमा-सारणी जोड़ना शेष'),
+        _detailRow('नक्षत्र चरण 3', 'चरण की सीमा-सारणी जोड़ना शेष', alternate: true),
+        _detailRow('नक्षत्र चरण 4', 'चरण की सीमा-सारणी जोड़ना शेष'),
+      ]),
+      _detailCard('शिव वास एवं अग्नि वास', Icons.local_fire_department, [..._vasaRows(d)]),
       Card(color: const Color(0xFFFFF4E5), child: const Padding(
         padding: EdgeInsets.all(12),
-        child: Text('सूचना: तिथि, नक्षत्र, योग और करण दृक् गणित से निकाले जा रहे हैं। मास, संवत्सर, चंद्रोदय-चंद्रास्त, लग्न तथा पर्व-निर्णय के परिणाम पारंपरिक उज्जैन पंचांग से सत्यापन के बाद ही अंतिम माने जाएँगे।',
-          style: TextStyle(fontSize: 12, color: Color(0xFF705333))),
+        child: Text('गणना स्रोत: दृक् खगोलीय गणना (Meeus आधारित Astronomia) और IMD राष्ट्रीय पंचांग से सत्यापन। अमांत/पूर्णिमांत मास, संवत्सर और चरण-सीमाओं को प्रकाशित करने से पहले संदर्भ पंचांग से मिलान आवश्यक है。',
+          style: TextStyle(fontSize: 12, color: Color(0xFF705333)),
+        ),
       )),
     ];
   }
