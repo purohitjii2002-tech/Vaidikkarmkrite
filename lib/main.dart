@@ -185,56 +185,72 @@ const List<ModuleInfo> modules = [
 
 // Load Categories from Supabase
 Future<List<ModuleInfo>> loadModules(String language) async {
-  try {
-    final response = await Supabase.instance.client
-        .from('categories')
-        .select('id, name_hi, name_en, description, icon')
-        .eq('is_active', true)
-        .order('sort_order').order('created_at');
+  final prefs = await SharedPreferences.getInstance();
+  const cacheKey = 'cached_public_categories_v1';
 
-    final rows = response as List;
-
+  List<ModuleInfo> parseRows(List<dynamic> rows) {
     const iconMap = {
-      'book': '📚',
-      'temple': '🪔',
-      'om': '🕉️',
-      'flower': '🙏',
-      'calendar': '🌞',
-      'headphones': '🎧',
+      'book': '📚', 'temple': '🪔', 'om': '🕉️',
+      'flower': '🙏', 'calendar': '🌞', 'headphones': '🎧',
     };
-
-    return rows.map((row) {
-      final hindiName =
-          (row['name_hi'] ?? '').toString();
-
-      final englishName =
-          (row['name_en'] ?? hindiName).toString();
-
+    return rows.map((raw) {
+      final row = Map<String, dynamic>.from(raw as Map);
+      final hindiName = (row['name_hi'] ?? '').toString();
+      final englishName = (row['name_en'] ?? hindiName).toString();
       final template = modules.firstWhere(
         (module) => module.title == hindiName,
         orElse: () => ModuleInfo(
-          id: '',
-          title: hindiName,
-          subtitle: '',
-          icon: '📖',
-          items: const [],
+          id: '', title: hindiName,
+          subtitle: (row['description'] ?? '').toString(),
+          icon: '📖', items: const [],
         ),
       );
-
       final iconName = (row['icon'] ?? '').toString();
-
       return ModuleInfo(
-        id: row['id'].toString(),
+        id: (row['id'] ?? '').toString(),
         title: language == 'en' ? englishName : hindiName,
         subtitle: (row['description'] ?? template.subtitle).toString(),
         icon: iconMap[iconName] ?? template.icon,
         items: const [],
       );
     }).toList();
+  }
+
+  try {
+    final response = await Supabase.instance.client
+        .from('categories')
+        .select('id, name_hi, name_en, description, icon')
+        .eq('is_active', true)
+        .order('sort_order').order('created_at');
+    final rows = List<dynamic>.from(response as List);
+    await prefs.setString(cacheKey, jsonEncode(rows));
+    return parseRows(rows);
   } catch (error, stackTrace) {
-    debugPrint('KARMKRITE DATABASE ERROR: $error');
+    debugPrint('KARMKRITE DATABASE ERROR (offline fallback): $error');
     debugPrint('$stackTrace');
-    rethrow;
+    final cached = prefs.getString(cacheKey);
+    if (cached != null && cached.isNotEmpty) {
+      try {
+        return parseRows(List<dynamic>.from(jsonDecode(cached) as List));
+      } catch (cacheError) {
+        debugPrint('KARMKRITE CATEGORY CACHE ERROR: $cacheError');
+      }
+    }
+    // First launch without internet: keep the app navigable using built-in categories.
+    return modules.map((module) => ModuleInfo(
+      id: module.id,
+      title: language == 'en' ? const {
+        'वेद एवं शास्त्र': 'Vedas & Scriptures',
+        'कर्मकांड': 'Rituals',
+        'मंत्र एवं स्तोत्र': 'Mantras & Hymns',
+        'षोडश संस्कार': 'Sixteen Samskaras',
+        'पंचांग एवं मुहूर्त': 'Panchang & Muhurat',
+        'ऑडियो एवं पुस्तकें': 'Audio & Books',
+      }[module.title] ?? module.title : module.title,
+      subtitle: module.subtitle,
+      icon: module.icon,
+      items: module.items,
+    )).toList();
   }
 }
 
@@ -670,16 +686,32 @@ class _ModuleScreenState extends State<ModuleScreen> {
   }
 
   Future<List<Map<String, dynamic>>> loadContent() async {
-    final response = await Supabase.instance.client
-        .from('content_items')
-        .select(
-          'id, title, title_hi, title_en, description, body, type, media_url, media_type, media_name',
-        )
-        .eq('category_id', widget.module.id)
-        .eq('is_active', true)
-        .order('created_at');
-
-    return List<Map<String, dynamic>>.from(response);
+    final prefs = await SharedPreferences.getInstance();
+    final cacheKey = 'cached_category_content_v1_${widget.module.id.isEmpty ? widget.module.title : widget.module.id}';
+    try {
+      final response = await Supabase.instance.client
+          .from('content_items')
+          .select(
+            'id, title, title_hi, title_en, description, body, type, media_url, media_type, media_name',
+          )
+          .eq('category_id', widget.module.id)
+          .eq('is_active', true)
+          .order('created_at');
+      final items = List<Map<String, dynamic>>.from(response);
+      await prefs.setString(cacheKey, jsonEncode(items));
+      return items;
+    } catch (error) {
+      debugPrint('KARMKRITE CONTENT OFFLINE FALLBACK: $error');
+      final cached = prefs.getString(cacheKey);
+      if (cached != null && cached.isNotEmpty) {
+        return List<Map<String, dynamic>>.from(
+          (jsonDecode(cached) as List).map(
+            (item) => Map<String, dynamic>.from(item as Map),
+          ),
+        );
+      }
+      return [];
+    }
   }
 
   String getTitle(Map<String, dynamic> item) {
