@@ -171,6 +171,40 @@ class PanchangEngine {
     };
   }
 
+  /// Traditional Shiva-vasa calculation: (tithi number × 2 + 5) mod 7.
+  /// Tithi is counted continuously from Shukla Pratipada (1) to Amavasya (30).
+  static Map<String, String> shivaVasa(int tithiNumber) {
+    final remainder = (tithiNumber * 2 + 5) % 7;
+    const places = <int, String>{
+      1: 'कैलाश', 2: 'गौरी सन्निधि', 3: 'वृषभारूढ़ (नंदी)',
+      4: 'सभा', 5: 'भोजन', 6: 'क्रीड़ा', 0: 'श्मशान',
+    };
+    const results = <int, String>{
+      1: 'शुभ — सुख की प्राप्ति', 2: 'शुभ — सुख-सम्पदा',
+      3: 'शुभ — अभीष्ट कार्यसिद्धि', 4: 'अनुकूल नहीं — संतापकारी',
+      5: 'अनुकूल नहीं — पीड़ादायक', 6: 'अनुकूल नहीं — कष्टकारी',
+      0: 'अनुकूल नहीं — अशुभ फल का संकेत',
+    };
+    return {'place': places[remainder]!, 'result': results[remainder]!,
+      'remainder': remainder.toString(), 'formula': '($tithiNumber × 2 + 5) ÷ 7'};
+  }
+
+  /// Traditional Agni-vasa calculation: (tithi + weekday + 1) mod 4.
+  /// Weekday is numbered Sunday=1 ... Saturday=7; tithi 1..30 from
+  /// Shukla Pratipada. Remainders 0/3=Earth, 1=Sky, 2=Netherworld.
+  static Map<String, String> agniVasa(int tithiNumber, int weekdaySundayOne) {
+    final remainder = (tithiNumber + weekdaySundayOne + 1) % 4;
+    final place = (remainder == 0 || remainder == 3)
+        ? 'पृथ्वी' : remainder == 1 ? 'आकाश' : 'पाताल';
+    final result = (remainder == 0 || remainder == 3)
+        ? 'शुभ — हवन के लिए अनुकूल संकेत'
+        : remainder == 1 ? 'अनुकूल नहीं — प्राण-हानि का पारंपरिक संकेत'
+        : 'अनुकूल नहीं — धन-हानि का पारंपरिक संकेत';
+    return {'place': place, 'result': result,
+      'remainder': remainder.toString(),
+      'formula': '($tithiNumber + $weekdaySundayOne + 1) ÷ 4'};
+  }
+
   /// NOAA solar event approximation. Longitude is east-positive.
   static DateTime? solarEvent({
     required DateTime localDate,
