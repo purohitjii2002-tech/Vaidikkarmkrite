@@ -1394,12 +1394,27 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   @override
   void initState() { super.initState(); future = load(); }
   Future<List<Map<String,dynamic>>> load() async {
-    final rows = await Supabase.instance.client
-      .from('notifications')
-      .select('id,title,message,scheduled_at,sent_at,created_at')
-      .eq('is_active', true)
-      .order('created_at', ascending: false);
-    return List<Map<String,dynamic>>.from(rows);
+    final prefs = await SharedPreferences.getInstance();
+    const cacheKey = 'cached_public_notifications_v1';
+    try {
+      final rows = await Supabase.instance.client
+        .from('notifications')
+        .select('id,title,message,scheduled_at,sent_at,created_at')
+        .eq('is_active', true)
+        .order('created_at', ascending: false);
+      final items = List<Map<String,dynamic>>.from(rows);
+      await prefs.setString(cacheKey, jsonEncode(items));
+      return items;
+    } catch (error) {
+      debugPrint('KARMKRITE NOTIFICATION OFFLINE FALLBACK: $error');
+      final cached = prefs.getString(cacheKey);
+      if (cached != null && cached.isNotEmpty) {
+        return List<Map<String,dynamic>>.from(
+          (jsonDecode(cached) as List).map((x) => Map<String,dynamic>.from(x as Map)),
+        );
+      }
+      return [];
+    }
   }
   @override
   Widget build(BuildContext context) => Scaffold(
