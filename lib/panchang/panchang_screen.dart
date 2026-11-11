@@ -1179,6 +1179,8 @@ class _PanchangScreenState extends State<PanchangScreen> {
 
   List<Map<String, String>> _calculateSpecialYogas(
       DateTime dayStart, DateTime nextSunrise, int weekday) {
+    // Weekday is Sunday=0 ... Saturday=6. Tithis below are numbered
+    // 1..15 within each paksha; nakshatras are zero-based from Ashwini.
     const sarvartha = <List<int>>[
       [0, 7, 11, 12, 18, 20, 25], [3, 4, 7, 16, 21],
       [0, 2, 8, 25], [2, 3, 4, 12, 16], [0, 6, 7, 16, 26],
@@ -1189,7 +1191,8 @@ class _PanchangScreenState extends State<PanchangScreen> {
       5: [1, 6, 11], 3: [2, 7, 12], 2: [3, 8, 13],
       6: [4, 9, 14], 4: [5, 10, 15],
     };
-    const amritTithis = <int, List<int>>{
+    // These weekday-tithi pairs are Mrityu Yoga, not Amrit Yoga.
+    const mrityuTithis = <int, List<int>>{
       0: [1, 6, 11], 1: [2, 7, 12], 2: [1, 6, 11],
       3: [3, 8, 13], 4: [4, 9, 14], 5: [2, 7, 12],
       6: [5, 10, 15],
@@ -1204,6 +1207,8 @@ class _PanchangScreenState extends State<PanchangScreen> {
       'मृत्यु','काण','सिद्धि','शुभ','अमृत','मुसल','गद','मातंग',
       'राक्षस','चर','सुस्थिर','प्रवर्धमान',
     ];
+    // Muhurta Chintamani's 28-fold count inserts Abhijit after
+    // Uttarashadha. The starting points are Sunday through Saturday.
     const anandadiStart = [0, 4, 8, 12, 16, 20, 24];
     const anandadiAshubh = {
       'कालदण्ड','धूम्र','ध्वांक्ष','वज्र','मुद्गर','लुम्ब','उत्पात',
@@ -1212,8 +1217,7 @@ class _PanchangScreenState extends State<PanchangScreen> {
     Map<String, bool> stateAt(DateTime instant) {
       final found = <String, bool>{};
       void mark(String name, bool good) => found[name] = good;
-      final cursor = instant;
-      final limb = PanchangEngine.indicesAt(cursor);
+      final limb = PanchangEngine.indicesAt(instant);
       final tithiNo = (limb['tithi']! % 15) + 1;
       final nak = limb['nakshatra']!;
       final sunNak = limb['sunNakshatra']!;
@@ -1221,19 +1225,29 @@ class _PanchangScreenState extends State<PanchangScreen> {
           (tithiNo == 1 && nak == 18) || (tithiNo == 5 && nak == 1) ||
           (tithiNo == 8 && nak == 2) || (tithiNo == 9 && nak == 3) ||
           (tithiNo == 10 && nak == 8);
+
       if (sarvartha[weekday].contains(nak)) mark('सर्वार्थ सिद्धि योग', true);
       if (amritSiddhi[weekday] == nak) mark('अमृत सिद्धि योग', true);
       if (weekday == 0 && nak == 7) mark('रवि पुष्य योग', true);
       if (weekday == 4 && nak == 7) mark('गुरु पुष्य योग', true);
       final fromSun = ((nak - sunNak + 27) % 27) + 1;
       if ([4, 6, 9, 10, 13, 20].contains(fromSun)) mark('रवि योग', true);
+
+      // Dwi/Tripushkar are distinguished by the nakshatra's division:
+      // Mrigashira-Chitra-Dhanishtha are dual; the six listed stars are tri.
       if ([0, 2, 6].contains(weekday) && [2, 7, 12].contains(tithiNo) &&
           [4, 13, 22].contains(nak)) mark('द्विपुष्कर योग', true);
       if ([0, 2, 6].contains(weekday) && [2, 7, 12].contains(tithiNo) &&
           [2, 6, 11, 15, 20, 24].contains(nak)) mark('त्रिपुष्कर योग', true);
-      if (siddhaTithis[weekday]?.contains(tithiNo) == true) mark('सिद्ध योग', true);
-      if (amritTithis[weekday]?.contains(tithiNo) == true) mark('अमृत योग', true);
-      if (dagdha[weekday] == tithiNo || (weekday == 3 && tithiNo == 2)) mark('दग्ध योग', false);
+
+      if (siddhaTithis[weekday]?.contains(tithiNo) == true) {
+        mark('सिद्ध योग', true);
+      }
+      if (mrityuTithis[weekday]?.contains(tithiNo) == true) {
+        mark('मृत्यु योग', false);
+      }
+      if (dagdha[weekday] == tithiNo ||
+          (weekday == 3 && tithiNo == 2)) mark('दग्ध योग', false);
       if (visha[weekday] == tithiNo) mark('विष योग', false);
       if (hutashana[weekday] == tithiNo) mark('हुताशन योग', false);
       if (kakrach[weekday] == tithiNo) mark('काक्रच / क्रकच योग', false);
@@ -1249,36 +1263,67 @@ class _PanchangScreenState extends State<PanchangScreen> {
       }
       return found;
     }
+
     DateTime refine(DateTime low, DateTime high, String name, bool entering) {
-      for (var i = 0; i < 22; i++) {
-        final mid = low.add(Duration(microseconds: high.difference(low).inMicroseconds ~/ 2));
-        if (stateAt(mid).containsKey(name) == entering) { high = mid; } else { low = mid; }
+      for (var i = 0; i < 24; i++) {
+        final mid = low.add(Duration(
+          microseconds: high.difference(low).inMicroseconds ~/ 2));
+        if (stateAt(mid).containsKey(name) == entering) {
+          high = mid;
+        } else {
+          low = mid;
+        }
       }
       return high;
     }
+
     final rows = <Map<String, String>>[];
     final active = <String, DateTime>{};
     var previousTime = dayStart;
     var previous = stateAt(dayStart);
-    for (final name in previous.keys) { active[name] = dayStart; }
-    var cursor = dayStart.add(const Duration(minutes: 5));
+    for (final name in previous.keys) {
+      active[name] = dayStart;
+    }
+    // A one-minute scan reduces the chance of missing short overlaps of
+    // tithi/nakshatra boundaries; each detected boundary is then refined.
+    var cursor = dayStart.add(const Duration(minutes: 1));
     while (cursor.isBefore(nextSunrise)) {
       final current = stateAt(cursor);
       for (final name in <String>{...previous.keys, ...current.keys}) {
-        final was = previous.containsKey(name), now = current.containsKey(name);
+        final was = previous.containsKey(name);
+        final now = current.containsKey(name);
         if (was == now) continue;
         final boundary = refine(previousTime, cursor, name, now);
         if (was) {
-          rows.add({'name': name, 'kind': previous[name] == true ? 'शुभ' : 'अशुभ', 'start': _time(active.remove(name) ?? dayStart), 'end': _time(boundary)});
-        } else { active[name] = boundary; }
+          final startTime = active.remove(name) ?? dayStart;
+          rows.add({
+            'name': name,
+            'kind': previous[name] == true ? 'शुभ' : 'अशुभ',
+            'start': _time(startTime),
+            'end': _time(boundary),
+            '_sort': startTime.toIso8601String(),
+          });
+        } else {
+          active[name] = boundary;
+        }
       }
-      previous = current; previousTime = cursor;
-      cursor = cursor.add(const Duration(minutes: 5));
+      previous = current;
+      previousTime = cursor;
+      cursor = cursor.add(const Duration(minutes: 1));
     }
     for (final entry in active.entries) {
-      rows.add({'name': entry.key, 'kind': previous[entry.key] == true ? 'शुभ' : 'अशुभ', 'start': _time(entry.value), 'end': _time(nextSunrise)});
+      rows.add({
+        'name': entry.key,
+        'kind': previous[entry.key] == true ? 'शुभ' : 'अशुभ',
+        'start': _time(entry.value),
+        'end': _time(nextSunrise),
+        '_sort': entry.value.toIso8601String(),
+      });
     }
-    rows.sort((p, q) => (p['start'] ?? '').compareTo(q['start'] ?? ''));
+    rows.sort((a, b) => a['_sort']!.compareTo(b['_sort']!));
+    for (final row in rows) {
+      row.remove('_sort');
+    }
     return rows;
   }
 
