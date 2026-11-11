@@ -622,23 +622,23 @@ class _PanchangScreenState extends State<PanchangScreen> {
                     children: [
                       Container(
                         width: double.infinity,
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                         decoration: BoxDecoration(
                           color: const Color(0xFFFFF0D5),
                           borderRadius: BorderRadius.circular(9),
                           border: Border.all(color: const Color(0xFFE9D8B9)),
                         ),
                         child: Row(children: [
-                          const Icon(Icons.location_on_outlined, size: 16, color: Color(0xFF79502B)),
+                          const Icon(Icons.location_on_outlined, size: 13, color: Color(0xFF79502B)),
                           const SizedBox(width: 6),
                           Expanded(child: Text(city, maxLines: 1, overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF684521)))),
-                          const Text('स्थान', style: TextStyle(fontSize: 10, color: Color(0xFF98652D))),
+                            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF684521)))),
+                          const Text('स्थान', style: TextStyle(fontSize: 9, color: Color(0xFF98652D))),
                         ]),
                       ),
-                      const SizedBox(height: 7),
+                      const SizedBox(height: 4),
                       Container(
-                        padding: const EdgeInsets.fromLTRB(8, 7, 8, 10),
+                        padding: const EdgeInsets.fromLTRB(6, 2, 6, 5),
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(16),
                           gradient: const LinearGradient(colors: [Color(0xFF6B4528), Color(0xFF9B7042)]),
@@ -646,24 +646,26 @@ class _PanchangScreenState extends State<PanchangScreen> {
                         child: Column(children: [
                           Row(children: [
                             IconButton(tooltip: 'पिछली तारीख', onPressed: () => _changeDate(-1),
-                              icon: const Icon(Icons.chevron_left, color: Colors.white, size: 28),
+                              padding: EdgeInsets.zero, constraints: const BoxConstraints.tightFor(width: 32, height: 32),
+                              icon: const Icon(Icons.chevron_left, color: Colors.white, size: 23),
                               visualDensity: VisualDensity.compact),
                             Expanded(child: Column(children: [
-                              Text(_weekday(selectedDate), style: const TextStyle(color: Colors.white70, fontSize: 12)),
-                              Text(_date(selectedDate), style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
+                              Text(_weekday(selectedDate), style: const TextStyle(color: Colors.white70, fontSize: 10, height: 1.1)),
+                              Text(_date(selectedDate), style: const TextStyle(color: Colors.white, fontSize: 18, height: 1.1, fontWeight: FontWeight.bold)),
                             ])),
                             IconButton(tooltip: 'अगली तारीख', onPressed: () => _changeDate(1),
-                              icon: const Icon(Icons.chevron_right, color: Colors.white, size: 28),
+                              padding: EdgeInsets.zero, constraints: const BoxConstraints.tightFor(width: 32, height: 32),
+                              icon: const Icon(Icons.chevron_right, color: Colors.white, size: 23),
                               visualDensity: VisualDensity.compact),
                           ]),
-                          const Divider(color: Color(0x66FFFFFF), height: 8),
+                          const Divider(color: Color(0x66FFFFFF), height: 5, thickness: 0.6),
                           Row(children: [
                             Expanded(child: _sunInfo('सूर्योदय', _time(sunrise), Icons.wb_sunny_outlined)),
                             Expanded(child: _sunInfo('सूर्यास्त', _time(sunset), Icons.wb_twilight)),
                           ]),
                         ]),
                       ),
-                      const SizedBox(height: 14),
+                      const SizedBox(height: 8),
                       _liveDashboard(),
                       const SizedBox(height: 10),
                       _mainCategoryTabs(),
@@ -1158,11 +1160,11 @@ class _PanchangScreenState extends State<PanchangScreen> {
   }
 
   Widget _sunInfo(String label, String value, IconData icon) => Row(children: [
-    Icon(icon, color: const Color(0xFFFFD88A), size: 20),
-    const SizedBox(width: 6),
+    Icon(icon, color: const Color(0xFFFFD88A), size: 16),
+    const SizedBox(width: 4),
     Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text(label, style: const TextStyle(color: Colors.white70, fontSize: 12)),
-      Text(value, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+      Text(label, style: const TextStyle(color: Colors.white70, fontSize: 10, height: 1.1)),
+      Text(value, style: const TextStyle(color: Colors.white, fontSize: 12, height: 1.1, fontWeight: FontWeight.bold)),
     ]),
   ]);
 }
