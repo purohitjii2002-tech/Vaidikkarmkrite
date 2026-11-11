@@ -1335,8 +1335,13 @@ class _BooksScreenState extends State<BooksScreen> {
       final rows = await Supabase.instance.client.from('books')
         .select('id,title_hi,title_en,author,description,cover_url,book_versions(pdf_url,version_no)')
         .eq('is_active',true).order('created_at',ascending:false);
-      final books = List<Map<String,dynamic>>.from(rows);
-      // Keep book details and PDF version URLs available for offline reopening.
+      final books = List<Map<String,dynamic>>.from(rows)
+        .where((book) {
+          final versions = book['book_versions'] as List<dynamic>? ?? const [];
+          return versions.any((version) =>
+            (version is Map ? (version['pdf_url'] ?? '').toString().trim() : '').isNotEmpty);
+        }).toList();
+      // Hide admin-created entries without an uploaded PDF; they cannot be opened.
       await prefs.setString('cached_library_books', jsonEncode(books));
       return books;
     } catch (error) {
@@ -1576,28 +1581,47 @@ class _InAppPdfReaderState extends State<InAppPdfReader> {
     final cacheKey = sha256.convert(utf8.encode(widget.url)).toString();
     final cachedFile = File('${cacheDir.path}/$cacheKey.pdf');
 
-    // Open a previously downloaded copy immediately, including when offline.
-    if (!forceRefresh && await cachedFile.exists() && await cachedFile.length() > 0) {
-      final cachedController = PdfControllerPinch(
-        document: PdfDocument.openFile(cachedFile.path),
-      );
-      _controller = cachedController;
-      return cachedController;
+    bool validPdfBytes(List<int> bytes) =>
+        bytes.length >= 5 &&
+        bytes[0] == 0x25 && bytes[1] == 0x50 &&
+        bytes[2] == 0x44 && bytes[3] == 0x46 && bytes[4] == 0x2D;
+
+    // Reuse only a real PDF cache; older builds could cache an HTML error page.
+    if (!forceRefresh && await cachedFile.exists()) {
+      final cachedBytes = await cachedFile.openRead(0, 5).fold<List<int>>(
+        <int>[], (all, chunk) => all..addAll(chunk));
+      if (validPdfBytes(cachedBytes)) {
+        final cachedController = PdfControllerPinch(
+          document: PdfDocument.openFile(cachedFile.path),
+        );
+        _controller = cachedController;
+        return cachedController;
+      }
+      await cachedFile.delete();
     }
 
     try {
-      final response = await http.get(Uri.parse(widget.url))
-          .timeout(const Duration(seconds: 45));
+      final response = await http.get(
+        Uri.parse(widget.url),
+        headers: const {'Accept': 'application/pdf, application/octet-stream;q=0.9'},
+      ).timeout(const Duration(seconds: 90));
       if (response.statusCode < 200 || response.statusCode >= 300) {
-        throw Exception('PDF डाउनलोड नहीं हो सकी: ${response.statusCode}');
+        throw Exception('सर्वर ने HTTP ${response.statusCode} दिया।');
       }
-      if (response.bodyBytes.isEmpty) {
-        throw Exception('PDF फ़ाइल खाली है।');
+      if (!validPdfBytes(response.bodyBytes)) {
+        final contentType = response.headers['content-type'] ?? 'अज्ञात';
+        throw Exception('लिंक से PDF के बजाय दूसरी सामग्री मिली (Content-Type: $contentType)।');
       }
 
-      // Write atomically so an interrupted download never replaces a good cache.
+      // Write atomically; never replace a good offline copy with a bad response.
       final temporaryFile = File('${cachedFile.path}.part');
       await temporaryFile.writeAsBytes(response.bodyBytes, flush: true);
+      final writtenBytes = await temporaryFile.openRead(0, 5).fold<List<int>>(
+        <int>[], (all, chunk) => all..addAll(chunk));
+      if (!validPdfBytes(writtenBytes)) {
+        await temporaryFile.delete();
+        throw Exception('डाउनलोड की गई PDF अधूरी या अमान्य है।');
+      }
       if (await cachedFile.exists()) await cachedFile.delete();
       await temporaryFile.rename(cachedFile.path);
 
@@ -1606,14 +1630,18 @@ class _InAppPdfReaderState extends State<InAppPdfReader> {
       );
       _controller = controller;
       return controller;
-    } catch (_) {
-      // If refresh fails (or the device is offline), retain and use the old copy.
-      if (await cachedFile.exists() && await cachedFile.length() > 0) {
-        final cachedController = PdfControllerPinch(
-          document: PdfDocument.openFile(cachedFile.path),
-        );
-        _controller = cachedController;
-        return cachedController;
+    } catch (error) {
+      // If refresh fails (or the device is offline), retain a verified old copy.
+      if (await cachedFile.exists()) {
+        final cachedBytes = await cachedFile.openRead(0, 5).fold<List<int>>(
+          <int>[], (all, chunk) => all..addAll(chunk));
+        if (validPdfBytes(cachedBytes)) {
+          final cachedController = PdfControllerPinch(
+            document: PdfDocument.openFile(cachedFile.path),
+          );
+          _controller = cachedController;
+          return cachedController;
+        }
       }
       rethrow;
     }
@@ -1674,7 +1702,11 @@ class _InAppPdfReaderState extends State<InAppPdfReader> {
                 child:Column(mainAxisSize:MainAxisSize.min,children:[
                   const Icon(Icons.picture_as_pdf_outlined,size:52,color:Color(0xFF79502B)),
                   const SizedBox(height:12),
-                  const Text('PDF अभी नहीं खुल सकी। इंटरनेट कनेक्शन जाँचकर पुनः प्रयास करें।',textAlign:TextAlign.center),
+                  Text(
+                    'PDF अभी नहीं खुल सकी।\n${snapshot.error ?? 'कृपया पुनः प्रयास करें।'}',
+                    textAlign:TextAlign.center,
+                    style:const TextStyle(height:1.5),
+                  ),
                   const SizedBox(height:14),
                   ElevatedButton.icon(onPressed:_reloadPdf,icon:const Icon(Icons.refresh),label:const Text('पुनः प्रयास करें')),
                 ]),
