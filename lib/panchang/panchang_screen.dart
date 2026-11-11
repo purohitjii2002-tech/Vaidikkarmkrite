@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
@@ -21,9 +22,20 @@ class _PanchangScreenState extends State<PanchangScreen> {
   double? sunriseAscendant;
   bool loading = true;
   int selectedMuhuratTab = 0;
+  Timer? _liveTimer;
+  DateTime _liveNow = DateTime.now();
 
   @override
-  void initState() { super.initState(); _load(); }
+  void initState() {
+    super.initState();
+    _liveTimer = Timer.periodic(const Duration(seconds: 20), (_) {
+      if (mounted) setState(() => _liveNow = DateTime.now());
+    });
+    _load();
+  }
+
+  @override
+  void dispose() { _liveTimer?.cancel(); super.dispose(); }
 
   // Ujjain is the standard fallback when location permission/service is unavailable.
   static const double _ujjainLatitude = 23.1765;
@@ -220,6 +232,153 @@ class _PanchangScreenState extends State<PanchangScreen> {
     ];
   }
 
+  String _remaining(DateTime? end) {
+    if (end == null) return 'समाप्ति समय उपलब्ध नहीं';
+    final left = end.difference(_liveNow);
+    if (left <= Duration.zero) return 'समाप्त';
+    final h = left.inHours;
+    final m = left.inMinutes % 60;
+    final s = left.inSeconds % 60;
+    if (h > 0) return 'समाप्ति में ${h}घं ${m}मि शेष';
+    if (m > 0) return 'समाप्ति में ${m}मि ${s}से शेष';
+    return 'समाप्ति में ${s}से शेष';
+  }
+
+  DateTime? _nextLagnaEnd(double latitude, double longitude) {
+    int sign(DateTime t) => (PanchangEngine.ascendantSiderealLongitude(
+      instant:t, latitude:latitude, longitude:longitude) / 30).floor();
+    final initial = sign(_liveNow);
+    var low = _liveNow;
+    var high = low.add(const Duration(minutes:1));
+    for (var i=0; i<180; i++) {
+      if (sign(high) != initial) {
+        for (var j=0; j<24; j++) {
+          final mid=low.add(Duration(microseconds:high.difference(low).inMicroseconds~/2));
+          if (sign(mid)==initial) low=mid; else high=mid;
+        }
+        return high;
+      }
+      low=high;
+      high=high.add(const Duration(minutes:1));
+    }
+    return null;
+  }
+
+  ({String name, DateTime start, DateTime end, bool good})? _liveChoghadiya() {
+    if (position==null) return null;
+    final today=DateTime(_liveNow.year,_liveNow.month,_liveNow.day);
+    final todayRise=PanchangEngine.solarEvent(localDate:today,latitude:position!.latitude,longitude:position!.longitude,sunrise:true);
+    final todaySet=PanchangEngine.solarEvent(localDate:today,latitude:position!.latitude,longitude:position!.longitude,sunrise:false);
+    final nextRise=PanchangEngine.solarEvent(localDate:today.add(const Duration(days:1)),latitude:position!.latitude,longitude:position!.longitude,sunrise:true);
+    final prev= today.subtract(const Duration(days:1));
+    final prevSet=PanchangEngine.solarEvent(localDate:prev,latitude:position!.latitude,longitude:position!.longitude,sunrise:false);
+    if(todayRise==null||todaySet==null||nextRise==null||prevSet==null) return null;
+    final isDay=!_liveNow.isBefore(todayRise)&&_liveNow.isBefore(todaySet);
+    final isEvening=!_liveNow.isBefore(todaySet);
+    final start=isDay?todayRise:(isEvening?todaySet:prevSet);
+    final end=isDay?todaySet:(isEvening?nextRise:todayRise);
+    final weekday=(isDay?today:prev).weekday%7;
+    const dayStarts=['उद्वेग','अमृत','रोग','लाभ','शुभ','चर','काल'];
+    const nightStarts=['शुभ','अमृत','चर','रोग','काल','लाभ','उद्वेग'];
+    const cycle=['उद्वेग','चर','लाभ','अमृत','काल','शुभ','रोग'];
+    final first=(isDay?dayStarts:nightStarts)[weekday];
+    final startIndex=cycle.indexOf(first);
+    final elapsed=_liveNow.difference(start).inMilliseconds;
+    final span=end.difference(start).inMilliseconds;
+    if(elapsed<0||elapsed>=span||span<=0) return null;
+    final slot=((elapsed*8)/span).floor().clamp(0,7);
+    final a=start.add(Duration(milliseconds:(span*slot/8).round()));
+    final b=start.add(Duration(milliseconds:(span*(slot+1)/8).round()));
+    final name=cycle[(startIndex+slot)%7];
+    return (name:name,start:a,end:b,good:['अमृत','शुभ','लाभ','चर'].contains(name));
+  }
+
+  ({String planet, DateTime start, DateTime end})? _liveHora() {
+    if(position==null) return null;
+    final today=DateTime(_liveNow.year,_liveNow.month,_liveNow.day);
+    final rise=PanchangEngine.solarEvent(localDate:today,latitude:position!.latitude,longitude:position!.longitude,sunrise:true);
+    final set=PanchangEngine.solarEvent(localDate:today,latitude:position!.latitude,longitude:position!.longitude,sunrise:false);
+    final next=PanchangEngine.solarEvent(localDate:today.add(const Duration(days:1)),latitude:position!.latitude,longitude:position!.longitude,sunrise:true);
+    final prev=today.subtract(const Duration(days:1));
+    final prevRise=PanchangEngine.solarEvent(localDate:prev,latitude:position!.latitude,longitude:position!.longitude,sunrise:true);
+    final prevSet=PanchangEngine.solarEvent(localDate:prev,latitude:position!.latitude,longitude:position!.longitude,sunrise:false);
+    if(rise==null||set==null||next==null||prevRise==null||prevSet==null) return null;
+    final isDay=!_liveNow.isBefore(rise)&&_liveNow.isBefore(set);
+    final isEvening=!_liveNow.isBefore(set);
+    final dayStart=isDay?rise:(isEvening?rise:prevRise);
+    final dayEnd=isDay?set:(isEvening?set:prevSet);
+    final nightStart=isDay?set:(isEvening?set:prevSet);
+    final nightEnd=isDay?next:(isEvening?next:rise);
+    const planets=['शनि','गुरु','मंगल','सूर्य','शुक्र','बुध','चन्द्र'];
+    const lords=['सूर्य','चन्द्र','मंगल','बुध','गुरु','शुक्र','शनि'];
+    final weekday=(isEvening||!isDay?prev:today).weekday%7;
+    final first=planets.indexOf(lords[weekday]);
+    final inDay=isDay;
+    final start=inDay?dayStart:nightStart;
+    final end=inDay?dayEnd:nightEnd;
+    final part=inDay?0:12;
+    final span=end.difference(start).inMilliseconds;
+    final elapsed=_liveNow.difference(start).inMilliseconds;
+    if(span<=0||elapsed<0||elapsed>=span) return null;
+    final slot=((elapsed*12)/span).floor().clamp(0,11);
+    final a=start.add(Duration(milliseconds:(span*slot/12).round()));
+    final b=start.add(Duration(milliseconds:(span*(slot+1)/12).round()));
+    return (planet:'${planets[(first+part+slot)%7]}',start:a,end:b);
+  }
+
+  Widget _liveDashboard() {
+    final today=DateTime(_liveNow.year,_liveNow.month,_liveNow.day);
+    final isToday=selectedDate.year==today.year&&selectedDate.month==today.month&&selectedDate.day==today.day;
+    if(!isToday||position==null) return const SizedBox.shrink();
+    final instantData=PanchangEngine.atSunrise(_liveNow);
+    final months=PanchangEngine.lunarMonthLabels(_liveNow);
+    final nakEnd=instantData['nakshatraEnd'] as DateTime?;
+    final tithiEnd=instantData['tithiEnd'] as DateTime?;
+    final ch=_liveChoghadiya();
+    final hora=_liveHora();
+    final lagna=PanchangEngine.ascendantSiderealLongitude(instant:_liveNow,latitude:position!.latitude,longitude:position!.longitude);
+    final lagnaEnd=_nextLagnaEnd(position!.latitude,position!.longitude);
+    Widget info(String label,String value,String sub,IconData icon,{Color color=const Color(0xFF654321),Color? tint}) => Expanded(
+      child:Container(
+        margin:const EdgeInsets.all(4),padding:const EdgeInsets.all(12),
+        decoration:BoxDecoration(color:tint??const Color(0xFFFFF9EF),borderRadius:BorderRadius.circular(15),border:Border.all(color:color.withOpacity(.16))),
+        child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+          Row(children:[Icon(icon,size:17,color:color),const SizedBox(width:5),Expanded(child:Text(label,style:TextStyle(fontSize:11,color:color,fontWeight:FontWeight.w600)))]),
+          const SizedBox(height:7),
+          Text(value,style:TextStyle(fontSize:16,fontWeight:FontWeight.bold,color:color),maxLines:2,overflow:TextOverflow.ellipsis),
+          const SizedBox(height:4),Text(sub,style:TextStyle(fontSize:10,color:color.withOpacity(.82))),
+        ]),
+      ),
+    );
+    final nak=instantData['nakshatra']??'—';
+    final pada=instantData['nakshatraPada']??'—';
+    return Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+      Container(
+        width:double.infinity,padding:const EdgeInsets.all(16),
+        decoration:BoxDecoration(borderRadius:BorderRadius.circular(22),gradient:const LinearGradient(begin:Alignment.topLeft,end:Alignment.bottomRight,colors:[Color(0xFF173F35),Color(0xFF28634D),Color(0xFF9A713F)]),boxShadow:[BoxShadow(color:Colors.black.withOpacity(.12),blurRadius:14,offset:const Offset(0,6))]),
+        child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+          Row(children:[const Icon(Icons.auto_awesome,color:Color(0xFFFFD88A)),const SizedBox(width:8),const Expanded(child:Text('अभी का पंचांग',style:TextStyle(color:Colors.white,fontSize:19,fontWeight:FontWeight.bold))),Text(_time(_liveNow),style:const TextStyle(color:Color(0xFFFFE2A8),fontWeight:FontWeight.bold))]),
+          const SizedBox(height:5),
+          Text('लाइव गणना • हर 20 सेकंड में अद्यतन',style:TextStyle(color:Colors.white.withOpacity(.75),fontSize:11)),
+          const SizedBox(height:10),
+          Row(children:[
+            info('वर्तमान तिथि','${instantData['tithi']}','${instantData['paksha']} • ${_remaining(tithiEnd)}',Icons.calendar_today,color:Colors.white,tint:const Color(0xFF315C4D)),
+            info('हिन्दू मास',months['amanta']??'—','पूर्णिमांत: ${months['purnimanta']??'—'}',Icons.brightness_6,color:Colors.white,tint:const Color(0xFF315C4D)),
+          ]),
+          Row(children:[
+            info('नक्षत्र • चरण','${nak} • ${pada}','${_remaining(nakEnd)}',Icons.star,color:Colors.white,tint:const Color(0xFF315C4D)),
+            info('वर्तमान लग्न',_rashi(lagna),' ${_remaining(lagnaEnd)}',Icons.explore,color:Colors.white,tint:const Color(0xFF315C4D)),
+          ]),
+        ]),
+      ),
+      const SizedBox(height:8),
+      Row(children:[
+        if(ch!=null) info('वर्तमान चौघड़िया',ch.name,'${ch.good?'शुभ':'अशुभ'} • ${_time(ch.start)}–${_time(ch.end)} • ${_remaining(ch.end)}',Icons.timelapse,color:ch.good?const Color(0xFF167443):const Color(0xFFB3261E),tint:ch.good?const Color(0xFFE6F5E9):const Color(0xFFFFE9E7)),
+        if(hora!=null) info('वर्तमान होरा','${hora.planet} ग्रह','${_time(hora.start)}–${_time(hora.end)} • ${_remaining(hora.end)}',Icons.public,color:const Color(0xFF654321)),
+      ]),
+    ]);
+  }
+
   Widget _sectionHeading(String title, IconData icon) => Padding(
     padding: const EdgeInsets.fromLTRB(4, 18, 4, 8),
     child: Row(children: [Icon(icon, color: const Color(0xFF79502B)),
@@ -348,6 +507,8 @@ class _PanchangScreenState extends State<PanchangScreen> {
                         ]),
                       ),
                       const SizedBox(height: 14),
+                      _liveDashboard(),
+                      const SizedBox(height: 10),
                       _mainCategoryTabs(),
                       const SizedBox(height: 12),
                       _muhuratTabs(),
