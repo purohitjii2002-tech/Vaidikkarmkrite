@@ -1013,13 +1013,15 @@ class _PanchangScreenState extends State<PanchangScreen> {
       ]),
     ),
   );
-  Widget _detailRow(String label, String value, {bool alternate = false}) => Container(
+  Widget _detailRow(String label, String value, {bool alternate = false, bool compact = false}) => Container(
     color: alternate ? const Color(0xFFFFF6E9) : Colors.transparent,
-    padding: const EdgeInsets.symmetric(vertical: 7, horizontal: 4),
+    padding: EdgeInsets.symmetric(vertical: compact ? 5 : 7, horizontal: 4),
     child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Expanded(flex: 5, child: Text(label, textAlign: TextAlign.right, style: const TextStyle(fontSize: 13, color: Color(0xFF98652D)))),
+      Expanded(flex: 5, child: Text(label, textAlign: TextAlign.right,
+        style: TextStyle(fontSize: compact ? 12 : 13, color: const Color(0xFF98652D)))),
       const SizedBox(width: 12),
-      Expanded(flex: 6, child: Text(value, style: const TextStyle(fontSize: 14, color: Color(0xFF286342), fontWeight: FontWeight.w600))),
+      Expanded(flex: 6, child: Text(value,
+        style: TextStyle(fontSize: compact ? 13 : 14, color: const Color(0xFF286342), fontWeight: FontWeight.w600))),
     ]),
   );
   List<Widget> _vasaRows(Map<String, dynamic> d) {
@@ -1241,12 +1243,12 @@ class _PanchangScreenState extends State<PanchangScreen> {
     final karanaEnd = d['karanaEnd'] as DateTime?;
     return [
       _detailCard('पंचांग', Icons.calendar_month, [
-        _detailRow('तिथि', '${d['tithi'] ?? '—'}  •  ${_time(tithiEnd)}', alternate: true),
-        _detailRow('पक्ष', '${d['paksha'] ?? '—'}'),
-        _detailRow('नक्षत्र', '${d['nakshatra'] ?? '—'} • चरण ${d['nakshatraPada'] ?? '—'} • ${_time(nakshatraEnd)}', alternate: true),
-        _detailRow('योग', '${d['yoga'] ?? '—'}  •  ${_time(yogaEnd)}'),
-        _detailRow('करण', '${d['karana'] ?? '—'}  •  ${_time(karanaEnd)}', alternate: true),
-        _detailRow('वार', _weekday(selectedDate)),
+        _detailRow('तिथि', '${d['tithi'] ?? '—'}  •  ${_time(tithiEnd)}', alternate: true, compact: true),
+        _detailRow('पक्ष', '${d['paksha'] ?? '—'}', compact: true),
+        _detailRow('नक्षत्र', '${d['nakshatra'] ?? '—'} • चरण ${d['nakshatraPada'] ?? '—'} • ${_time(nakshatraEnd)}', alternate: true, compact: true),
+        _detailRow('योग', '${d['yoga'] ?? '—'}  •  ${_time(yogaEnd)}', compact: true),
+        _detailRow('करण', '${d['karana'] ?? '—'}  •  ${_time(karanaEnd)}', alternate: true, compact: true),
+        _detailRow('वार', _weekday(selectedDate), compact: true),
       ]),
       ..._specialYogaCards(),
       _panchakCard(),
