@@ -846,9 +846,17 @@ class _PanchangScreenState extends State<PanchangScreen> {
     final lon = (_siderealSun() % 360 + 360) % 360;
     return _nakshatraNames[(lon / (360 / 27)).floor() % 27];
   }
+  // Drik Ritu follows the tropical (sayana) solar season.
+  // Keep this distinct from Vedic Ritu, which is based on the sidereal Sun.
   String _ritu() {
-    const seasons = ['वसंत','वसंत','ग्रीष्म','ग्रीष्म','वर्षा','वर्षा','शरद','शरद','हेमंत','हेमंत','शिशिर','शिशिर'];
-    return seasons[_siderealSign(_siderealSun())];
+    final tropicalSun = (data?['sunLongitude'] as num?)?.toDouble();
+    if (tropicalSun == null) return 'गणना उपलब्ध नहीं';
+    const drikSeasons = [
+      'वसंत','ग्रीष्म','ग्रीष्म','वर्षा','वर्षा','शरद',
+      'शरद','हेमंत','हेमंत','शिशिर','शिशिर','वसंत',
+    ];
+    final sign = (((tropicalSun % 360) + 360) % 360 / 30).floor();
+    return drikSeasons[sign];
   }
   String _ayana() => (_siderealSign(_siderealSun()) >= 9 || _siderealSign(_siderealSun()) <= 2) ? 'उत्तरायण' : 'दक्षिणायन';
   String _detailDuration(Duration d) => '${d.inHours.toString().padLeft(2,'0')}:${(d.inMinutes%60).toString().padLeft(2,'0')}:${(d.inSeconds%60).toString().padLeft(2,'0')}';
