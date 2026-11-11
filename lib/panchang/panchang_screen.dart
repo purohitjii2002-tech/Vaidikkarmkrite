@@ -339,23 +339,13 @@ class _PanchangScreenState extends State<PanchangScreen> {
                           onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const MuhuratListScreen())),
                         ),
                       ),
-                      Card(
-                        color: const Color(0xFFFFF0D5),
-                        child: ListTile(
-                          leading: const CircleAvatar(backgroundColor: Color(0xFF79502B), child: Icon(Icons.event_available, color: Colors.white)),
-                          title: const Text('विशेष मुहूर्त', style: TextStyle(fontWeight: FontWeight.bold)),
-                          subtitle: const Text('वास्तु, विवाह, वाहन, हल, मुंडन आदि के मुहूर्त देखें'),
-                          trailing: const Icon(Icons.arrow_forward_ios, size: 17),
-                          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const MuhuratListScreen())),
-                        ),
-                      ),
                     ],
                   ),
                 ),
     );
   }
 
-  static const _muhuratTabs = ['दिन', 'मुहूर्त', 'चौघड़िया', 'होरा', 'लग्न'];
+  static const _muhuratTabLabels = ['दिन', 'मुहूर्त', 'चौघड़िया', 'होरा', 'लग्न'];
 
   Widget _muhuratTabs() => Container(
     padding: const EdgeInsets.all(5),
@@ -365,7 +355,7 @@ class _PanchangScreenState extends State<PanchangScreen> {
       border: Border.all(color: const Color(0xFFE9D8B9)),
     ),
     child: Row(
-      children: List.generate(_muhuratTabs.length, (index) => Expanded(
+      children: List.generate(_muhuratTabLabels.length, (index) => Expanded(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 2),
           child: InkWell(
@@ -378,7 +368,7 @@ class _PanchangScreenState extends State<PanchangScreen> {
                 color: selectedMuhuratTab == index ? const Color(0xFF8B5E32) : Colors.transparent,
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: Text(_muhuratTabs[index], textAlign: TextAlign.center,
+              child: Text(_muhuratTabLabels[index], textAlign: TextAlign.center,
                 maxLines: 1, overflow: TextOverflow.ellipsis,
                 style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700,
                   color: selectedMuhuratTab == index ? Colors.white : const Color(0xFF684521))),
@@ -398,10 +388,10 @@ class _PanchangScreenState extends State<PanchangScreen> {
       case 0:
         return [
           _sectionHeading('आज का पंचांग', Icons.calendar_today),
-          _tile('तिथि', '${data!['tithi']} • ${data!['paksha']} • समाप्ति ${_time(data!['tithiEnd'] as DateTime?)', Icons.brightness_3_outlined),
-          _tile('नक्षत्र', '${data!['nakshatra']} • चरण ${data!['nakshatraPada']} • समाप्ति ${_time(data!['nakshatraEnd'] as DateTime?)', Icons.star_outline),
-          _tile('योग', '${data!['yoga']} • समाप्ति ${_time(data!['yogaEnd'] as DateTime?)', Icons.auto_awesome),
-          _tile('करण', '${data!['karana']} • समाप्ति ${_time(data!['karanaEnd'] as DateTime?)', Icons.circle_outlined),
+          _tile('तिथि', '${data!['tithi']} • ${data!['paksha']} • समाप्ति ${_time(data!['tithiEnd'] as DateTime?)}', Icons.brightness_3_outlined),
+          _tile('नक्षत्र', '${data!['nakshatra']} • चरण ${data!['nakshatraPada']} • समाप्ति ${_time(data!['nakshatraEnd'] as DateTime?)}', Icons.star_outline),
+          _tile('योग', '${data!['yoga']} • समाप्ति ${_time(data!['yogaEnd'] as DateTime?)}', Icons.auto_awesome),
+          _tile('करण', '${data!['karana']} • समाप्ति ${_time(data!['karanaEnd'] as DateTime?)}', Icons.circle_outlined),
           _tile('सूर्योदय – सूर्यास्त', '${_time(sunrise)} – ${_time(sunset)}', Icons.wb_sunny_outlined),
           _tile('अयनांश (लाहिड़ी)', '${(data!['ayanamsha'] as double).toStringAsFixed(4)}°', Icons.explore_outlined),
           const Padding(padding: EdgeInsets.all(8), child: Text(
