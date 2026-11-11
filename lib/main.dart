@@ -448,7 +448,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       crossAxisCount: 2,
                       crossAxisSpacing: 12,
                       mainAxisSpacing: 12,
-                      childAspectRatio: 1.12,
+                      childAspectRatio: 0.94,
                     ),
                     itemBuilder: (context, index) {
                       final module = filteredModules[index];
@@ -482,45 +482,48 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _welcomeBanner() {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.fromLTRB(22, 22, 18, 22),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(22),
+        borderRadius: BorderRadius.circular(28),
         gradient: const LinearGradient(
-          colors: [
-            Color(0xFF6B4528),
-            Color(0xFF9B7042),
-          ],
+          colors: [Color(0xFF24180F), Color(0xFF65401F), Color(0xFF9A6B35)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
+        boxShadow: [BoxShadow(color: Color(0x332D1B0D), blurRadius: 18, offset: Offset(0, 9))],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Stack(
         children: [
-          const Text(
-            '॥ ॐ ॥',
-            style: TextStyle(
-              fontSize: 28,
-              color: Color(0xFFFFD88A),
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            tr('welcome'),
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 21,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            'भारतीय ज्ञान, वैदिक परंपरा और संस्कारों का डिजिटल मंच।',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 14,
-              height: 1.5,
-            ),
+          Positioned(right: -4, top: -18, child: Icon(Icons.spa_rounded, size: 128, color: Color(0x18FFE0A3))),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(children: [
+                Container(width: 42, height: 42, decoration: BoxDecoration(
+                  shape: BoxShape.circle, border: Border.all(color: Color(0x99E8C27D)),
+                  color: Color(0x22FFFFFF)),
+                  child: const Center(child: Text('ॐ', style: TextStyle(fontSize: 25, color: Color(0xFFFFD88A)))),
+                ),
+                const SizedBox(width: 10),
+                const Text('KARMKRITE • वैदिक ज्ञान', style: TextStyle(
+                  color: Color(0xFFFFDFA8), fontSize: 11, letterSpacing: 1.3, fontWeight: FontWeight.w700)),
+              ]),
+              const SizedBox(height: 22),
+              Text(tr('welcome'), style: const TextStyle(
+                color: Colors.white, fontSize: 25, height: 1.18, fontWeight: FontWeight.w800)),
+              const SizedBox(height: 9),
+              const Text('भारतीय ज्ञान, वैदिक परंपरा और संस्कारों का आपका अपना डिजिटल मंच।',
+                style: TextStyle(color: Color(0xFFF6E9D6), fontSize: 13, height: 1.55)),
+              const SizedBox(height: 18),
+              Container(height: 1, width: 76, color: Color(0xFFE5BD77)),
+              const SizedBox(height: 12),
+              const Row(children: [
+                Icon(Icons.auto_awesome, size: 14, color: Color(0xFFFFD88A)),
+                SizedBox(width: 7),
+                Text('परंपरा • ज्ञान • साधना', style: TextStyle(
+                  color: Color(0xFFFFE7BE), fontSize: 11, letterSpacing: .8, fontWeight: FontWeight.w600)),
+              ]),
+            ],
           ),
         ],
       ),
@@ -586,57 +589,53 @@ class _HomeScreenState extends State<HomeScreen> {
 class ModuleCard extends StatelessWidget {
   final ModuleInfo module;
   final VoidCallback onTap;
-
-  const ModuleCard({
-    super.key,
-    required this.module,
-    required this.onTap,
-  });
+  const ModuleCard({super.key, required this.module, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      color: Colors.white,
-      elevation: 1,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(18),
-        side: const BorderSide(color: Color(0xFFEADCC8)),
-      ),
+    final palettes = <List<Color>>[
+      [const Color(0xFFFFF0D8), const Color(0xFFFFFAF1)],
+      [const Color(0xFFE8F0E7), const Color(0xFFF8FBF5)],
+      [const Color(0xFFF4E8F0), const Color(0xFFFFF8FC)],
+      [const Color(0xFFE8EFF8), const Color(0xFFF8FAFE)],
+      [const Color(0xFFFFEBD9), const Color(0xFFFFF8F0)],
+      [const Color(0xFFECE9F7), const Color(0xFFFAF9FE)],
+    ];
+    final index = module.title.hashCode.abs() % palettes.length;
+    return Material(
+      color: Colors.transparent,
       child: InkWell(
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(22),
         onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(14),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                module.icon,
-                style: const TextStyle(fontSize: 30),
-              ),
-              const SizedBox(height: 10),
-              Text(
-                module.title,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF563719),
-                ),
-              ),
-              const SizedBox(height: 5),
-              Text(
-                module.subtitle,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontSize: 12,
-                  color: Colors.black54,
-                ),
-              ),
-            ],
+        child: Ink(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(colors: palettes[index], begin: Alignment.topLeft, end: Alignment.bottomRight),
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(color: const Color(0xFFE9DDCC)),
+            boxShadow: const [BoxShadow(color: Color(0x12000000), blurRadius: 12, offset: Offset(0, 5))],
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(15),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                  Container(width: 48, height: 48,
+                    decoration: BoxDecoration(color: Colors.white.withOpacity(.78), borderRadius: BorderRadius.circular(16)),
+                    alignment: Alignment.center,
+                    child: Text(module.icon, style: const TextStyle(fontSize: 27))),
+                  const Icon(Icons.arrow_outward_rounded, size: 18, color: Color(0xFF8C6A45)),
+                ]),
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(module.title, maxLines: 2, overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 15, height: 1.2, fontWeight: FontWeight.w800, color: Color(0xFF442B18))),
+                  const SizedBox(height: 6),
+                  Text(module.subtitle, maxLines: 2, overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 11, height: 1.35, color: Color(0xFF78634F))),
+                ]),
+              ],
+            ),
           ),
         ),
       ),
