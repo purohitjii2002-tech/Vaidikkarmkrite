@@ -88,13 +88,26 @@ class PanchangEngine {
     }
   }
 
+  static int _karanaIndexForHalfTithi(int halfTithi) {
+    // Kimstughna is the first half of Shukla Pratipada. The seven
+    // movable karanas repeat for the next 56 half-tithis; the final
+    // three are Shakuni, Chatushpada and Naga.
+    return switch (halfTithi) {
+      0 => 10,
+      57 => 7,
+      58 => 8,
+      59 => 9,
+      _ => (halfTithi - 1) % 7,
+    };
+  }
+
   static int _limbIndex(DateTime utc, String limb) {
     final angle = _limbAngle(utc, limb);
     switch (limb) {
       case 'tithi':
         return (angle / 12).floor();
       case 'karana':
-        return (angle / 6).floor();
+        return _karanaIndexForHalfTithi((angle / 6).floor());
       case 'nakshatra':
       case 'yoga':
         return (angle / (360 / 27)).floor();
@@ -146,9 +159,10 @@ class PanchangEngine {
     final sun = _norm(positions.sun - ayanamsha);
     final moon = _norm(positions.moon - ayanamsha);
     final elongation = _norm(positions.moon - positions.sun);
+    final halfTithi = (elongation / 6).floor();
     return {
       'tithi': (elongation / 12).floor(),
-      'karana': (elongation / 6).floor(),
+      'karana': _karanaIndexForHalfTithi(halfTithi),
       'nakshatra': (moon / (360 / 27)).floor(),
       'sunNakshatra': (sun / (360 / 27)).floor(),
       'yoga': (_norm(sun + moon) / (360 / 27)).floor(),
@@ -241,16 +255,7 @@ class PanchangEngine {
     final yogaRaw = _norm(siderealSun + siderealMoon) / (360 / 27);
     final halfTithi = (elongation / 6).floor();
 
-    // Kimstughna is the first half of Shukla Pratipada (index 0).
-    // The seven movable karanas then repeat for 56 half-tithis;
-    // the final three are Shakuni, Chatushpada and Naga.
-    final karanaIndex = switch (halfTithi) {
-      0 => 10,
-      57 => 7,
-      58 => 8,
-      59 => 9,
-      _ => (halfTithi - 1) % 7,
-    };
+    final karanaIndex = _karanaIndexForHalfTithi(halfTithi);
 
     return {
       'tithi': tithis[tithiNumber],
