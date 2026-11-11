@@ -1637,19 +1637,21 @@ class _InAppPdfReaderState extends State<InAppPdfReader> {
   @override
   Widget build(BuildContext context){
     return Scaffold(
+      backgroundColor:const Color(0xFFF5F0E7),
       appBar:AppBar(
-        title:Text(widget.title,maxLines:1,overflow:TextOverflow.ellipsis),
+        title:Row(children:[
+          const Icon(Icons.menu_book_rounded,color:Color(0xFFE8C987),size:20),
+          const SizedBox(width:9),
+          Expanded(child:Text(widget.title,maxLines:1,overflow:TextOverflow.ellipsis)),
+        ]),
         actions:[
           IconButton(
             tooltip:_rightToLeft ? 'बाएँ से दाएँ पढ़ें' : 'दाएँ से बाएँ पढ़ें',
             icon:Icon(_rightToLeft ? Icons.format_textdirection_l_to_r : Icons.format_textdirection_r_to_l),
             onPressed:()=>setState(()=>_rightToLeft=!_rightToLeft),
           ),
-          IconButton(
-            tooltip:'पुनः लोड करें',
-            icon:const Icon(Icons.refresh),
-            onPressed:_reloadPdf,
-          ),
+          IconButton(tooltip:'पुनः लोड करें',icon:const Icon(Icons.refresh),onPressed:_reloadPdf),
+          const SizedBox(width:4),
         ],
       ),
       body:FutureBuilder<PdfControllerPinch>(
@@ -1659,68 +1661,71 @@ class _InAppPdfReaderState extends State<InAppPdfReader> {
             return const Center(child:Column(mainAxisSize:MainAxisSize.min,children:[
               CircularProgressIndicator(),
               SizedBox(height:14),
-              Text('पुस्तक खोली जा रही है…'),
+              Text('पुस्तक खोली जा रही है…',style:TextStyle(color:Color(0xFF684521),fontWeight:FontWeight.w600)),
             ]));
           }
           if(snapshot.hasError){
             return Center(child:Padding(
               padding:const EdgeInsets.all(24),
-              child:Column(mainAxisSize:MainAxisSize.min,children:[
-                const Icon(Icons.picture_as_pdf_outlined,size:52,color:Color(0xFF79502B)),
-                const SizedBox(height:12),
-                const Text('PDF अभी नहीं खुल सकी। इंटरनेट कनेक्शन जाँचकर पुनः प्रयास करें।',textAlign:TextAlign.center),
-                const SizedBox(height:14),
-                ElevatedButton.icon(
-                  onPressed:_reloadPdf,
-                  icon:const Icon(Icons.refresh),
-                  label:const Text('पुनः प्रयास करें'),
-                ),
-              ]),
+              child:Container(
+                padding:const EdgeInsets.all(22),
+                decoration:BoxDecoration(color:const Color(0xFFFFFEFA),borderRadius:BorderRadius.circular(20),
+                  border:Border.all(color:const Color(0xFFE9DCC8))),
+                child:Column(mainAxisSize:MainAxisSize.min,children:[
+                  const Icon(Icons.picture_as_pdf_outlined,size:52,color:Color(0xFF79502B)),
+                  const SizedBox(height:12),
+                  const Text('PDF अभी नहीं खुल सकी। इंटरनेट कनेक्शन जाँचकर पुनः प्रयास करें।',textAlign:TextAlign.center),
+                  const SizedBox(height:14),
+                  ElevatedButton.icon(onPressed:_reloadPdf,icon:const Icon(Icons.refresh),label:const Text('पुनः प्रयास करें')),
+                ]),
+              ),
             ));
           }
           final controller=snapshot.data!;
-          return Column(
-            children:[
-              Padding(
-                padding:const EdgeInsets.fromLTRB(12,8,12,8),
-                child:Row(
-                  children:[
-                    const Icon(Icons.search,color:Color(0xFF79502B)),
-                    const SizedBox(width:8),
-                    Expanded(
-                      child:TextField(
-                        controller:_pageSearchController,
-                        keyboardType:TextInputType.number,
-                        textInputAction:TextInputAction.go,
-                        decoration:InputDecoration(
-                          hintText:'पेज नंबर लिखें',
-                          isDense:true,
-                          contentPadding:const EdgeInsets.symmetric(horizontal:12,vertical:11),
-                          border:OutlineInputBorder(borderRadius:BorderRadius.circular(10)),
-                        ),
-                        onSubmitted:(_)=>_goToPage(controller),
-                      ),
-                    ),
-                    const SizedBox(width:8),
-                    ElevatedButton(
-                      onPressed:()=>_goToPage(controller),
-                      child:const Text('जाएँ'),
-                    ),
-                  ],
-                ),
+          return Column(children:[
+            Padding(
+              padding:const EdgeInsets.fromLTRB(12,10,12,9),
+              child:Container(
+                padding:const EdgeInsets.fromLTRB(12,8,8,8),
+                decoration:BoxDecoration(color:const Color(0xFFFFFEFA),borderRadius:BorderRadius.circular(16),
+                  border:Border.all(color:const Color(0xFFE8DCCB)),
+                  boxShadow:const [BoxShadow(color:Color(0x0C000000),blurRadius:9,offset:Offset(0,3))]),
+                child:Row(children:[
+                  const Icon(Icons.search_rounded,color:Color(0xFF98652D),size:21),
+                  const SizedBox(width:8),
+                  Expanded(child:TextField(
+                    controller:_pageSearchController,keyboardType:TextInputType.number,textInputAction:TextInputAction.go,
+                    decoration:const InputDecoration(
+                      hintText:'पेज नंबर लिखें',isDense:true,border:InputBorder.none,
+                      contentPadding:EdgeInsets.symmetric(vertical:8)),
+                    onSubmitted:(_)=>_goToPage(controller),
+                  )),
+                  Container(
+                    padding:const EdgeInsets.symmetric(horizontal:9,vertical:7),
+                    decoration:BoxDecoration(color:const Color(0xFFFFF1D9),borderRadius:BorderRadius.circular(9)),
+                    child:Text(_totalPages>0 ? '$_currentPage / $_totalPages' : 'पेज',
+                      style:const TextStyle(fontSize:11,fontWeight:FontWeight.w800,color:Color(0xFF79502B))),
+                  ),
+                  const SizedBox(width:7),
+                  ElevatedButton(
+                    style:ElevatedButton.styleFrom(minimumSize:const Size(54,40),padding:const EdgeInsets.symmetric(horizontal:12),
+                      shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(10))),
+                    onPressed:()=>_goToPage(controller),child:const Text('जाएँ'),
+                  ),
+                ]),
               ),
-              Expanded(
+            ),
+            Expanded(
+              child:Container(
+                margin:const EdgeInsets.fromLTRB(8,0,8,8),
+                decoration:BoxDecoration(color:const Color(0xFFECE5D9),borderRadius:BorderRadius.circular(14)),
+                clipBehavior:Clip.antiAlias,
                 child:Directionality(
                   textDirection:_rightToLeft ? TextDirection.rtl : TextDirection.ltr,
                   child:PdfViewPinch(
-                    controller:controller,
-                    scrollDirection:Axis.horizontal,
-                    onDocumentLoaded:(document){
-                      if(mounted) setState(()=>_totalPages=document.pagesCount);
-                    },
-                    onPageChanged:(page){
-                      if(mounted) setState(()=>_currentPage=page);
-                    },
+                    controller:controller,scrollDirection:Axis.horizontal,
+                    onDocumentLoaded:(document){if(mounted)setState(()=>_totalPages=document.pagesCount);},
+                    onPageChanged:(page){if(mounted)setState(()=>_currentPage=page);},
                     builders:PdfViewPinchBuilders<DefaultBuilderOptions>(
                       options:const DefaultBuilderOptions(),
                       documentLoaderBuilder:(_)=>const Center(child:CircularProgressIndicator()),
@@ -1730,87 +1735,56 @@ class _InAppPdfReaderState extends State<InAppPdfReader> {
                   ),
                 ),
               ),
-              SafeArea(
-                top:false,
-                child:Container(
-                  width:double.infinity,
-                  padding:const EdgeInsets.symmetric(horizontal:6,vertical:8),
-                  decoration:const BoxDecoration(
-                    color:Color(0xFFFFFBF3),
-                    border:Border(top:BorderSide(color:Color(0xFFE8DCCB))),
-                  ),
-                  child:Row(
-                    children:[
-                      SizedBox(
-                        width:42,
-                        height:44,
-                        child:IconButton(
-                          tooltip:'पिछला पेज',
-                          padding:EdgeInsets.zero,
-                          constraints:const BoxConstraints.tightFor(width:42,height:44),
-                          onPressed:_currentPage>1 ? ()=>_jumpToPage(controller,_currentPage-1) : null,
-                          icon:const Icon(Icons.chevron_left,size:29),
+            ),
+            SafeArea(
+              top:false,
+              child:Container(
+                width:double.infinity,
+                padding:const EdgeInsets.fromLTRB(7,9,7,9),
+                decoration:const BoxDecoration(color:Color(0xFFFFFEFA),
+                  border:Border(top:BorderSide(color:Color(0xFFE8DCCB))),
+                  boxShadow:[BoxShadow(color:Color(0x10000000),blurRadius:10,offset:Offset(0,-3))]),
+                child:Row(children:[
+                  SizedBox(width:44,height:48,child:IconButton(
+                    tooltip:'पिछला पेज',padding:EdgeInsets.zero,
+                    constraints:const BoxConstraints.tightFor(width:44,height:48),
+                    style:IconButton.styleFrom(backgroundColor:const Color(0xFFFFF1D9),foregroundColor:const Color(0xFF79502B)),
+                    onPressed:_currentPage>1 ? ()=>_jumpToPage(controller,_currentPage-1) : null,
+                    icon:const Icon(Icons.chevron_left_rounded,size:32))),
+                  const SizedBox(width:4),
+                  Expanded(child:Row(mainAxisAlignment:MainAxisAlignment.center,
+                    children:_visiblePageNumbers.map((page){
+                      final isCurrent=page==_currentPage;
+                      return Expanded(child:Padding(
+                        padding:const EdgeInsets.symmetric(horizontal:1.5),
+                        child:Material(
+                          color:isCurrent ? const Color(0xFF79502B) : const Color(0xFFFAF6EF),
+                          borderRadius:BorderRadius.circular(9),
+                          child:InkWell(
+                            borderRadius:BorderRadius.circular(9),onTap:()=>_jumpToPage(controller,page),
+                            child:Container(
+                              height:44,alignment:Alignment.center,
+                              decoration:BoxDecoration(borderRadius:BorderRadius.circular(9),
+                                border:Border.all(color:isCurrent ? const Color(0xFF79502B) : const Color(0xFFE8DCCB))),
+                              child:FittedBox(fit:BoxFit.scaleDown,child:Text('$page',
+                                style:TextStyle(fontSize:13,fontWeight:isCurrent ? FontWeight.w800 : FontWeight.w600,
+                                  color:isCurrent ? Colors.white : const Color(0xFF563719)))),
+                            ),
+                          ),
                         ),
-                      ),
-                      Expanded(
-                        child:Row(
-                          mainAxisAlignment:MainAxisAlignment.center,
-                          children:_visiblePageNumbers.map((page){
-                            final isCurrent=page==_currentPage;
-                            return Expanded(
-                              child:Padding(
-                                padding:const EdgeInsets.symmetric(horizontal:1),
-                                child:Material(
-                                  color:isCurrent ? const Color(0xFF79502B) : Colors.transparent,
-                                  borderRadius:BorderRadius.circular(7),
-                                  child:InkWell(
-                                    borderRadius:BorderRadius.circular(7),
-                                    onTap:()=>_jumpToPage(controller,page),
-                                    child:Container(
-                                      height:42,
-                                      alignment:Alignment.center,
-                                      decoration:BoxDecoration(
-                                        borderRadius:BorderRadius.circular(7),
-                                        border:Border.all(
-                                          color:isCurrent ? const Color(0xFF79502B) : const Color(0xFFE8DCCB),
-                                        ),
-                                      ),
-                                      child:FittedBox(
-                                        fit:BoxFit.scaleDown,
-                                        child:Text(
-                                          '$page',
-                                          style:TextStyle(
-                                            fontSize:13,
-                                            fontWeight:isCurrent ? FontWeight.bold : FontWeight.w500,
-                                            color:isCurrent ? Colors.white : const Color(0xFF563719),
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            );
-                          }).toList(),
-                        ),
-                      ),
-                      SizedBox(
-                        width:42,
-                        height:44,
-                        child:IconButton(
-                          tooltip:'अगला पेज',
-                          padding:EdgeInsets.zero,
-                          constraints:const BoxConstraints.tightFor(width:42,height:44),
-                          onPressed:_totalPages>0 && _currentPage<_totalPages ? ()=>_jumpToPage(controller,_currentPage+1) : null,
-                          icon:const Icon(Icons.chevron_right,size:29),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+                      ));
+                    }).toList())),
+                  const SizedBox(width:4),
+                  SizedBox(width:44,height:48,child:IconButton(
+                    tooltip:'अगला पेज',padding:EdgeInsets.zero,
+                    constraints:const BoxConstraints.tightFor(width:44,height:48),
+                    style:IconButton.styleFrom(backgroundColor:const Color(0xFFFFF1D9),foregroundColor:const Color(0xFF79502B)),
+                    onPressed:_totalPages>0 && _currentPage<_totalPages ? ()=>_jumpToPage(controller,_currentPage+1) : null,
+                    icon:const Icon(Icons.chevron_right_rounded,size:32))),
+                ]),
               ),
-            ],
-          );
+            ),
+          ]);
         },
       ),
     );
