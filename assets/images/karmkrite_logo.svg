@@ -1,28 +1,35 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
 <defs>
- <linearGradient id="gold" x1="0" y1="0" x2="0.8" y2="1"><stop stop-color="#fff16a"/><stop offset=".42" stop-color="#ffbd00"/><stop offset="1" stop-color="#df7900"/></linearGradient>
- <linearGradient id="red" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#ff2720"/><stop offset="1" stop-color="#c90000"/></linearGradient>
- <radialGradient id="paper"><stop stop-color="#fff"/><stop offset="1" stop-color="#fff9df"/></radialGradient>
+ <linearGradient id="gold" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#fff36a"/><stop offset=".48" stop-color="#ffbd00"/><stop offset="1" stop-color="#df7900"/></linearGradient>
+ <linearGradient id="red" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#ff2920"/><stop offset="1" stop-color="#b90000"/></linearGradient>
+ <radialGradient id="paper"><stop stop-color="#fff"/><stop offset="1" stop-color="#fff7dc"/></radialGradient>
+ <filter id="soft"><feGaussianBlur stdDeviation="2"/></filter>
 </defs>
 <rect width="512" height="512" fill="#fff"/>
-<text x="256" y="48" text-anchor="middle" font-family="Noto Sans Devanagari, sans-serif" font-size="48" font-weight="700" fill="#d60000">॥ ॐ ॥</text>
-<circle cx="256" cy="225" r="183" fill="none" stroke="#ff0808" stroke-width="7"/>
-<circle cx="256" cy="225" r="195" fill="none" stroke="url(#gold)" stroke-width="9"/>
-<circle cx="256" cy="225" r="211" fill="none" stroke="#f00000" stroke-width="5" stroke-dasharray="1 16" stroke-linecap="round"/>
-<g fill="url(#paper)" stroke="url(#gold)" stroke-width="9" stroke-linejoin="round">
- <path d="M256 82 Q279 106 286 127 Q313 105 336 121 Q345 145 346 163 Q378 152 397 174 Q393 198 383 215 Q414 223 419 249 Q402 269 384 278 Q404 302 390 326 Q366 335 347 328 Q354 360 329 377 Q303 373 284 357 Q277 388 256 397 Q235 388 228 357 Q209 373 183 377 Q158 360 165 328 Q146 335 122 326 Q108 302 128 278 Q110 269 93 249 Q98 223 129 215 Q119 198 115 174 Q134 152 166 163 Q167 145 176 121 Q199 105 226 127 Q233 106 256 82Z"/>
+<text x="256" y="43" text-anchor="middle" font-family="Noto Sans Devanagari,sans-serif" font-size="43" font-weight="700" fill="#bd0000">॥ ॐ ॥</text>
+<circle cx="256" cy="225" r="198" fill="none" stroke="url(#gold)" stroke-width="8"/>
+<circle cx="256" cy="225" r="181" fill="none" stroke="#e00016" stroke-width="5"/>
+<circle cx="256" cy="225" r="214" fill="none" stroke="#e00016" stroke-width="5" stroke-dasharray="1 12" stroke-linecap="round"/>
+<g fill="url(#paper)" stroke="url(#gold)" stroke-width="8" stroke-linejoin="round">
+ <path d="M256 76 Q278 99 286 119 Q312 99 335 114 Q345 137 346 155 Q376 146 394 166 Q392 190 382 207 Q410 217 417 242 Q401 262 383 272 Q401 295 388 318 Q365 328 346 321 Q353 350 330 367 Q305 365 284 348 Q276 377 256 386 Q236 377 228 348 Q207 365 182 367 Q159 350 166 321 Q147 328 124 318 Q111 295 129 272 Q111 262 95 242 Q102 217 130 207 Q120 190 118 166 Q136 146 166 155 Q167 137 177 114 Q200 99 226 119 Q234 99 256 76Z"/>
 </g>
-<path d="M256 127 Q275 148 293 144 Q310 162 330 155 Q340 180 362 182 Q353 204 374 221 Q357 239 376 257 Q353 274 365 294 Q341 304 342 327 Q319 322 302 340 Q280 328 256 350 Q232 328 210 340 Q193 322 170 327 Q171 304 147 294 Q159 274 136 257 Q155 239 138 221 Q159 204 150 182 Q172 180 182 155 Q202 162 219 144 Q237 148 256 127Z" fill="none" stroke="#ed0000" stroke-width="7"/>
-<text x="256" y="235" text-anchor="middle" font-family="Noto Sans Devanagari, sans-serif" font-size="51" font-weight="700" fill="#a90000">कर्मकृते</text>
+<path d="M256 120 Q276 140 294 137 Q311 154 330 148 Q341 171 360 174 Q353 196 372 213 Q356 232 374 250 Q353 267 363 286 Q341 297 340 316 Q317 311 301 329 Q279 319 256 340 Q233 319 211 329 Q195 311 172 316 Q171 297 149 286 Q159 267 138 250 Q156 232 140 213 Q159 196 152 174 Q171 171 182 148 Q201 154 218 137 Q236 140 256 120Z" fill="none" stroke="#e00016" stroke-width="6"/>
+<text x="256" y="226" text-anchor="middle" font-family="Noto Sans Devanagari,sans-serif" font-size="48" font-weight="700" fill="#a60000">कर्मकृते</text>
 <g stroke="url(#gold)" stroke-width="4" stroke-linecap="round">
- <path d="M256 252 L256 331 M239 260 L225 328 M273 260 L287 328 M221 273 L197 326 M291 273 L315 326 M204 291 L176 330 M308 291 L336 330 M188 310 L160 340 M324 310 L352 340" />
+ <path d="M256 245 L256 323 M239 254 L224 322 M273 254 L288 322 M220 267 L196 321 M292 267 L316 321 M203 285 L176 326 M309 285 L336 326 M188 303 L162 335 M324 303 L350 335"/>
 </g>
-<path d="M256 256 C241 290 221 318 226 343 C231 369 281 369 286 343 C291 318 271 290 256 256Z" fill="url(#red)" stroke="#ffb000" stroke-width="4"/>
-<path d="M256 389 Q215 356 170 374 Q145 384 119 413 Q176 397 218 426 Q243 438 256 443 Q269 438 294 426 Q336 397 393 413 Q367 384 342 374 Q297 356 256 389Z" fill="url(#gold)" stroke="#d80000" stroke-width="5"/>
-<path d="M256 437 Q212 408 164 423 L112 453 Q174 440 224 467 L256 480 Q288 467 338 440 Q398 440 400 453 L348 423 Q300 408 256 437Z" fill="#fff1a5" stroke="#a90000" stroke-width="6"/>
-<path d="M256 438 L256 478 M164 425 Q205 422 249 448 M348 425 Q307 422 263 448" fill="none" stroke="#df8500" stroke-width="4"/>
-<path d="M28 438 Q256 400 484 438 L465 489 Q256 465 47 489Z" fill="url(#red)" stroke="url(#gold)" stroke-width="8"/>
-<text x="256" y="466" text-anchor="middle" font-family="Georgia, serif" font-size="45" font-weight="bold" letter-spacing="3" fill="#fff">KARMKRITE</text>
-<path d="M185 492 Q216 477 256 493 Q296 477 327 492 Q292 507 256 504 Q220 507 185 492Z" fill="url(#gold)"/>
-<path d="M256 480 C234 494 239 511 256 518 C273 511 278 494 256 480Z" fill="#ed0000" stroke="url(#gold)" stroke-width="3"/>
+<path d="M256 244 C240 279 222 307 226 333 C231 358 281 358 286 333 C290 307 272 279 256 244Z" fill="url(#red)" stroke="#ffb000" stroke-width="4"/>
+<g fill="url(#gold)" stroke="#d50000" stroke-width="4">
+ <path d="M254 367 Q211 345 170 363 Q143 375 113 405 Q172 389 217 419 Q241 433 256 439 Q271 433 295 419 Q340 389 399 405 Q369 375 342 363 Q301 345 258 367Z"/>
+</g>
+<path d="M256 377 Q205 350 151 383 L103 423 Q174 408 222 438 L256 455 Q290 438 338 408 Q409 408 409 423 L361 383 Q307 350 256 377Z" fill="url(#paper)" stroke="#a90000" stroke-width="6"/>
+<path d="M256 378 L256 451 M151 384 Q207 379 249 416 M361 384 Q305 379 263 416" fill="none" stroke="url(#gold)" stroke-width="5"/>
+<path d="M31 420 Q256 390 481 420 L459 477 Q256 458 53 477Z" fill="url(#red)" stroke="url(#gold)" stroke-width="7"/>
+<text x="256" y="456" text-anchor="middle" font-family="Georgia,serif" font-size="42" font-weight="bold" letter-spacing="2" fill="#fff">KARMKRITE</text>
+<path d="M20 443 Q53 429 77 450 L50 479 Q35 474 20 443Z M492 443 Q459 429 435 450 L462 479 Q477 474 492 443Z" fill="url(#red)" stroke="url(#gold)" stroke-width="5"/>
+<g fill="url(#gold)">
+ <path d="M256 466 Q225 482 201 491 Q232 490 256 501 Q280 490 311 491 Q287 482 256 466Z"/>
+ <path d="M256 466 C226 481 235 505 256 514 C277 505 286 481 256 466Z" fill="#e00016" stroke="url(#gold)" stroke-width="3"/>
+ <path d="M244 493 Q226 475 226 463 Q247 470 256 489 Q265 470 286 463 Q286 475 268 493Z" fill="#e00016" stroke="url(#gold)" stroke-width="3"/>
+</g>
 </svg>
