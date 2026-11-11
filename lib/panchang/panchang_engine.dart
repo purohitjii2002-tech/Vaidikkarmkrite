@@ -174,6 +174,9 @@ class PanchangEngine {
   /// Traditional Shiva-vasa calculation: (tithi number × 2 + 5) mod 7.
   /// Tithi is counted continuously from Shukla Pratipada (1) to Amavasya (30).
   static Map<String, String> shivaVasa(int tithiNumber) {
+    if (tithiNumber < 1 || tithiNumber > 30) {
+      throw RangeError.range(tithiNumber, 1, 30, 'tithiNumber');
+    }
     final remainder = (tithiNumber * 2 + 5) % 7;
     const places = <int, String>{
       1: 'कैलाश', 2: 'गौरी सन्निधि', 3: 'वृषभारूढ़ (नंदी)',
@@ -193,6 +196,12 @@ class PanchangEngine {
   /// Weekday is numbered Sunday=1 ... Saturday=7; tithi 1..30 from
   /// Shukla Pratipada. Remainders 0/3=Earth, 1=Sky, 2=Netherworld.
   static Map<String, String> agniVasa(int tithiNumber, int weekdaySundayOne) {
+    if (tithiNumber < 1 || tithiNumber > 30) {
+      throw RangeError.range(tithiNumber, 1, 30, 'tithiNumber');
+    }
+    if (weekdaySundayOne < 1 || weekdaySundayOne > 7) {
+      throw RangeError.range(weekdaySundayOne, 1, 7, 'weekdaySundayOne');
+    }
     final remainder = (tithiNumber + weekdaySundayOne + 1) % 4;
     final place = (remainder == 0 || remainder == 3)
         ? 'पृथ्वी' : remainder == 1 ? 'आकाश' : 'पाताल';
