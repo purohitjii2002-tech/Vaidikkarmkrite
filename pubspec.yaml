@@ -32,7 +32,6 @@ flutter:
     - assets/images/karmkrite logo.png.jpg
     - assets/images/karmkrite_logo.svg
     - assets/images/karmkrite_vedic_emblem png.png
-    - assets/images/karmkrite_logo.png
 
 flutter_launcher_icons:
   android: true
