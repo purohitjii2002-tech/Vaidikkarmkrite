@@ -913,6 +913,9 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
   Duration _position = Duration.zero;
   Duration _duration = Duration.zero;
 
+  File? _cachedMediaFile;
+  bool _mediaLoading = false;
+
   @override
   void initState() {
     super.initState();
@@ -920,6 +923,44 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
     _audioPlayer.onPlayerStateChanged.listen((v) { if (mounted) setState(() => _playerState = v); });
     _audioPlayer.onDurationChanged.listen((v) { if (mounted) setState(() => _duration = v); });
     _audioPlayer.onPositionChanged.listen((v) { if (mounted) setState(() => _position = v); });
+    if (widget.mediaUrl.isNotEmpty &&
+        (widget.mediaType == 'image' || widget.mediaType == 'audio')) {
+      _prepareMediaCache();
+    }
+  }
+
+  Future<void> _prepareMediaCache() async {
+    if (!mounted) return;
+    setState(() => _mediaLoading = true);
+    try {
+      final appDir = await getApplicationSupportDirectory();
+      final cacheDir = Directory('${appDir.path}/media_cache');
+      await cacheDir.create(recursive: true);
+      final key = sha256.convert(utf8.encode(widget.mediaUrl)).toString();
+      final uri = Uri.parse(widget.mediaUrl);
+      var extension = uri.pathSegments.isEmpty ? '' :
+          uri.pathSegments.last.split('.').last;
+      if (extension.isEmpty || extension.length > 5) {
+        extension = widget.mediaType == 'image' ? 'img' : 'audio';
+      }
+      final file = File('${cacheDir.path}/$key.$extension');
+      if (!await file.exists() || await file.length() == 0) {
+        final response = await http.get(uri).timeout(const Duration(seconds: 45));
+        if (response.statusCode < 200 || response.statusCode >= 300 ||
+            response.bodyBytes.isEmpty) {
+          throw Exception('Media download failed');
+        }
+        final part = File('${file.path}.part');
+        await part.writeAsBytes(response.bodyBytes, flush: true);
+        if (await file.exists()) await file.delete();
+        await part.rename(file.path);
+      }
+      if (mounted) setState(() => _cachedMediaFile = file);
+    } catch (error) {
+      debugPrint('KARMKRITE MEDIA CACHE: $error');
+    } finally {
+      if (mounted) setState(() => _mediaLoading = false);
+    }
   }
 
   Future<void> toggle() async {
@@ -934,8 +975,14 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
   Future<void> playPause() async {
     if (_playerState == PlayerState.playing) {
       await _audioPlayer.pause();
+    } else if (_cachedMediaFile != null && await _cachedMediaFile!.exists()) {
+      await _audioPlayer.play(DeviceFileSource(_cachedMediaFile!.path));
     } else if (widget.mediaUrl.isNotEmpty) {
       await _audioPlayer.play(UrlSource(widget.mediaUrl));
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('यह ऑडियो ऑफलाइन उपलब्ध नहीं है। इंटरनेट चालू करके इसे एक बार डाउनलोड करें।')),
+      );
     }
   }
 
@@ -959,9 +1006,13 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
         if (widget.mediaType == 'image' && widget.mediaUrl.isNotEmpty) ...[
           const SizedBox(height: 18),
           ClipRRect(borderRadius: BorderRadius.circular(14),
-            child: Image.network(widget.mediaUrl, width: double.infinity, fit: BoxFit.contain,
-              errorBuilder: (_, __, ___) => const Padding(
-                padding: EdgeInsets.all(20), child: Text('फोटो लोड नहीं हो सकी।')))),
+            child: _cachedMediaFile != null && _cachedMediaFile!.existsSync()
+                ? Image.file(_cachedMediaFile!, width: double.infinity, fit: BoxFit.contain)
+                : _mediaLoading
+                    ? const SizedBox(height: 180, child: Center(child: CircularProgressIndicator()))
+                    : const Padding(
+                        padding: EdgeInsets.all(20),
+                        child: Text('फोटो ऑफलाइन उपलब्ध नहीं है। इंटरनेट चालू करके इसे एक बार खोलें।'))),
         ],
         if (widget.mediaType == 'audio' && widget.mediaUrl.isNotEmpty) ...[
           const SizedBox(height: 18),
