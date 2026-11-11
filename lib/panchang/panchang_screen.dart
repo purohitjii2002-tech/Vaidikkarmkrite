@@ -1361,6 +1361,8 @@ class _PanchangScreenState extends State<PanchangScreen> {
                 previous[name] == true ? 'शुभ' : 'अशुभ',
             'start': _time(startTime),
             'end': _time(boundary),
+            '_startIso': startTime.toIso8601String(),
+            '_endIso': boundary.toIso8601String(),
             '_sort': startTime.toIso8601String(),
           });
         } else {
@@ -1378,6 +1380,8 @@ class _PanchangScreenState extends State<PanchangScreen> {
             previous[entry.key] == true ? 'शुभ' : 'अशुभ',
         'start': _time(entry.value),
         'end': _time(nextSunrise),
+        '_startIso': entry.value.toIso8601String(),
+        '_endIso': nextSunrise.toIso8601String(),
         '_sort': entry.value.toIso8601String(),
       });
     }
@@ -1398,9 +1402,21 @@ class _PanchangScreenState extends State<PanchangScreen> {
     final infoRows = _specialYogaRows
         .where((row) => row['kind'] == 'विशेष').toList();
     final hasBad = badRows.isNotEmpty;
+    // Compare the actual sunrise-to-sunrise intervals. The presence of
+    // both categories during a day does not mean they occur simultaneously.
+    final hasSimultaneousGoodAndBad = hasGood && hasBad &&
+        goodRows.any((good) => badRows.any((bad) {
+          final goodStart = DateTime.parse(good['_startIso']!);
+          final goodEnd = DateTime.parse(good['_endIso']!);
+          final badStart = DateTime.parse(bad['_startIso']!);
+          final badEnd = DateTime.parse(bad['_endIso']!);
+          return goodStart.isBefore(badEnd) && badStart.isBefore(goodEnd);
+        }));
 
     final String verdict = hasGood && hasBad
-        ? 'आज शुभ और अशुभ—दोनों प्रकार के योग बन रहे हैं।'
+        ? hasSimultaneousGoodAndBad
+            ? 'कुछ समय में शुभ और अशुभ योगों के समय में परस्पर मेल है। नीचे प्रत्येक योग का सटीक समय देखें।'
+            : 'आज शुभ और अशुभ योग अलग-अलग समय पर बन रहे हैं; इसका अर्थ यह नहीं कि वे एक ही समय में प्रभावी हैं।'
         : hasGood
             ? 'आज शुभ योग बन रहे हैं।'
             : hasBad
