@@ -103,75 +103,170 @@ class _PanchangScreenState extends State<PanchangScreen> {
 
   Future<void> _chooseLocation() async {
     final controller = TextEditingController();
-    final query = await showDialog<String>(
+    Timer? searchTimer;
+    var requestNumber = 0;
+    var suggestions = <({Location location, String label})>[];
+    var searching = false;
+    var searchError = '';
+
+    final selected = await showDialog<({Location location, String label})>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('पंचांग के लिए स्थान चुनें'),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          textInputAction: TextInputAction.search,
-          decoration: const InputDecoration(
-            hintText: 'शहर / गाँव का नाम लिखें',
-            prefixIcon: Icon(Icons.search),
-            border: OutlineInputBorder(),
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) => AlertDialog(
+          title: const Text('पंचांग के लिए स्थान चुनें'),
+          content: SizedBox(
+            width: 420,
+            height: 390,
+            child: Column(
+              children: [
+                TextField(
+                  controller: controller,
+                  autofocus: true,
+                  textInputAction: TextInputAction.search,
+                  decoration: const InputDecoration(
+                    hintText: 'गाँव / शहर / तहसील / जिला खोजें',
+                    prefixIcon: Icon(Icons.search),
+                    border: OutlineInputBorder(),
+                  ),
+                  onChanged: (value) {
+                    searchTimer?.cancel();
+                    final query = value.trim();
+                    final thisRequest = ++requestNumber;
+                    if (query.length < 2) {
+                      setDialogState(() {
+                        suggestions = [];
+                        searching = false;
+                        searchError = '';
+                      });
+                      return;
+                    }
+                    setDialogState(() {
+                      searching = true;
+                      searchError = '';
+                    });
+                    searchTimer = Timer(const Duration(milliseconds: 550), () async {
+                      try {
+                        // Uses the device geocoder to find settlements and administrative areas.
+                        final matches = await locationFromAddress(query);
+                        final found = <({Location location, String label})>[];
+                        final seen = <String>{};
+                        for (final match in matches.take(8)) {
+                          var label = query;
+                          try {
+                            final marks = await placemarkFromCoordinates(
+                              match.latitude, match.longitude,
+                            );
+                            if (marks.isNotEmpty) {
+                              final p = marks.first;
+                              final parts = [
+                                p.name, p.subLocality, p.locality,
+                                p.subAdministrativeArea, p.administrativeArea,
+                                p.country,
+                              ].where((x) => x != null && x.trim().isNotEmpty)
+                               .map((x) => x!.trim()).toList();
+                              if (parts.isNotEmpty) {
+                                label = parts.toSet().join(', ');
+                              }
+                            }
+                          } catch (_) {
+                            // Keep the searched text if reverse geocoding is unavailable.
+                          }
+                          final key = '${match.latitude.toStringAsFixed(4)},'
+                              '${match.longitude.toStringAsFixed(4)}';
+                          if (seen.add(key)) found.add((location: match, label: label));
+                        }
+                        if (!dialogContext.mounted || thisRequest != requestNumber) return;
+                        setDialogState(() {
+                          suggestions = found;
+                          searching = false;
+                          searchError = found.isEmpty ? 'कोई स्थान नहीं मिला। नाम हिंदी या English में आज़माएँ।' : '';
+                        });
+                      } catch (_) {
+                        if (!dialogContext.mounted || thisRequest != requestNumber) return;
+                        setDialogState(() {
+                          suggestions = [];
+                          searching = false;
+                          searchError = 'खोज पूरी नहीं हो सकी। इंटरनेट चालू करके फिर प्रयास करें।';
+                        });
+                      }
+                    });
+                  },
+                  onSubmitted: (value) {
+                    if (suggestions.length == 1) {
+                      searchTimer?.cancel();
+                      Navigator.pop(dialogContext, suggestions.first);
+                    }
+                  },
+                ),
+                const SizedBox(height: 10),
+                Expanded(
+                  child: searching
+                      ? const Center(child: CircularProgressIndicator())
+                      : suggestions.isNotEmpty
+                          ? ListView.separated(
+                              itemCount: suggestions.length,
+                              separatorBuilder: (_, __) => const Divider(height: 1),
+                              itemBuilder: (context, index) {
+                                final item = suggestions[index];
+                                return ListTile(
+                                  dense: false,
+                                  contentPadding: const EdgeInsets.symmetric(horizontal: 4),
+                                  leading: const Icon(Icons.location_on_outlined,
+                                      color: Color(0xFF79502B)),
+                                  title: Text(item.label,
+                                      maxLines: 2, overflow: TextOverflow.ellipsis),
+                                  subtitle: Text(
+                                    '${item.location.latitude.toStringAsFixed(4)}, '
+                                    '${item.location.longitude.toStringAsFixed(4)}',
+                                    style: const TextStyle(fontSize: 10),
+                                  ),
+                                  onTap: () {
+                                    searchTimer?.cancel();
+                                    Navigator.pop(dialogContext, item);
+                                  },
+                                );
+                              },
+                            )
+                          : Center(
+                              child: Text(
+                                searchError.isNotEmpty
+                                    ? searchError
+                                    : 'हिंदी या English में नाम लिखें। नीचे स्थानों के सुझाव आएँगे।',
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(color: Colors.black54),
+                              ),
+                            ),
+                ),
+              ],
+            ),
           ),
-          onSubmitted: (value) => Navigator.pop(dialogContext, value.trim()),
+          actions: [
+            TextButton(
+              onPressed: () {
+                searchTimer?.cancel();
+                Navigator.pop(dialogContext);
+              },
+              child: const Text('रद्द करें'),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('रद्द करें'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(dialogContext, controller.text.trim()),
-            child: const Text('स्थान चुनें'),
-          ),
-        ],
       ),
     );
+    searchTimer?.cancel();
     controller.dispose();
-    if (query == null || query.trim().isEmpty || !mounted) return;
+    if (selected == null || !mounted) return;
 
     setState(() => loading = true);
-    try {
-      final matches = await locationFromAddress(query.trim());
-      if (matches.isEmpty) {
-        throw Exception('स्थान नहीं मिला');
-      }
-      final match = matches.first;
-      final newPosition = _positionAt(match.latitude, match.longitude);
-      var newCity = query.trim();
-      try {
-        final places = await placemarkFromCoordinates(
-          match.latitude, match.longitude,
-        );
-        if (places.isNotEmpty) {
-          final p = places.first;
-          final resolved = [
-            p.locality, p.subLocality, p.subAdministrativeArea,
-            p.administrativeArea, p.country,
-          ].where((x) => x != null && x.trim().isNotEmpty).toSet().join(', ');
-          if (resolved.isNotEmpty) newCity = resolved;
-        }
-      } catch (_) {
-        // Keep the searched place name if reverse geocoding is unavailable.
-      }
-      if (!mounted) return;
-      setState(() {
-        position = newPosition;
-        city = newCity;
-        _manualLocationSelected = true;
-        _calculate();
-        loading = false;
-      });
-    } catch (_) {
-      if (!mounted) return;
-      setState(() => loading = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('यह स्थान नहीं मिला। कृपया शहर या गाँव का सही नाम लिखें।')),
-      );
-    }
+    final match = selected.location;
+    final newPosition = _positionAt(match.latitude, match.longitude);
+    if (!mounted) return;
+    setState(() {
+      position = newPosition;
+      city = selected.label;
+      _manualLocationSelected = true;
+      _calculate();
+      loading = false;
+    });
   }
 
   void _calculate() {
