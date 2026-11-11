@@ -181,29 +181,50 @@ class PanchangEngine {
     required double latitude,
     required double longitude,
   }) {
-    final utcMidnight = DateTime.utc(localDate.year, localDate.month, localDate.day);
-    final jd = julianDay(utcMidnight);
-    final theta0 = sid.apparent0UT(jd);
-    final result = rise.moonTimes(
-      jd,
-      _rad(latitude),
-      _rad(-longitude),
-      69,
-      theta0,
-      (jde) {
-        final p = moon.position(jde);
-        final eps = _rad(23.4393);
-        final eq = coord.eclToEq(p.lon, p.lat, math.sin(eps), math.cos(eps));
-        return (ra: eq.ra, dec: eq.dec, parallax: moon.parallax(p.delta));
-      },
-    );
-    if (result == null) return (rise: null, set: null, transit: null);
-    DateTime fromUtSeconds(double seconds) =>
+    final wanted = DateTime(localDate.year, localDate.month, localDate.day);
+    final utcDate = DateTime.utc(localDate.year, localDate.month, localDate.day);
+
+    DateTime? localEvent(double seconds, DateTime utcMidnight) =>
         utcMidnight.add(Duration(milliseconds: (seconds * 1000).round())).toLocal();
+
+    DateTime? moonEventForUtcDate(DateTime day, String event) {
+      final jd = julianDay(day);
+      final theta0 = sid.apparent0UT(jd);
+      final result = rise.moonTimes(
+        jd, _rad(latitude), _rad(-longitude), 69, theta0, (jde) {
+          final p = moon.position(jde);
+          final eps = _rad(23.4393);
+          final eq = coord.eclToEq(p.lon, p.lat, math.sin(eps), math.cos(eps));
+          return (ra: eq.ra, dec: eq.dec, parallax: moon.parallax(p.delta));
+        },
+      );
+      if (result == null) return null;
+      final seconds = switch (event) {
+        'rise' => result.rise,
+        'set' => result.set,
+        _ => result.transit,
+      };
+      return localEvent(seconds, day);
+    }
+
+    // India local midnight can fall on the previous UTC date. Evaluate both
+    // adjacent UT dates, then retain only events belonging to the requested
+    // local civil date so events around midnight are not lost or mislabelled.
+    final previousUtcDate = utcDate.subtract(const Duration(days: 1));
+    DateTime? choose(String event) {
+      final candidates = [
+        moonEventForUtcDate(previousUtcDate, event),
+        moonEventForUtcDate(utcDate, event),
+      ].whereType<DateTime>().where((value) =>
+        value.year == wanted.year && value.month == wanted.month &&
+        value.day == wanted.day).toList()..sort();
+      return candidates.isEmpty ? null : candidates.first;
+    }
+
     return (
-      rise: fromUtSeconds(result.rise),
-      set: fromUtSeconds(result.set),
-      transit: fromUtSeconds(result.transit),
+      rise: choose('rise'),
+      set: choose('set'),
+      transit: choose('transit'),
     );
   }
 
