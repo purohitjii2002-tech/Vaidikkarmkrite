@@ -1011,7 +1011,13 @@ class _BooksScreenState extends State<BooksScreen> {
         if(books.isEmpty)return const Center(child:Padding(padding:EdgeInsets.all(28),child:Text('मास्टर एडमिन से जोड़ी गई पुस्तकें यहाँ दिखाई देंगी।',textAlign:TextAlign.center)));
         return RefreshIndicator(onRefresh:()async=>setState(()=>future=load()),child:ListView.builder(padding:const EdgeInsets.all(14),itemCount:books.length,itemBuilder:(context,i){
           final b=books[i]; final title=(en?b['title_en']:b['title_hi'])??b['title_hi']??'';
-          return Card(child:ListTile(leading:const Icon(Icons.menu_book_rounded,color:Color(0xFF79502B),size:32),
+          final coverUrl=(b['cover_url']??'').toString().trim();
+          return Card(child:ListTile(leading:coverUrl.isNotEmpty
+            ? ClipRRect(borderRadius:BorderRadius.circular(8),child:Image.network(
+                coverUrl,width:52,height:62,fit:BoxFit.cover,
+                errorBuilder:(_,__,___)=>const SizedBox(width:52,height:62,child:Icon(Icons.menu_book_rounded,color:Color(0xFF79502B),size:32)),
+              ))
+            : const SizedBox(width:52,height:62,child:Icon(Icons.menu_book_rounded,color:Color(0xFF79502B),size:32)),
             title:Text(title.toString(),style:const TextStyle(fontWeight:FontWeight.bold)),
             subtitle:Text([b['author'],b['description']].where((x)=>x!=null&&x.toString().isNotEmpty).join(' • '),maxLines:2,overflow:TextOverflow.ellipsis),
             trailing:const Icon(Icons.picture_as_pdf),onTap:()=>openBook(b)));
