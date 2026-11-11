@@ -885,15 +885,86 @@ class _MuhuratListScreenState extends State<MuhuratListScreen> {
   Future<List<Map<String, dynamic>>> loadMuhurats() async {
     final rows = await Supabase.instance.client.from('muhurats')
       .select('id, category, title_hi, title_en, muhurat_date, start_time, end_time, location, description, special_notes')
-      .eq('is_active', true).order('muhurat_date').order('sort_order');
-    return List<Map<String, dynamic>>.from(rows);
+      .eq('is_active', true)
+      .order('muhurat_date', ascending: true)
+      .order('start_time', ascending: true)
+      .order('sort_order', ascending: true);
+    final result = List<Map<String, dynamic>>.from(rows);
+    // Sort again by parsed calendar date so ordering stays chronological
+    // even if a backend date value is returned in a different string format.
+    result.sort((a, b) {
+      final da = DateTime.tryParse((a['muhurat_date'] ?? '').toString());
+      final db = DateTime.tryParse((b['muhurat_date'] ?? '').toString());
+      if (da == null && db == null) return 0;
+      if (da == null) return 1;
+      if (db == null) return -1;
+      final dateCompare = DateTime(da.year, da.month, da.day)
+          .compareTo(DateTime(db.year, db.month, db.day));
+      if (dateCompare != 0) return dateCompare;
+      final ta = (a['start_time'] ?? '').toString();
+      final tb = (b['start_time'] ?? '').toString();
+      return ta.compareTo(tb);
+    });
+    return result;
+  }
+
+  String dateKey(dynamic value) {
+    final d = DateTime.tryParse((value ?? '').toString());
+    if (d == null) return 'date-unavailable';
+    return '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
   }
 
   String dateLabel(dynamic value) {
-    if (value == null) return '';
+    if (value == null) return 'दिनांक उपलब्ध नहीं';
     final d = DateTime.tryParse(value.toString());
     if (d == null) return value.toString();
     return '${d.day.toString().padLeft(2, '0')}-${d.month.toString().padLeft(2, '0')}-${d.year}';
+  }
+
+  Widget _dateHeading(String label, int count) => Padding(
+    padding: const EdgeInsets.fromLTRB(4, 14, 4, 8),
+    child: Row(children: [
+      const Icon(Icons.calendar_month, color: Color(0xFF79502B), size: 19),
+      const SizedBox(width: 8),
+      Expanded(child: Text(label, style: const TextStyle(
+        fontSize: 15, fontWeight: FontWeight.bold, color: Color(0xFF234536)))),
+      Container(
+        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+        decoration: BoxDecoration(color: const Color(0xFFFFF0D5),
+          borderRadius: BorderRadius.circular(20)),
+        child: Text('$count मुहूर्त', style: const TextStyle(
+          fontSize: 11, color: Color(0xFF79502B), fontWeight: FontWeight.w600)),
+      ),
+    ]),
+  );
+
+  Widget _muhuratCard(Map<String, dynamic> item) {
+    final time = [item['start_time'], item['end_time']]
+        .where((x) => x != null && x.toString().trim().isNotEmpty)
+        .join(' – ');
+    return Card(
+      margin: const EdgeInsets.only(bottom: 9),
+      child: ExpansionTile(
+        leading: const CircleAvatar(
+          backgroundColor: Color(0xFFFFF0D5),
+          child: Icon(Icons.event, color: Color(0xFF79502B))),
+        title: Text((item['title_hi'] ?? '').toString(),
+          style: const TextStyle(fontWeight: FontWeight.bold)),
+        subtitle: Text([
+          (item['category'] ?? '').toString(),
+          time,
+        ].where((x) => x.isNotEmpty).join(' • ')),
+        childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        children: [
+          if ((item['location'] ?? '').toString().isNotEmpty)
+            _detailLine(Icons.location_on, item['location'].toString()),
+          if ((item['description'] ?? '').toString().isNotEmpty)
+            _detailLine(Icons.info_outline, item['description'].toString()),
+          if ((item['special_notes'] ?? '').toString().isNotEmpty)
+            _detailLine(Icons.notes, item['special_notes'].toString()),
+        ],
+      ),
+    );
   }
 
   @override
@@ -902,41 +973,57 @@ class _MuhuratListScreenState extends State<MuhuratListScreen> {
     body: FutureBuilder<List<Map<String, dynamic>>>(
       future: future,
       builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
-        if (snapshot.hasError) return Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
-          const Text('मुहूर्त लोड नहीं हो सके।'),
-          ElevatedButton(onPressed: () => setState(() => future = loadMuhurats()), child: const Text('दोबारा प्रयास करें')),
-        ]));
+        if (snapshot.connectionState == ConnectionState.waiting)
+          return const Center(child: CircularProgressIndicator());
+        if (snapshot.hasError) return Center(child: Column(
+          mainAxisSize: MainAxisSize.min, children: [
+            const Text('मुहूर्त लोड नहीं हो सके।'),
+            ElevatedButton(onPressed: () => setState(() => future = loadMuhurats()),
+              child: const Text('दोबारा प्रयास करें')),
+          ]));
         final all = snapshot.data ?? [];
-        final items = selectedCategory == 'सभी' ? all : all.where((x) => (x['category'] ?? '').toString() == selectedCategory).toList();
+        final items = selectedCategory == 'सभी'
+            ? all
+            : all.where((x) => (x['category'] ?? '').toString() == selectedCategory).toList();
+
+        // Build one section per date, retaining chronological date order.
+        final groups = <String, List<Map<String, dynamic>>>{};
+        for (final item in items) {
+          groups.putIfAbsent(dateKey(item['muhurat_date']), () => []).add(item);
+        }
+        final content = <Widget>[];
+        for (final entry in groups.entries) {
+          final date = entry.value.first['muhurat_date'];
+          content.add(_dateHeading(dateLabel(date), entry.value.length));
+          content.addAll(entry.value.map(_muhuratCard));
+        }
+
         return Column(children: [
-          SizedBox(height: 58, child: ListView(scrollDirection: Axis.horizontal, padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            children: categories.map((category) => Padding(padding: const EdgeInsets.only(right: 8), child: ChoiceChip(
-              label: Text(category), selected: selectedCategory == category,
-              onSelected: (_) => setState(() => selectedCategory = category),
-            ))).toList(),
+          SizedBox(height: 58, child: ListView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            children: categories.map((category) => Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: ChoiceChip(
+                label: Text(category), selected: selectedCategory == category,
+                onSelected: (_) => setState(() => selectedCategory = category),
+              ),
+            )).toList(),
           )),
           Expanded(child: items.isEmpty
-            ? const Center(child: Padding(padding: EdgeInsets.all(24), child: Text('इस श्रेणी के मुहूर्त अभी एडमिन द्वारा जोड़े नहीं गए हैं।', textAlign: TextAlign.center)))
-            : RefreshIndicator(onRefresh: () async { setState(() => future = loadMuhurats()); await future; },
-              child: ListView.builder(padding: const EdgeInsets.fromLTRB(14, 4, 14, 20), itemCount: items.length,
-                itemBuilder: (context, index) {
-                  final item = items[index];
-                  final time = [item['start_time'], item['end_time']].where((x) => x != null && x.toString().trim().isNotEmpty).join(' – ');
-                  return Card(margin: const EdgeInsets.only(bottom: 12), child: ExpansionTile(
-                    leading: const CircleAvatar(backgroundColor: Color(0xFFFFF0D5), child: Icon(Icons.event, color: Color(0xFF79502B))),
-                    title: Text((item['title_hi'] ?? '').toString(), style: const TextStyle(fontWeight: FontWeight.bold)),
-                    subtitle: Text([(item['category'] ?? '').toString(), dateLabel(item['muhurat_date']), time].where((x) => x.isNotEmpty).join(' • ')),
-                    childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                    children: [
-                      if ((item['location'] ?? '').toString().isNotEmpty) _detailLine(Icons.location_on, item['location'].toString()),
-                      if ((item['description'] ?? '').toString().isNotEmpty) _detailLine(Icons.info_outline, item['description'].toString()),
-                      if ((item['special_notes'] ?? '').toString().isNotEmpty) _detailLine(Icons.notes, item['special_notes'].toString()),
-                    ],
-                  ));
+            ? const Center(child: Padding(padding: EdgeInsets.all(24),
+                child: Text('इस श्रेणी के मुहूर्त अभी एडमिन द्वारा जोड़े नहीं गए हैं।',
+                  textAlign: TextAlign.center)))
+            : RefreshIndicator(
+                onRefresh: () async {
+                  setState(() => future = loadMuhurats());
+                  await future;
                 },
+                child: ListView(
+                  padding: const EdgeInsets.fromLTRB(14, 4, 14, 20),
+                  children: content,
+                ),
               ),
-            ),
           ),
         ]);
       },
