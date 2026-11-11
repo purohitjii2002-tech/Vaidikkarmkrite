@@ -1228,10 +1228,6 @@ class _PanchangScreenState extends State<PanchangScreen> {
     // Muhurta Chintamani's 28-fold count inserts Abhijit after
     // Uttarashadha. The starting points are Sunday through Saturday.
     const anandadiStart = [0, 4, 8, 12, 16, 20, 24];
-    const anandadiAshubh = {
-      'कालदण्ड','धूम्र','ध्वांक्ष','वज्र','मुद्गर','लुम्ब','उत्पात',
-      'मृत्यु','काण','मुसल','गद','राक्षस',
-    };
     Map<String, bool?> stateAt(DateTime instant) {
       final found = <String, bool?>{};
       void mark(String name, bool? good) => found[name] = good;
