@@ -1206,11 +1206,13 @@ class _PanchangScreenState extends State<PanchangScreen> {
       5: [1, 6, 11], 3: [2, 7, 12], 2: [3, 8, 13],
       6: [4, 9, 14], 4: [5, 10, 15],
     };
-    // These weekday-tithi pairs are Mrityu Yoga, not Amrit Yoga.
-    const mrityuTithis = <int, List<int>>{
-      0: [1, 6, 11], 1: [2, 7, 12], 2: [1, 6, 11],
-      3: [3, 8, 13], 4: [4, 9, 14], 5: [2, 7, 12],
-      6: [5, 10, 15],
+    // Mrityu Yoga is a weekday–nakshatra combination (not a
+    // weekday–tithi combination). Sunday through Saturday respectively:
+    // Anuradha, Uttara Ashadha, Shatabhisha, Ashwini, Mrigashira,
+    // Ashlesha and Hasta. Nakshatra indices are zero-based from Ashwini.
+    const mrityuNakshatras = <int, List<int>>{
+      0: [16], 1: [20], 2: [23], 3: [0],
+      4: [4], 5: [8], 6: [12],
     };
     const dagdha = [12, 11, 5, 3, 6, 8, 9];
     const visha = [4, 6, 7, 2, 8, 9, 7];
@@ -1258,7 +1260,7 @@ class _PanchangScreenState extends State<PanchangScreen> {
       if (siddhaTithis[weekday]?.contains(tithiNo) == true) {
         mark('सिद्ध योग', true);
       }
-      if (mrityuTithis[weekday]?.contains(tithiNo) == true) {
+      if (mrityuNakshatras[weekday]?.contains(nak) == true) {
         mark('मृत्यु योग', false);
       }
       if (dagdha[weekday] == tithiNo) mark('दग्ध योग', false);
