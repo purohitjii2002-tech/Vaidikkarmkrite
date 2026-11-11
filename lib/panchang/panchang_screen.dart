@@ -1232,9 +1232,9 @@ class _PanchangScreenState extends State<PanchangScreen> {
       'कालदण्ड','धूम्र','ध्वांक्ष','वज्र','मुद्गर','लुम्ब','उत्पात',
       'मृत्यु','काण','मुसल','गद','राक्षस',
     };
-    Map<String, bool> stateAt(DateTime instant) {
-      final found = <String, bool>{};
-      void mark(String name, bool good) => found[name] = good;
+    Map<String, bool?> stateAt(DateTime instant) {
+      final found = <String, bool?>{};
+      void mark(String name, bool? good) => found[name] = good;
       final limb = PanchangEngine.indicesAt(instant);
       final tithiNo = (limb['tithi']! % 15) + 1;
       final nak = limb['nakshatra']!;
@@ -1278,11 +1278,10 @@ class _PanchangScreenState extends State<PanchangScreen> {
       final anandadiDisplay = anandadi == 'ध्वांक्ष'
           ? 'ध्वांक्ष (ध्वाक्ष)'
           : anandadi == 'लुम्ब' ? 'लुम्ब / लंबक' : anandadi;
-      // Always report the active Anandadi yoga, not only the inauspicious
-      // subset. The traditional inauspicious subset is highlighted red;
-      // the remaining named yogas are shown as auspicious in this table.
-      mark('$anandadiDisplay (आनन्दादि) योग',
-          !anandadiAshubh.contains(anandadi));
+      // Report all 28 daily Anandadi names as informational. The source
+      // assigns results by each yoga's own name; it does not make every
+      // unlisted name automatically auspicious or inauspicious.
+      mark('$anandadiDisplay (आनन्दादि) योग', null);
       return found;
     }
 
@@ -1320,7 +1319,8 @@ class _PanchangScreenState extends State<PanchangScreen> {
           final startTime = active.remove(name) ?? dayStart;
           rows.add({
             'name': name,
-            'kind': previous[name] == true ? 'शुभ' : 'अशुभ',
+            'kind': previous[name] == null ? 'विशेष' :
+                previous[name] == true ? 'शुभ' : 'अशुभ',
             'start': _time(startTime),
             'end': _time(boundary),
             '_sort': startTime.toIso8601String(),
@@ -1336,7 +1336,8 @@ class _PanchangScreenState extends State<PanchangScreen> {
     for (final entry in active.entries) {
       rows.add({
         'name': entry.key,
-        'kind': previous[entry.key] == true ? 'शुभ' : 'अशुभ',
+        'kind': previous[entry.key] == null ? 'विशेष' :
+            previous[entry.key] == true ? 'शुभ' : 'अशुभ',
         'start': _time(entry.value),
         'end': _time(nextSunrise),
         '_sort': entry.value.toIso8601String(),
@@ -1356,6 +1357,8 @@ class _PanchangScreenState extends State<PanchangScreen> {
     final badRows = _specialYogaRows
         .where((row) => row['kind'] == 'अशुभ').toList();
     final hasGood = goodRows.isNotEmpty;
+    final infoRows = _specialYogaRows
+        .where((row) => row['kind'] == 'विशेष').toList();
     final hasBad = badRows.isNotEmpty;
 
     final String verdict = hasGood && hasBad
@@ -1428,6 +1431,26 @@ class _PanchangScreenState extends State<PanchangScreen> {
       ]),
       yogaList('आज के शुभ योग', Icons.check_circle_outline, goodRows, true),
       yogaList('आज के अशुभ योग', Icons.warning_amber_rounded, badRows, false),
+      if (infoRows.isNotEmpty)
+        _detailCard('आनन्दादि योग • 28 योगों की दैनिक गणना', Icons.info_outline, [
+          ...infoRows.map((row) => Container(
+            margin: const EdgeInsets.symmetric(vertical: 3),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+            decoration: BoxDecoration(
+              color: const Color(0xFFEAF1F8),
+              borderRadius: BorderRadius.circular(9),
+            ),
+            child: Row(children: [
+              const Icon(Icons.auto_awesome, color: Color(0xFF315B83), size: 17),
+              const SizedBox(width: 8),
+              Expanded(child: Text(row['name'] ?? '',
+                style: const TextStyle(color: Color(0xFF315B83), fontWeight: FontWeight.w700))),
+              const Text('विशेष', style: TextStyle(color: Color(0xFF315B83), fontSize: 11)),
+            ]),
+          )),
+          const Text('आनन्दादि योग का फल उसके नाम के अनुसार माना जाता है; इसे स्वतः शुभ/अशुभ घोषित नहीं किया गया है।',
+            style: TextStyle(fontSize: 10, color: Color(0xFF705333))),
+        ]),
     ];
   }
 
