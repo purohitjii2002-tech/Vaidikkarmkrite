@@ -178,7 +178,7 @@ class PanchangEngine {
   /// A lunation is named from the sidereal solar sign at its opening new moon;
   /// a lunation without a solar sign ingress is marked Adhika.
   static Map<String, String> lunarMonthLabels(DateTime instant) {
-    const monthBySunSign = <int, String>[
+    const monthBySunSign = <String>[
       'वैशाख','ज्येष्ठ','आषाढ़','श्रावण','भाद्रपद','आश्विन',
       'कार्तिक','मार्गशीर्ष','पौष','माघ','फाल्गुन','चैत्र',
     ];
