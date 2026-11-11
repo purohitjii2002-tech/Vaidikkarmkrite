@@ -1074,8 +1074,7 @@ class _PanchangScreenState extends State<PanchangScreen> {
     );
     final beginsToday = window != null && window.start.isAfter(sunrise!) &&
         nextSunrise != null && window.start.isBefore(nextSunrise);
-    final active = window != null && (window.active ||
-        (beginsToday && window.start.isBefore(_liveNow)));
+    final active = window != null && window.active;
     final status = active ? 'पंचक चल रहा है' :
         beginsToday ? 'आज पंचक आरंभ होगा' : 'आज पंचक नहीं है';
     final details = window == null ? 'समय गणना उपलब्ध नहीं' :
