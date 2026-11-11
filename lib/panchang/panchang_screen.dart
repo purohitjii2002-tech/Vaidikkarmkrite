@@ -1710,16 +1710,17 @@ class _PanchangScreenState extends State<PanchangScreen> {
       // 7. Panchak and other important details.
       _panchakCard(),
       _bhadraCard(),
+      // 8. Shiva residence and Agni residence.
+      _detailCard('शिव वास एवं अग्नि वास', Icons.local_fire_department, [..._vasaRows(d)]),
+      // 9. Auspicious and inauspicious yogas stay at the end.
+      ..._specialYogaCards(),
+      // Calculation-source note is kept after all nine requested sections.
       Card(color: const Color(0xFFFFF4E5), child: const Padding(
         padding: EdgeInsets.all(12),
         child: Text('गणना स्रोत: Meeus आधारित खगोलीय गणना (Astronomia) तथा IMD राष्ट्रीय पंचांग से संदर्भ सत्यापन। अमांत/पूर्णिमांत मास, संवत्सर और चरण-सीमाओं को प्रकाशित करने से पहले संदर्भ पंचांग से मिलान आवश्यक है。',
           style: TextStyle(fontSize: 12, color: Color(0xFF705333)),
         ),
       )),
-      // 8. Shiva residence and Agni residence.
-      _detailCard('शिव वास एवं अग्नि वास', Icons.local_fire_department, [..._vasaRows(d)]),
-      // 9. Auspicious and inauspicious yogas stay at the end.
-      ..._specialYogaCards(),
     ];
   }
 
