@@ -483,9 +483,9 @@ class _PanchangScreenState extends State<PanchangScreen> {
   String _lagnaLabel() {
     if (sunriseAscendant == null) return 'गणना उपलब्ध नहीं';
     final longitude = (sunriseAscendant! % 360 + 360) % 360;
-    final degreeInRashi = longitude % 30;
-    final degrees = degreeInRashi.floor();
-    final minutes = ((degreeInRashi - degrees) * 60).round();
+    final totalMinutes = ((longitude % 30) * 60).round();
+    final degrees = (totalMinutes ~/ 60) % 30;
+    final minutes = totalMinutes % 60;
     return '${_rashi(longitude)} ${degrees}°${minutes.toString().padLeft(2, '0')}′';
   }
 
