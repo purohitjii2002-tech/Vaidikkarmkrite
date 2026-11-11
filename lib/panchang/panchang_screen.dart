@@ -1209,10 +1209,10 @@ class _PanchangScreenState extends State<PanchangScreen> {
       'कालदण्ड','धूम्र','ध्वांक्ष','वज्र','मुद्गर','लुम्ब','उत्पात',
       'मृत्यु','काण','मुसल','गद','राक्षस',
     };
-    final found = <String, bool>{};
-    void mark(String name, bool good) => found[name] = good;
-    var cursor = dayStart;
-    while (cursor.isBefore(nextSunrise)) {
+    Map<String, bool> stateAt(DateTime instant) {
+      final found = <String, bool>{};
+      void mark(String name, bool good) => found[name] = good;
+      final cursor = instant;
       final limb = PanchangEngine.indicesAt(cursor);
       final tithiNo = (limb['tithi']! % 15) + 1;
       final nak = limb['nakshatra']!;
@@ -1247,11 +1247,39 @@ class _PanchangScreenState extends State<PanchangScreen> {
             anandadi == 'लुम्ब' ? 'लुम्ब / लंबक' : anandadi;
         mark(display + ' योग', false);
       }
+      return found;
+    }
+    DateTime refine(DateTime low, DateTime high, String name, bool entering) {
+      for (var i = 0; i < 22; i++) {
+        final mid = low.add(Duration(microseconds: high.difference(low).inMicroseconds ~/ 2));
+        if (stateAt(mid).containsKey(name) == entering) { high = mid; } else { low = mid; }
+      }
+      return high;
+    }
+    final rows = <Map<String, String>>[];
+    final active = <String, DateTime>{};
+    var previousTime = dayStart;
+    var previous = stateAt(dayStart);
+    for (final name in previous.keys) { active[name] = dayStart; }
+    var cursor = dayStart.add(const Duration(minutes: 5));
+    while (cursor.isBefore(nextSunrise)) {
+      final current = stateAt(cursor);
+      for (final name in <String>{...previous.keys, ...current.keys}) {
+        final was = previous.containsKey(name), now = current.containsKey(name);
+        if (was == now) continue;
+        final boundary = refine(previousTime, cursor, name, now);
+        if (was) {
+          rows.add({'name': name, 'kind': previous[name] == true ? 'शुभ' : 'अशुभ', 'start': _time(active.remove(name) ?? dayStart), 'end': _time(boundary)});
+        } else { active[name] = boundary; }
+      }
+      previous = current; previousTime = cursor;
       cursor = cursor.add(const Duration(minutes: 5));
     }
-    return found.entries.map((entry) => {
-      'name': entry.key, 'kind': entry.value ? 'शुभ' : 'अशुभ',
-    }).toList();
+    for (final entry in active.entries) {
+      rows.add({'name': entry.key, 'kind': previous[entry.key] == true ? 'शुभ' : 'अशुभ', 'start': _time(entry.value), 'end': _time(nextSunrise)});
+    }
+    rows.sort((p, q) => (p['start'] ?? '').compareTo(q['start'] ?? ''));
+    return rows;
   }
 
   // Show only the yogas calculated for the currently selected sunrise-to-sunrise day.
@@ -1297,8 +1325,11 @@ class _PanchangScreenState extends State<PanchangScreen> {
               Icon(good ? Icons.check_circle : Icons.warning_amber_rounded,
                   color: color, size: 17),
               const SizedBox(width: 8),
-              Expanded(child: Text(row['name'] ?? '',
-                  style: TextStyle(color: color, fontWeight: FontWeight.w700))),
+              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(row['name'] ?? '', style: TextStyle(color: color, fontWeight: FontWeight.w700)),
+                const SizedBox(height: 3),
+                Text('${row['start'] ?? '—'} से ${row['end'] ?? '—'}', style: TextStyle(color: color.withOpacity(0.82), fontSize: 11)),
+              ])),
               Text(good ? 'शुभ' : 'अशुभ',
                   style: TextStyle(color: color, fontSize: 11,
                       fontWeight: FontWeight.bold)),
