@@ -697,25 +697,26 @@ class _PanchangScreenState extends State<PanchangScreen> {
                     children: [
                       Container(
                         width: double.infinity,
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        constraints: const BoxConstraints(minHeight: 48),
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
                         decoration: BoxDecoration(
                           color: const Color(0xFFFFF0D5),
-                          borderRadius: BorderRadius.circular(9),
+                          borderRadius: BorderRadius.circular(12),
                           border: Border.all(color: const Color(0xFFE9D8B9)),
                         ),
                         child: Material(
                           color: Colors.transparent,
                           child: InkWell(
-                            borderRadius: BorderRadius.circular(9),
+                            borderRadius: BorderRadius.circular(12),
                             onTap: _chooseLocation,
                             child: Row(children: [
-                              const Icon(Icons.location_on_outlined, size: 13, color: Color(0xFF79502B)),
-                              const SizedBox(width: 6),
+                              const Icon(Icons.location_on_outlined, size: 18, color: Color(0xFF79502B)),
+                              const SizedBox(width: 9),
                               Expanded(child: Text(city, maxLines: 1, overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF684521)))),
-                              const Text('स्थान बदलें', style: TextStyle(fontSize: 9, color: Color(0xFF98652D))),
-                              const SizedBox(width: 3),
-                              const Icon(Icons.edit_location_alt_outlined, size: 14, color: Color(0xFF79502B)),
+                                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF684521)))),
+                              const Text('स्थान बदलें', style: TextStyle(fontSize: 11, color: Color(0xFF98652D))),
+                              const SizedBox(width: 5),
+                              const Icon(Icons.edit_location_alt_outlined, size: 17, color: Color(0xFF79502B)),
                             ]),
                           ),
                         ),
