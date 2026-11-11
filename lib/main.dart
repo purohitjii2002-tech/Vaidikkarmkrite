@@ -565,6 +565,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 const SizedBox(height: 8),
                 Text('स्रोत: ' + item!['source'].toString(), style: const TextStyle(fontSize: 12, color: Colors.black54)),
               ],
+              if(item!=null) Align(alignment:Alignment.centerRight,child:SaveItemButton(item:{'id':'daily-thought-'+(item['source']??thought).toString(),'title':thought,'body':meaning,'description':'आज का वैदिक विचार','category':'आज का वैदिक विचार'})),
             ],
           ),
         );
@@ -704,6 +705,7 @@ class _ModuleScreenState extends State<ModuleScreen> {
           description: (item['description'] ?? '').toString(),
           mediaUrl: (item['media_url'] ?? '').toString(),
           mediaType: (item['media_type'] ?? '').toString(),
+          savedItem:{...item,'title':getTitle(item),'category':widget.module.title,'body':(item['body']??'').toString(),'description':(item['description']??'').toString()},
         ),
       ),
     );
@@ -830,10 +832,7 @@ class _ModuleScreenState extends State<ModuleScreen> {
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                         ),
-                        trailing: const Icon(
-                          Icons.arrow_forward_ios_rounded,
-                          size: 16,
-                        ),
+                        trailing: Row(mainAxisSize:MainAxisSize.min,children:[SaveItemButton(item:{...item,'title':getTitle(item),'category':widget.module.title,'body':(item['body']??'').toString(),'description':(item['description']??'').toString()}),const Icon(Icons.arrow_forward_ios_rounded,size:16)]),
                         onTap: () => openContent(item),
                       ),
                     );
@@ -849,6 +848,8 @@ class _ModuleScreenState extends State<ModuleScreen> {
 }
 
 // Full Content Detail Screen
+class SaveItemButton extends StatefulWidget { final Map<String,dynamic> item; const SaveItemButton({super.key,required this.item}); @override State<SaveItemButton> createState()=>_SaveItemButtonState(); }
+class _SaveItemButtonState extends State<SaveItemButton>{ bool saved=false; bool busy=false; @override void initState(){super.initState();SavedStore.has(widget.item).then((v){if(mounted)setState(()=>saved=v);});} Future<void> toggle() async {if(busy)return;setState(()=>busy=true);await SavedStore.toggle({...widget.item,'_remove':saved});if(!mounted)return;setState((){saved=!saved;busy=false;});ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(saved?'सहेज दिया गया।':'सहेजी गई सामग्री से हटाया गया।')));} @override Widget build(BuildContext context)=>IconButton(tooltip:saved?'सहेजे गए से हटाएँ':'सहेजें',onPressed:busy?null:toggle,icon:Icon(saved?Icons.bookmark:Icons.bookmark_border,color:const Color(0xFF79502B))); }
 class SavedStore {
   static const key = 'saved_content_items';
   static Future<List<Map<String,dynamic>>> read() async {
@@ -857,22 +858,18 @@ class SavedStore {
       try { return Map<String,dynamic>.from(jsonDecode(x)); } catch (_) { return <String,dynamic>{}; }
     }).where((x) => x.isNotEmpty).toList();
   }
-  static Future<bool> has(String title) async => (await read()).any((x) => x['title'] == title);
-  static Future<void> toggle(Map<String,dynamic> item) async {
-    final p = await SharedPreferences.getInstance();
-    final all = await read();
-    all.removeWhere((x) => x['title'] == item['title']);
-    if (item['_remove'] != true) all.insert(0, item);
-    await p.setStringList(key, all.map(jsonEncode).toList());
-  }
+  static String identity(Map<String,dynamic> x) => (x['id'] ?? x['media_url'] ?? x['pdf_url'] ?? '${x['title']}|${x['category']}').toString();
+  static Future<bool> has(Map<String,dynamic> item) async => (await read()).any((x)=>identity(x)==identity(item));
+  static Future<void> toggle(Map<String,dynamic> item) async { final p=await SharedPreferences.getInstance(); final all=await read(); final id=identity(item); all.removeWhere((x)=>identity(x)==id); if(item['_remove']!=true){final clean=Map<String,dynamic>.from(item)..remove('_remove');all.insert(0,clean);} await p.setStringList(key,all.map(jsonEncode).toList()); }
 }
 
 class ContentDetailScreen extends StatefulWidget {
   final String title, content, description;
   final String mediaUrl, mediaType;
+  final Map<String,dynamic> savedItem;
   const ContentDetailScreen({
     super.key, required this.title, required this.content, required this.description,
-    this.mediaUrl = '', this.mediaType = '',
+    this.mediaUrl = '', this.mediaType = '', this.savedItem = const {},
   });
   @override
   State<ContentDetailScreen> createState() => _ContentDetailScreenState();
@@ -888,15 +885,15 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
   @override
   void initState() {
     super.initState();
-    SavedStore.has(widget.title).then((v) { if (mounted) setState(() => saved = v); });
+    SavedStore.has(widget.savedItem.isEmpty ? {'title':widget.title} : widget.savedItem).then((v) { if (mounted) setState(() => saved = v); });
     _audioPlayer.onPlayerStateChanged.listen((v) { if (mounted) setState(() => _playerState = v); });
     _audioPlayer.onDurationChanged.listen((v) { if (mounted) setState(() => _duration = v); });
     _audioPlayer.onPositionChanged.listen((v) { if (mounted) setState(() => _position = v); });
   }
 
   Future<void> toggle() async {
-    await SavedStore.toggle({'title': widget.title, 'body': widget.content,
-      'description': widget.description, '_remove': saved});
+    final item=widget.savedItem.isEmpty?{'title':widget.title,'body':widget.content,'description':widget.description}:Map<String,dynamic>.from(widget.savedItem);
+    await SavedStore.toggle({...item,'_remove':saved});
     if (!mounted) return;
     setState(() => saved = !saved);
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
