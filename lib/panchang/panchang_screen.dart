@@ -1482,6 +1482,14 @@ class _PanchangScreenState extends State<PanchangScreen> {
             style: TextStyle(fontSize: 10, color: Color(0xFF705333)),
           ),
         ),
+        if (hasSimultaneousGoodAndBad)
+          const Padding(
+            padding: EdgeInsets.only(top: 7),
+            child: Text(
+              'शास्त्रीय टिप्पणी: मुहूर्त चिंतामणि, शुभाशुभ प्रकरण श्लोक 41–42 में कुछ आचार्यों के मत से चन्द्रमा की अनुकूलता, एक पहर के बाद तथा शुभ योग/लग्नशुद्धि से कुछ दोषों के परिहार का उल्लेख है। ऐप अभी इन मतों को स्वतः लागू नहीं करता; इसलिए संयुक्त समय को विचारार्थ दिखाया गया है।',
+              style: TextStyle(fontSize: 10, color: Color(0xFF705333), height: 1.35),
+            ),
+          ),
       ]),
       yogaList('आज के शुभ योग', Icons.check_circle_outline, goodRows, true),
       yogaList('आज के अशुभ योग', Icons.warning_amber_rounded, badRows, false),
