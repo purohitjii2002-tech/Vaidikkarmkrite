@@ -975,6 +975,22 @@ class _InAppPdfReaderState extends State<InAppPdfReader> {
   bool _rightToLeft = false;
   final TextEditingController _pageSearchController = TextEditingController();
 
+  List<int> get _visiblePageNumbers {
+    if (_totalPages <= 0) return const [];
+    final count = _totalPages < 11 ? _totalPages : 11;
+    var start = _currentPage - 5;
+    if (start < 1) start = 1;
+    final maxStart = _totalPages - count + 1;
+    if (start > maxStart) start = maxStart;
+    return List<int>.generate(count, (index) => start + index);
+  }
+
+  void _jumpToPage(PdfControllerPinch controller, int page) {
+    if (page < 1 || page > _totalPages) return;
+    controller.jumpToPage(page);
+    if (mounted) setState(() => _currentPage = page);
+  }
+
   void _goToPage(PdfControllerPinch controller) {
     final page = int.tryParse(_pageSearchController.text.trim());
     if (page == null || page < 1 || page > _totalPages) {
@@ -1159,30 +1175,76 @@ class _InAppPdfReaderState extends State<InAppPdfReader> {
                 top:false,
                 child:Container(
                   width:double.infinity,
-                  padding:const EdgeInsets.symmetric(horizontal:18,vertical:10),
+                  padding:const EdgeInsets.symmetric(horizontal:6,vertical:8),
                   decoration:const BoxDecoration(
                     color:Color(0xFFFFFBF3),
                     border:Border(top:BorderSide(color:Color(0xFFE8DCCB))),
                   ),
                   child:Row(
-                    mainAxisAlignment:MainAxisAlignment.center,
                     children:[
-                      IconButton(
-                        tooltip:'पिछला पेज',
-                        onPressed:_currentPage>1 ? ()=>controller.jumpToPage(_currentPage-1) : null,
-                        icon:const Icon(Icons.chevron_left),
-                      ),
-                      Directionality(
-                        textDirection:TextDirection.ltr,
-                        child:Text(
-                          '$_currentPage / ${_totalPages==0 ? '—' : _totalPages}',
-                          style:const TextStyle(fontSize:15,fontWeight:FontWeight.bold,color:Color(0xFF563719)),
+                      SizedBox(
+                        width:34,
+                        height:36,
+                        child:IconButton(
+                          tooltip:'पिछला पेज',
+                          padding:EdgeInsets.zero,
+                          constraints:const BoxConstraints.tightFor(width:34,height:36),
+                          onPressed:_currentPage>1 ? ()=>_jumpToPage(controller,_currentPage-1) : null,
+                          icon:const Icon(Icons.chevron_left,size:24),
                         ),
                       ),
-                      IconButton(
-                        tooltip:'अगला पेज',
-                        onPressed:_totalPages>0 && _currentPage<_totalPages ? ()=>controller.jumpToPage(_currentPage+1) : null,
-                        icon:const Icon(Icons.chevron_right),
+                      Expanded(
+                        child:Row(
+                          mainAxisAlignment:MainAxisAlignment.center,
+                          children:_visiblePageNumbers.map((page){
+                            final isCurrent=page==_currentPage;
+                            return Expanded(
+                              child:Padding(
+                                padding:const EdgeInsets.symmetric(horizontal:1),
+                                child:Material(
+                                  color:isCurrent ? const Color(0xFF79502B) : Colors.transparent,
+                                  borderRadius:BorderRadius.circular(7),
+                                  child:InkWell(
+                                    borderRadius:BorderRadius.circular(7),
+                                    onTap:()=>_jumpToPage(controller,page),
+                                    child:Container(
+                                      height:34,
+                                      alignment:Alignment.center,
+                                      decoration:BoxDecoration(
+                                        borderRadius:BorderRadius.circular(7),
+                                        border:Border.all(
+                                          color:isCurrent ? const Color(0xFF79502B) : const Color(0xFFE8DCCB),
+                                        ),
+                                      ),
+                                      child:FittedBox(
+                                        fit:BoxFit.scaleDown,
+                                        child:Text(
+                                          '$page',
+                                          style:TextStyle(
+                                            fontSize:12,
+                                            fontWeight:isCurrent ? FontWeight.bold : FontWeight.w500,
+                                            color:isCurrent ? Colors.white : const Color(0xFF563719),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                      ),
+                      SizedBox(
+                        width:34,
+                        height:36,
+                        child:IconButton(
+                          tooltip:'अगला पेज',
+                          padding:EdgeInsets.zero,
+                          constraints:const BoxConstraints.tightFor(width:34,height:36),
+                          onPressed:_totalPages>0 && _currentPage<_totalPages ? ()=>_jumpToPage(controller,_currentPage+1) : null,
+                          icon:const Icon(Icons.chevron_right,size:24),
+                        ),
                       ),
                     ],
                   ),
