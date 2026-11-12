@@ -189,6 +189,31 @@ void main() {
           lessThan(24));
     });
 
+    test('Ujjain Chaitradi year accepts Pratipada beginning shortly after sunrise in 2026', () {
+      final newYear = PanchangEngine.chaitraNewYearDate(
+        year: 2026,
+        latitude: latitude,
+        longitude: longitude,
+      );
+      expect(newYear, DateTime(2026, 3, 19));
+      expect(
+        PanchangEngine.vikramSamvatChaitradi(
+          localDate: DateTime(2026, 3, 18),
+          latitude: latitude,
+          longitude: longitude,
+        ),
+        2082,
+      );
+      expect(
+        PanchangEngine.vikramSamvatChaitradi(
+          localDate: DateTime(2026, 3, 19),
+          latitude: latitude,
+          longitude: longitude,
+        ),
+        2083,
+      );
+    });
+
     test('Ujjain Chaitra Shukla Pratipada sets Vikram 2084 on 7 Apr 2027', () {
       final newYear = PanchangEngine.chaitraNewYearDate(
         year: 2027,
