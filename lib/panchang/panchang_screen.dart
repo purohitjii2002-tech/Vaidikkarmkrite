@@ -2341,7 +2341,7 @@ class _FestivalVratScreenState extends State<FestivalVratScreen> {
               style: const TextStyle(fontWeight: FontWeight.w800)),
             subtitle: Text('${row['date']} • ${row['weekday']}\n${row['detail']}'),
             isThreeLine: true,
-          )).toList())),
+          )).toList()));
         },
       ),
       const SizedBox(height: 12),
