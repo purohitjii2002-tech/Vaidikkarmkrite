@@ -156,8 +156,20 @@ class PanchangEngine {
       );
       if (sunrise == null) continue;
       final limbs = indicesAt(sunrise);
-      if (limbs['tithi'] == 0 &&
-          lunarMonthLabels(sunrise)['amanta'] == 'चैत्र') {
+      final isChaitraPratipadaAtSunrise = limbs['tithi'] == 0 &&
+          lunarMonthLabels(sunrise)['amanta'] == 'चैत्र';
+      // Some regional Chaitradi rules take the preceding civil day when
+      // Amavasya is present at sunrise but Pratipada begins shortly after it.
+      // The Ujjain 2026 case: sunrise 06:32, Pratipada begins about 06:53.
+      final amavasyaEnds = limbs['tithi'] == 29
+          ? nextLimbEnd(sunrise, 'tithi')
+          : null;
+      final pratipadaBeginsWithinOneMuhurta = amavasyaEnds != null &&
+          amavasyaEnds.difference(sunrise) >= Duration.zero &&
+          amavasyaEnds.difference(sunrise) <= const Duration(minutes: 48) &&
+          lunarMonthLabels(amavasyaEnds)['amanta'] == 'चैत्र';
+      if (isChaitraPratipadaAtSunrise ||
+          pratipadaBeginsWithinOneMuhurta) {
         final result = DateTime(day.year, day.month, day.day);
         _chaitraNewYearCache[key] = result;
         return result;
