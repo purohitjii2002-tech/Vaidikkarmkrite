@@ -958,35 +958,71 @@ class _PanchangScreenState extends State<PanchangScreen> {
   }
 
   Widget _mainCategoryTabs() => Row(children: [
-    Expanded(child: Card(
-      color: const Color(0xFF8B5E32),
-      child: const Padding(
-        padding: EdgeInsets.symmetric(vertical: 14, horizontal: 8),
-        child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-          Icon(Icons.calendar_month, color: Colors.white, size: 19),
-          SizedBox(width: 7),
-          Text('पंचांग', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-        ]),
-      ),
+    Expanded(child: _departmentTile(
+      'दैनिक पंचांग', 'तिथि, नक्षत्र, योग और करण',
+      Icons.calendar_month_rounded, const Color(0xFF174C3B),
+      () => setState(() => selectedMuhuratTab = 0), selected: selectedMuhuratTab == 0,
     )),
-    const SizedBox(width: 10),
-    Expanded(child: Card(
-      color: const Color(0xFFFFF0D5),
+    const SizedBox(width: 8),
+    Expanded(child: _departmentTile(
+      'मासिक कैलेंडर', 'मास और तारीख़ चुनें',
+      Icons.calendar_view_month_rounded, const Color(0xFF9A641E),
+      _openMonthlyCalendar,
+    )),
+    const SizedBox(width: 8),
+    Expanded(child: _departmentTile(
+      'विशेष मुहूर्त', 'विवाह, गृह प्रवेश आदि',
+      Icons.event_available_rounded, const Color(0xFF315C75),
+      () => Navigator.push(context,
+        MaterialPageRoute(builder: (_) => const MuhuratListScreen())),
+    )),
+  ]);
+
+  Widget _departmentTile(String title, String subtitle, IconData icon,
+      Color color, VoidCallback onTap, {bool selected = false}) => Expanded(
+    child: Material(
+      color: selected ? color : Colors.white,
+      borderRadius: BorderRadius.circular(15),
       child: InkWell(
-        borderRadius: BorderRadius.circular(12),
-        onTap: () => Navigator.push(context,
-          MaterialPageRoute(builder: (_) => const MuhuratListScreen())),
-        child: const Padding(
-          padding: EdgeInsets.symmetric(vertical: 14, horizontal: 8),
-          child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-            Icon(Icons.event_available, color: Color(0xFF79502B), size: 19),
-            SizedBox(width: 7),
-            Text('विशेष मुहूर्त', style: TextStyle(color: Color(0xFF79502B), fontWeight: FontWeight.bold)),
+        borderRadius: BorderRadius.circular(15),
+        onTap: onTap,
+        child: Container(
+          constraints: const BoxConstraints(minHeight: 92),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 11),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(15),
+            border: Border.all(color: color.withOpacity(selected ? 0 : .22)),
+            boxShadow: const [BoxShadow(color: Color(0x0D000000), blurRadius: 7, offset: Offset(0, 3))],
+          ),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Icon(icon, color: selected ? Colors.white : color, size: 21),
+            const SizedBox(height: 7),
+            Text(title, maxLines: 1, overflow: TextOverflow.ellipsis,
+              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800,
+                color: selected ? Colors.white : const Color(0xFF263C34))),
+            const SizedBox(height: 3),
+            Text(subtitle, maxLines: 2, overflow: TextOverflow.ellipsis,
+              style: TextStyle(fontSize: 9, height: 1.2,
+                color: selected ? Colors.white70 : Colors.black54)),
           ]),
         ),
       ),
-    )),
-  ]);
+    ),
+  );
+
+  Future<void> _openMonthlyCalendar() async {
+    final chosen = await Navigator.push<DateTime>(
+      context,
+      MaterialPageRoute(builder: (_) =>
+        MonthlyPanchangScreen(initialDate: selectedDate)),
+    );
+    if (chosen == null || !mounted) return;
+    setState(() {
+      selectedDate = DateTime(chosen.year, chosen.month, chosen.day);
+      selectedMuhuratTab = 0;
+      _calculate();
+    });
+  }
 
   static const _muhuratTabLabels = ['दिन', 'मुहूर्त', 'चौघड़िया', 'होरा', 'लग्न'];
 
@@ -1938,6 +1974,162 @@ class _PanchangScreenState extends State<PanchangScreen> {
       Text(value, style: const TextStyle(color: Colors.white, fontSize: 12, height: 1.1, fontWeight: FontWeight.bold)),
     ]),
   ]);
+}
+
+
+/// Month-at-a-glance calendar. Selecting a date returns it to the main
+/// Panchang so every daily calculation is refreshed for that location.
+class MonthlyPanchangScreen extends StatefulWidget {
+  final DateTime initialDate;
+  const MonthlyPanchangScreen({super.key, required this.initialDate});
+
+  @override
+  State<MonthlyPanchangScreen> createState() => _MonthlyPanchangScreenState();
+}
+
+class _MonthlyPanchangScreenState extends State<MonthlyPanchangScreen> {
+  late DateTime month;
+  late DateTime selected;
+
+  static const weekdays = ['रवि', 'सोम', 'मंगल', 'बुध', 'गुरु', 'शुक्र', 'शनि'];
+  static const months = ['जनवरी','फरवरी','मार्च','अप्रैल','मई','जून',
+    'जुलाई','अगस्त','सितंबर','अक्टूबर','नवंबर','दिसंबर'];
+
+  @override
+  void initState() {
+    super.initState();
+    selected = DateTime(widget.initialDate.year, widget.initialDate.month,
+      widget.initialDate.day);
+    month = DateTime(selected.year, selected.month);
+  }
+
+  void moveMonth(int amount) => setState(() {
+    month = DateTime(month.year, month.month + amount);
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final firstWeekday = DateTime(month.year, month.month, 1).weekday % 7;
+    final days = DateTime(month.year, month.month + 1, 0).day;
+    final count = ((firstWeekday + days + 6) ~/ 7) * 7;
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('मासिक पंचांग'),
+        actions: [
+          IconButton(
+            tooltip: 'आज',
+            onPressed: () => setState(() {
+              selected = DateTime.now();
+              month = DateTime(selected.year, selected.month);
+            }),
+            icon: const Icon(Icons.today_rounded),
+          ),
+        ],
+      ),
+      body: ListView(
+        padding: const EdgeInsets.fromLTRB(14, 12, 14, 24),
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(colors: [Color(0xFF174C3B), Color(0xFF28705A)]),
+              borderRadius: BorderRadius.circular(18),
+            ),
+            child: Row(children: [
+              IconButton(onPressed: () => moveMonth(-1),
+                icon: const Icon(Icons.chevron_left, color: Colors.white)),
+              Expanded(child: Text('${months[month.month - 1]} ${month.year}',
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: Colors.white, fontSize: 19,
+                  fontWeight: FontWeight.w800))),
+              IconButton(onPressed: () => moveMonth(1),
+                icon: const Icon(Icons.chevron_right, color: Colors.white)),
+            ]),
+          ),
+          const SizedBox(height: 14),
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(color: Colors.white,
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: const Color(0xFFE2E9E4))),
+            child: Column(children: [
+              Row(children: weekdays.map((d) => Expanded(child: Center(
+                child: Text(d, style: const TextStyle(fontSize: 11,
+                  fontWeight: FontWeight.w800, color: Color(0xFF587064))),
+              ))).toList()),
+              const SizedBox(height: 8),
+              GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: count,
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 7, mainAxisSpacing: 5, crossAxisSpacing: 5,
+                  childAspectRatio: .82,
+                ),
+                itemBuilder: (context, index) {
+                  final day = index - firstWeekday + 1;
+                  if (day < 1 || day > days) return const SizedBox.shrink();
+                  final date = DateTime(month.year, month.month, day);
+                  final isSelected = date.year == selected.year &&
+                    date.month == selected.month && date.day == selected.day;
+                  final isToday = date.year == DateTime.now().year &&
+                    date.month == DateTime.now().month && date.day == DateTime.now().day;
+                  return InkWell(
+                    borderRadius: BorderRadius.circular(11),
+                    onTap: () => setState(() => selected = date),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: isSelected ? const Color(0xFF174C3B) :
+                          isToday ? const Color(0xFFFFE9BD) : const Color(0xFFF5F7F5),
+                        borderRadius: BorderRadius.circular(11),
+                        border: Border.all(color: isSelected
+                          ? const Color(0xFF174C3B) : const Color(0xFFE9EEEA)),
+                      ),
+                      alignment: Alignment.center,
+                      child: Text('$day', style: TextStyle(fontSize: 13,
+                        fontWeight: isSelected || isToday ? FontWeight.w800 : FontWeight.w500,
+                        color: isSelected ? Colors.white : const Color(0xFF263C34))),
+                    ),
+                  );
+                },
+              ),
+            ]),
+          ),
+          const SizedBox(height: 14),
+          Container(
+            padding: const EdgeInsets.all(15),
+            decoration: BoxDecoration(color: const Color(0xFFFFF7E8),
+              borderRadius: BorderRadius.circular(15),
+              border: Border.all(color: const Color(0xFFF0DFC2))),
+            child: Row(children: [
+              const Icon(Icons.event_note_rounded, color: Color(0xFF9A641E)),
+              const SizedBox(width: 10),
+              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('चयनित तारीख़', style: TextStyle(fontSize: 11,
+                    color: Color(0xFF80613C))),
+                  Text('${selected.day} ${months[selected.month - 1]} ${selected.year}',
+                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800,
+                      color: Color(0xFF263C34))),
+                  const Text('दैनिक तिथि, नक्षत्र और मुहूर्त देखने के लिए तारीख़ खोलें।',
+                    style: TextStyle(fontSize: 10, color: Color(0xFF80613C))),
+                ])),
+            ]),
+          ),
+          const SizedBox(height: 14),
+          FilledButton.icon(
+            style: FilledButton.styleFrom(
+              backgroundColor: const Color(0xFF174C3B),
+              minimumSize: const Size.fromHeight(50),
+            ),
+            onPressed: () => Navigator.pop(context, selected),
+            icon: const Icon(Icons.calendar_month_rounded),
+            label: const Text('इस तारीख़ का पंचांग देखें'),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 
