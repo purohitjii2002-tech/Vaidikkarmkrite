@@ -65,7 +65,7 @@ jobs:
           grep -q 'android.permission.ACCESS_COARSE_LOCATION' "$FILE" || sed -i '/<manifest/a\    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>' "$FILE"
       - name: Install dependencies
         run: flutter pub get
-      - name: Run Panchang numerical regression tests
+      - name: Run app structure regression tests
         run: flutter test
       - name: Generate app launcher icon
         run: dart run flutter_launcher_icons
