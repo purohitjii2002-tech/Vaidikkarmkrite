@@ -489,7 +489,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return Material(color: const Color(0xFFFFFEFA), borderRadius: BorderRadius.circular(22),
       child: InkWell(borderRadius: BorderRadius.circular(22),
         onTap: () => Navigator.push(context, MaterialPageRoute(
-          builder: (_) => ModuleScreen(module: module, language: widget.language)),
+          builder: (_) => ModuleScreen(module: module, language: widget.language))),
         child: Container(padding: const EdgeInsets.fromLTRB(15, 15, 13, 13),
           decoration: BoxDecoration(borderRadius: BorderRadius.circular(22),
             border: Border.all(color: const Color(0xFFE5DCC9)),
