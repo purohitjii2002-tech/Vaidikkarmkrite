@@ -1735,14 +1735,14 @@ class _InAppPdfReaderState extends State<InAppPdfReader> {
               child:Container(
                 width:double.infinity,
                 padding:const EdgeInsets.fromLTRB(7,9,7,9),
-                decoration:const BoxDecoration(color:Color(0xFFFFFEFA),
-                  border:Border(top:BorderSide(color:Color(0xFFE8DCCB))),
+                decoration:const BoxDecoration(color:Color(0xFFFFFCF4),
+                  border:Border(top:BorderSide(color:Color(0xFFD9C99F))),
                   boxShadow:[BoxShadow(color:Color(0x10000000),blurRadius:10,offset:Offset(0,-3))]),
                 child:Row(children:[
                   SizedBox(width:44,height:48,child:IconButton(
                     tooltip:'पिछला पेज',padding:EdgeInsets.zero,
                     constraints:const BoxConstraints.tightFor(width:44,height:48),
-                    style:IconButton.styleFrom(backgroundColor:const Color(0xFFFFF1D9),foregroundColor:const Color(0xFF79502B)),
+                    style:IconButton.styleFrom(backgroundColor:const Color(0xFFECE2C9),foregroundColor:const Color(0xFF174A3E)),
                     onPressed:_currentPage>1 ? ()=>_jumpToPage(controller,_currentPage-1) : null,
                     icon:const Icon(Icons.chevron_left_rounded,size:32))),
                   const SizedBox(width:4),
@@ -1752,14 +1752,14 @@ class _InAppPdfReaderState extends State<InAppPdfReader> {
                       return Expanded(child:Padding(
                         padding:const EdgeInsets.symmetric(horizontal:1.5),
                         child:Material(
-                          color:isCurrent ? const Color(0xFF79502B) : const Color(0xFFFAF6EF),
+                          color:isCurrent ? const Color(0xFF174A3E) : const Color(0xFFFFFCF4),
                           borderRadius:BorderRadius.circular(9),
                           child:InkWell(
                             borderRadius:BorderRadius.circular(9),onTap:()=>_jumpToPage(controller,page),
                             child:Container(
                               height:44,alignment:Alignment.center,
                               decoration:BoxDecoration(borderRadius:BorderRadius.circular(9),
-                                border:Border.all(color:isCurrent ? const Color(0xFF79502B) : const Color(0xFFE8DCCB))),
+                                border:Border.all(color:isCurrent ? const Color(0xFFC9A45C) : const Color(0xFFD9C99F))),
                               child:FittedBox(fit:BoxFit.scaleDown,child:Text('$page',
                                 style:TextStyle(fontSize:13,fontWeight:isCurrent ? FontWeight.w800 : FontWeight.w600,
                                   color:isCurrent ? Colors.white : const Color(0xFF563719)))),
@@ -1804,7 +1804,7 @@ class _SavedScreenState extends State<SavedScreen>{
       if(items.isEmpty)return const Center(child:Padding(padding:EdgeInsets.all(28),child:Text('किसी सामग्री, फोटो, ऑडियो या विचार के बुकमार्क बटन को दबाएँ। वह यहाँ दिखाई देगा।',textAlign:TextAlign.center)));
       return ListView.builder(padding:const EdgeInsets.all(14),itemCount:items.length,itemBuilder:(context,i){final x=items[i];final image=x['media_type']=='image'?(x['media_url']??'').toString():'';
         return Card(child:ListTile(
-        leading:image.isNotEmpty?ClipRRect(borderRadius:BorderRadius.circular(8),child:Image.network(image,width:48,height:54,fit:BoxFit.cover,errorBuilder:(_,__,___)=>const Icon(Icons.image_not_supported))):Icon(x['media_type']=='audio'?Icons.headphones:Icons.bookmark,color:const Color(0xFF79502B)),
+        leading:image.isNotEmpty?ClipRRect(borderRadius:BorderRadius.circular(8),child:Image.network(image,width:48,height:54,fit:BoxFit.cover,errorBuilder:(_,__,___)=>const Icon(Icons.image_not_supported))):Icon(x['media_type']=='audio'?Icons.headphones:Icons.bookmark,color:const Color(0xFF173E34)),
         title:Text((x['title']??'').toString()),subtitle:Text((x['description']??x['category']??'').toString(),maxLines:2,overflow:TextOverflow.ellipsis),
         onTap:()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>ContentDetailScreen(title:(x['title']??'').toString(),content:(x['body']??'').toString(),description:(x['description']??'').toString(),mediaUrl:(x['media_url']??'').toString(),mediaType:(x['media_type']??'').toString(),savedItem:x))).then((_){setState(()=>future=SavedStore.read());}),
         trailing:IconButton(icon:const Icon(Icons.delete_outline),tooltip:'हटाएँ',onPressed:()async{await SavedStore.toggle({...x,'_remove':true});setState(()=>future=SavedStore.read());})));});
