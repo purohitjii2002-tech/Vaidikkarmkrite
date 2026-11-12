@@ -954,7 +954,8 @@ class _PanchangScreenState extends State<PanchangScreen> {
                       _mainCategoryTabs(),
                       const SizedBox(height: 12),
                       ..._selectedTabContent(),
-                      const SizedBox(height: 10),,
+                      const SizedBox(height: 10),
+                    ],
                   ),
                 ),
     );
