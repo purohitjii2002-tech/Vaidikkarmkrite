@@ -2,6 +2,40 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:vaidikkarmkrite/panchang/panchang_engine.dart';
 
 void main() {
+  group('Marriage lagna defect classifications', () {
+    test('daytime deaf, blind and lame signs follow Vivaha 6.81', () {
+      expect(PanchangEngine.marriageLagnaDefect(6, isDaytime: true), 'बधिर लग्न');
+      expect(PanchangEngine.marriageLagnaDefect(7, isDaytime: true), 'बधिर लग्न');
+      for (final sign in [4, 0, 1]) {
+        expect(PanchangEngine.marriageLagnaDefect(sign, isDaytime: true),
+            'दिवान्ध लग्न');
+      }
+      expect(PanchangEngine.marriageLagnaDefect(10, isDaytime: true), 'पंगु लग्न');
+    });
+
+    test('nighttime deaf, blind and lame signs follow Vivaha 6.81', () {
+      for (final sign in [9, 8]) {
+        expect(PanchangEngine.marriageLagnaDefect(sign, isDaytime: false),
+            'बधिर लग्न');
+      }
+      for (final sign in [5, 2, 3]) {
+        expect(PanchangEngine.marriageLagnaDefect(sign, isDaytime: false),
+            'निशान्ध लग्न');
+      }
+      expect(PanchangEngine.marriageLagnaDefect(11, isDaytime: false), 'पंगु लग्न');
+    });
+
+    test('unlisted sign is not assigned one of these marriage defects', () {
+      expect(PanchangEngine.marriageLagnaDefect(2, isDaytime: true), isNull);
+      expect(PanchangEngine.marriageLagnaDefect(6, isDaytime: false), isNull);
+    });
+
+    test('rejects a sign index outside the zodiac', () {
+      expect(() => PanchangEngine.marriageLagnaDefect(12, isDaytime: true),
+          throwsRangeError);
+    });
+  });
+
   group('Ujjain Panchang astronomical reference checks', () {
     const latitude = 23.1765;
     const longitude = 75.7885;
