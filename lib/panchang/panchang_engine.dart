@@ -429,6 +429,33 @@ class PanchangEngine {
     return _norm(tropicalAscendant - lahiriAyanamsha(utc));
   }
 
+  /// Marriage-only lagna defect classes from Muhurta Cintamani,
+  /// Vivaha-prakarana 6.81 (day/night sign groups).
+  ///
+  /// Sign index is sidereal Aries=0 ... Pisces=11. The text distinguishes
+  /// deaf, day-blind, night-blind and lame signs; these are not one combined
+  /// "Andha-Kana" class. Verse 6.83 says the defect is absent when the lagna
+  /// lord or Jupiter aspects the lagna. This helper only classifies the sign;
+  /// callers must separately evaluate that cancellation before judging it.
+  static String? marriageLagnaDefect(
+    int lagnaSign, {
+    required bool isDaytime,
+  }) {
+    if (lagnaSign < 0 || lagnaSign > 11) {
+      throw RangeError.range(lagnaSign, 0, 11, 'lagnaSign');
+    }
+    if (isDaytime) {
+      if (lagnaSign == 6 || lagnaSign == 7) return 'बधिर लग्न';
+      if ([4, 0, 1].contains(lagnaSign)) return 'दिवान्ध लग्न';
+      if (lagnaSign == 10) return 'पंगु लग्न';
+    } else {
+      if (lagnaSign == 9 || lagnaSign == 8) return 'बधिर लग्न';
+      if ([5, 2, 3].contains(lagnaSign)) return 'निशान्ध लग्न';
+      if (lagnaSign == 11) return 'पंगु लग्न';
+    }
+    return null;
+  }
+
   /// Traditional Shiva-vasa calculation: (tithi number × 2 + 5) mod 7.
   /// Tithi is counted continuously from Shukla Pratipada (1) to Amavasya (30).
   static Map<String, String> shivaVasa(int tithiNumber) {
