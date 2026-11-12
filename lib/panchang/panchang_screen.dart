@@ -1309,9 +1309,10 @@ class _PanchangScreenState extends State<PanchangScreen> {
       return index < 0 ? null : index;
     }
 
-    // Historical regions are not modern state boundaries. Classify only
-    // recognizable core districts; use a broad Manu-boundary envelope for
-    // Madhyadesha and label that result as approximate.
+    // Historical regions are not modern state boundaries. Malava and
+    // Gauda are identified only from recognizable historical-core districts.
+    // Madhyadesha uses a broad Manu-boundary coordinate envelope and is
+    // explicitly labelled approximate to avoid claiming exact borders.
     final place = city.toLowerCase();
     final isMalavaByName = [
       'indore', 'इंदौर', 'उज्जैन', 'ujjain', 'dewas', 'देवास', 'dhar', 'धार',
