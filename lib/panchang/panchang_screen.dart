@@ -1149,33 +1149,44 @@ class _PanchangScreenState extends State<PanchangScreen> {
 
   List<Widget> _samvatsaraRows() {
     final date = DateTime(selectedDate.year, selectedDate.month, selectedDate.day);
-    // These are separately named systems with different year boundaries.
-    // The current reference interval is bounded to the verified 2026–27 data.
-    final southStart = DateTime(2026, 4, 14);
-    final nextSouth = DateTime(2027, 4, 14);
-    final northStart = DateTime(2026, 5, 7);
-    final supported = !date.isBefore(southStart) && date.isBefore(nextSouth);
-    if (!supported) {
-      return [
-        _detailRow('बार्हस्पत्य संवत्सर (उत्तर)', 'चयनित वर्ष का संदर्भ मिलान शेष', alternate: true),
-        _detailRow('बार्हस्पत्य संवत्सर (दक्षिण)', 'चयनित वर्ष का संदर्भ मिलान शेष'),
-        _detailRow('विक्रम / शक / कलि संवत', 'संदर्भ-पंचांग मिलान शेष', alternate: true),
-      ];
-    }
+    final latitude = position!.latitude;
+    final longitude = position!.longitude;
+    final southName = PanchangEngine.southSamvatsaraAt(date);
+    final vikramYear = PanchangEngine.vikramSamvatChaitradi(
+      localDate: date,
+      latitude: latitude,
+      longitude: longitude,
+    );
+    final sakaYear = vikramYear == null ? null : vikramYear - 135;
 
-    final northName = date.isBefore(northStart) ? 'सिद्धार्थी (53)' : 'रौद्र (54)';
-    final gujaratiYear = date.isBefore(DateTime(2026, 11, 10)) ? '2082' : '2083';
+    // IMD's 2026–27 Rashtriya Panchanga explicitly verifies these North
+    // Barhaspatya boundaries. Do not extrapolate this mean-Jupiter series
+    // beyond the published interval without a verified ingress table.
+    final northSupported = !date.isBefore(DateTime(2026, 4, 14)) &&
+        date.isBefore(DateTime(2027, 4, 14));
+    final northName = northSupported
+        ? date.isBefore(DateTime(2026, 5, 7))
+            ? 'सिद्धार्थी (53)' : 'रौद्र (54)'
+        : 'संदर्भ मिलान शेष';
+    final gujaratiSupported = !date.isBefore(DateTime(2026, 4, 14)) &&
+        date.isBefore(DateTime(2027, 4, 14));
+    final gujaratiYear = gujaratiSupported
+        ? date.isBefore(DateTime(2026, 11, 10)) ? '2082' : '2083'
+        : 'संदर्भ मिलान शेष';
+
     return [
       _detailRow('बार्हस्पत्य संवत्सर (उत्तर)', northName, alternate: true),
-      _detailRow('बार्हस्पत्य संवत्सर (दक्षिण)', 'पराभव (40)'),
-      _detailRow('विक्रम संवत (चैत्रादि)', '2083'),
-      _detailRow('विक्रम संवत (कार्तिकादि / गुजरात)', gujaratiYear, alternate: true),
-      _detailRow('शक संवत (निरयण सौर)', '1948'),
-      _detailRow('कलि संवत', '5127', alternate: true),
+      _detailRow('बार्हस्पत्य संवत्सर (दक्षिण/मेषादि)',
+          southName ?? 'गणना उपलब्ध नहीं'),
+      _detailRow('विक्रम संवत (चैत्रादि)',
+          vikramYear?.toString() ?? 'गणना उपलब्ध नहीं', alternate: true),
+      _detailRow('विक्रम संवत (कार्तिकादि / गुजरात)', gujaratiYear),
+      _detailRow('शक संवत (चैत्रादि)',
+          sakaYear?.toString() ?? 'गणना उपलब्ध नहीं', alternate: true),
       const Padding(
         padding: EdgeInsets.only(top: 6),
         child: Text(
-          'उत्तर का बार्हस्पत्य चक्र, दक्षिण का 60-वर्षीय चक्र तथा विक्रम/शक/कलि संवत अलग गणना-पद्धतियाँ हैं। इनके नाम और नववर्ष की तिथियाँ एक-दूसरे के स्थान पर नहीं पढ़नी चाहिए। इस बिल्ड में वर्ष-संदर्भ केवल सत्यापित 14 अप्रैल 2026–13 अप्रैल 2027 अवधि के लिए दिखाया गया है।',
+          'दक्षिण/मेषादि संवत्सर सूर्य के मेष प्रवेश से और चैत्रादि विक्रम-शक वर्ष चैत्र शुक्ल प्रतिपदा के स्थानीय सूर्योदय से निकाले जाते हैं। उत्तर भारतीय बार्हस्पत्य नाम केवल प्रकाशित 2026–27 IMD संदर्भ-सीमा में दिखाया गया है; अन्य तिथियों के लिए अप्रमाणित नाम नहीं गढ़े जाते।',
           style: TextStyle(fontSize: 11, color: Color(0xFF705333)),
         ),
       ),
