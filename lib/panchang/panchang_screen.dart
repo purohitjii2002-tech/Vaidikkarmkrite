@@ -1334,9 +1334,6 @@ class _PanchangScreenState extends State<PanchangScreen> {
                 ? 'मध्यदेश (अनुमानित भौगोलिक सीमा)'
                 : 'अन्य / अनिर्धारित';
     _regionalRuleSummary = 'क्षेत्रीय नियम: $region';
-    final monthLabels = PanchangEngine.lunarMonthLabels(dayStart);
-    final amantaMonth = monthIndex(monthLabels['amanta']);
-    final purnimantaMonth = monthIndex(monthLabels['purnimanta']);
     // Sunday=1 ... Saturday=7. Krakach (Kakrach) is formed
     // when weekday number + paksha-local tithi number equals 13.
     const anandadiNames = [
@@ -1357,6 +1354,13 @@ class _PanchangScreenState extends State<PanchangScreen> {
       final sunNak = limb['sunNakshatra']!;
       final pakshaTithi = (limb['tithi']! % 15) + 1;
       final isShukla = limb['tithi']! < 15;
+      // Re-evaluate month names at each instant. The engine caches the
+      // surrounding lunation, while the Purnimanta label changes at Purnima.
+      final monthLabels = PanchangEngine.lunarMonthLabels(
+        instant, isKrishna: !isShukla,
+      );
+      final amantaMonth = monthIndex(monthLabels['amanta']);
+      final purnimantaMonth = monthIndex(monthLabels['purnimanta']);
       final lunarMonthIndexes = <int>{
         if (amantaMonth != null) amantaMonth,
         if (purnimantaMonth != null) purnimantaMonth,
