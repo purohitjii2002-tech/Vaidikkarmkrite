@@ -1251,10 +1251,11 @@ class _PanchangScreenState extends State<PanchangScreen> {
       5: [1, 6, 11], 3: [2, 7, 12], 2: [3, 8, 13],
       6: [4, 9, 14], 4: [5, 10, 15],
     };
-    // Mrityu Yoga is a weekday–nakshatra combination (not a
-    // weekday–tithi combination). Sunday through Saturday respectively:
-    // Anuradha, Uttara Ashadha, Shatabhisha, Ashwini, Mrigashira,
-    // Ashlesha and Hasta. Nakshatra indices are zero-based from Ashwini.
+    // Muhurta Cintamani 1.30: Mrityu is the second star in the
+    // four-star Utpata–Mrityu–Kana–Siddhi sequence from each weekday's
+    // stated starting nakshatra. Sunday–Saturday: Anuradha, Uttara
+    // Ashadha, Shatabhisha, Ashwini, Mrigashira, Ashlesha, Hasta.
+    // Indices are zero-based from Ashwini.
     const mrityuNakshatras = <int, List<int>>{
       0: [16], 1: [20], 2: [23], 3: [0],
       4: [4], 5: [8], 6: [12],
