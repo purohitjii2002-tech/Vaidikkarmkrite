@@ -356,7 +356,9 @@ class _PanchangScreenState extends State<PanchangScreen> {
       sunrise: true,
     );
     _specialYogaRows = sunrise != null && nextSunrise != null
-        ? _calculateSpecialYogas(sunrise!, nextSunrise, date.weekday % 7)
+        ? _calculateSpecialYogas(
+            sunrise!, nextSunrise, date.weekday % 7,
+            position!.latitude, position!.longitude)
         : [];
     _panchakWindow = sunrise == null ? null
         : PanchangEngine.panchakWindow(sunrise!);
@@ -1235,7 +1237,8 @@ class _PanchangScreenState extends State<PanchangScreen> {
   }
 
   List<Map<String, String>> _calculateSpecialYogas(
-      DateTime dayStart, DateTime nextSunrise, int weekday) {
+      DateTime dayStart, DateTime nextSunrise, int weekday,
+      double latitude, double longitude) {
     // Weekday is Sunday=0 ... Saturday=6. Tithis below are numbered
     // 1..15 within each paksha; nakshatras are zero-based from Ashwini.
     // Muhurta Cintamani 1.28–29. Friday follows the Sanskrit
@@ -1269,6 +1272,68 @@ class _PanchangScreenState extends State<PanchangScreen> {
     const dagdha = [12, 11, 5, 3, 6, 8, 9];
     const visha = [4, 6, 7, 2, 8, 9, 7];
     const hutashana = [12, 6, 7, 8, 9, 10, 11];
+
+    // Muhurta Cintamani 1.10–11: month-void tithis.
+    // Arrays are Chaitra..Phalguna; tithis are paksha-local (1..15).
+    const shunyaShuklaTithis = <List<int>>[
+      [8, 9], [12], [13], [7], [2, 3], [1, 2],
+      [10, 11], [14], [7, 8], [4, 5], [6], [3],
+    ];
+    const shunyaKrishnaTithis = <List<int>>[
+      [8, 9], [12], [14], [6], [2, 3], [1, 2],
+      [10, 11], [5], [7, 8], [4, 5], [5], [4],
+    ];
+    // Muhurta Cintamani 1.14–15: month-void nakshatras, zero-based.
+    const shunyaNakshatras = <List<int>>[
+      [3, 0], [13, 14], [20, 7], [10, 22],
+      [20, 21], [23, 26], [24], [2, 9],
+      [13, 15], [5, 0, 12], [21, 18], [1, 17],
+    ];
+    // Muhurta Cintamani 1.16: month-void signs, Chaitra..Phalguna.
+    const shunyaRashis = [10, 11, 1, 2, 0, 5, 7, 6, 8, 3, 9, 4];
+    // Muhurta Cintamani 1.17: tithi-void lagna pairs for odd tithis.
+    const shunyaLagnaByOddTithi = <int, List<int>>{
+      1: [10, 9], 3: [4, 9], 5: [2, 5], 7: [8, 3],
+      9: [3, 4], 11: [8, 11], 13: [1, 11],
+    };
+
+    int? monthIndex(String? label) {
+      if (label == null) return null;
+      final clean = label.replaceFirst('अधिक ', '').trim();
+      const names = [
+        'चैत्र', 'वैशाख', 'ज्येष्ठ', 'आषाढ़', 'श्रावण', 'भाद्रपद',
+        'आश्विन', 'कार्तिक', 'मार्गशीर्ष', 'पौष', 'माघ', 'फाल्गुन',
+      ];
+      final index = names.indexOf(clean);
+      return index < 0 ? null : index;
+    }
+
+    // Historical regions are not modern state boundaries. Prefer known
+    // district names; use published coordinate extents only as fallbacks.
+    final place = city.toLowerCase();
+    final isMalavaByName = [
+      'indore', 'उज्जैन', 'ujjain', 'dewas', 'देवास', 'dhar', 'धार',
+      'ratlam', 'रतलाम', 'shajapur', 'शाजापुर', 'mandsaur', 'मंदसौर',
+      'neemuch', 'नीमच', 'agar malwa', 'आगर मालवा', 'rajgarh', 'राजगढ़',
+    ].any(place.contains);
+    final isGaudaByName = [
+      'murshidabad', 'मुर्शिदाबाद', 'birbhum', 'बीरभूम',
+      'purba bardhaman', 'paschim bardhaman', 'bardhaman', 'burdwan',
+      'malda', 'মালদা',
+    ].any(place.contains);
+    final inMalavaEnvelope = latitude >= 21.1167 && latitude <= 25.0167 &&
+        longitude >= 73.75 && longitude <= 79.2333;
+    final region = isGaudaByName
+        ? 'गौड़'
+        : (isMalavaByName || inMalavaEnvelope)
+            ? 'मालव (अनुमानित सीमा)'
+            : (latitude >= 24.5 && latitude <= 32.2 &&
+                longitude >= 74.0 && longitude <= 82.0)
+                ? 'मध्यदेश (अनुमानित सीमा)'
+                : 'अन्य / अनिर्धारित';
+    final monthLabels = PanchangEngine.lunarMonthLabels(dayStart);
+    final amantaMonth = monthIndex(monthLabels['amanta']);
+    final purnimantaMonth = monthIndex(monthLabels['purnimanta']);
     // Sunday=1 ... Saturday=7. Krakach (Kakrach) is formed
     // when weekday number + paksha-local tithi number equals 13.
     const anandadiNames = [
@@ -1287,6 +1352,27 @@ class _PanchangScreenState extends State<PanchangScreen> {
       final tithiNo = (limb['tithi']! % 15) + 1;
       final nak = limb['nakshatra']!;
       final sunNak = limb['sunNakshatra']!;
+      final pakshaTithi = (limb['tithi']! % 15) + 1;
+      final isShukla = limb['tithi']! < 15;
+      final lunarMonthIndexes = <int>{
+        if (amantaMonth != null) amantaMonth,
+        if (purnimantaMonth != null) purnimantaMonth,
+      };
+      for (final month in lunarMonthIndexes) {
+        final shunyaTithis = isShukla
+            ? shunyaShuklaTithis[month] : shunyaKrishnaTithis[month];
+        if (region.startsWith('मध्यदेश') &&
+            shunyaTithis.contains(pakshaTithi)) {
+          final convention = amantaMonth == purnimantaMonth
+              ? 'दोनों मास-गणना'
+              : month == amantaMonth ? 'अमांत' : 'पूर्णिमांत';
+          mark('मास-शून्य तिथि ($convention)', false);
+        }
+        if (shunyaNakshatras[month].contains(nak)) {
+          final convention = month == amantaMonth ? 'अमांत' : 'पूर्णिमांत';
+          mark('मास-शून्य नक्षत्र ($convention)', false);
+        }
+      }
       // Jwalamukhi: a traditional five-pair tithi–nakshatra rule
       // (Pratipada–Mula, Panchami–Bharani, Ashtami–Krittika,
       // Navami–Rohini, Dashami–Ashlesha). Jyotishsara Prakrit 147–148
@@ -1346,6 +1432,18 @@ class _PanchangScreenState extends State<PanchangScreen> {
         mark('संवर्तक योग', false);
       }
       if (jwalamukhi) mark('ज्वालामुखी योग', false);
+
+      final ascendant = PanchangEngine.ascendantSiderealLongitude(
+        instant: instant, latitude: latitude, longitude: longitude);
+      final lagnaSign = (ascendant / 30).floor();
+      if (region.startsWith('मध्यदेश') &&
+          shunyaLagnaByOddTithi[pakshaTithi]?.contains(lagnaSign) == true) {
+        mark('तिथि-शून्य लग्न', false);
+      }
+      if ((region.startsWith('मालव') || region == 'गौड़') &&
+          lunarMonthIndexes.any((month) => shunyaRashis[month] == lagnaSign)) {
+        mark('मास-शून्य राशि लग्न', false);
+      }
 
       final extendedNak = nak <= 20 ? nak : nak + 1;
       final anandadiIndex = (extendedNak - anandadiStart[weekday] + 28) % 28;
