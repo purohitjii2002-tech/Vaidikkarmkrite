@@ -1305,7 +1305,13 @@ class _PanchangScreenState extends State<PanchangScreen> {
       if (dagdha[weekday] == tithiNo) mark('दग्ध योग', false);
       if (visha[weekday] == tithiNo) mark('विष योग', false);
       if (hutashana[weekday] == tithiNo) mark('हुताशन योग', false);
-      if ((weekday + 1 + tithiNo) == 13) {
+      // Muhurta Cintamani, Shubhashubha-prakarana 1.6:
+      // Krakacha is the weekday(1..7) + paksha-local tithi = 13
+      // combination, with two additional stated cases:
+      // Pratipada on Wednesday and Saptami on Sunday.
+      if ((weekday + 1 + tithiNo) == 13 ||
+          (weekday == 3 && tithiNo == 1) ||
+          (weekday == 0 && tithiNo == 7)) {
         mark('काक्रच / क्रकच योग', false);
       }
       if (jwalamukhi) mark('ज्वालामुखी योग', false);
