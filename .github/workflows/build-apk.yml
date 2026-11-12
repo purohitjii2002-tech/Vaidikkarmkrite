@@ -5,6 +5,10 @@ on:
     branches: [main, master]
   workflow_dispatch:
 
+concurrency:
+  group: vaidikkarmkrite-apk-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
