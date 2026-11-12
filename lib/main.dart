@@ -1864,7 +1864,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
 // App Brand - uses the logo already uploaded in assets/images.
 class BrandMark extends StatelessWidget {
-  const BrandMark({super.key});
+  final bool dark;
+  const BrandMark({super.key, this.dark = false});
 
   @override
   Widget build(BuildContext context) {
@@ -1889,10 +1890,10 @@ class BrandMark extends StatelessWidget {
         const Text(
           'KARMKRITE',
           style: TextStyle(
-            color: Color(0xFF563719),
-            fontWeight: FontWeight.bold,
+            color: dark ? Color(0xFFFFE7B0) : Color(0xFF173E34),
+            fontWeight: FontWeight.w900,
             fontSize: 19,
-            letterSpacing: 1,
+            letterSpacing: 1.25,
           ),
         ),
       ],
