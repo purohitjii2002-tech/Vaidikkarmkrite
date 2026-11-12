@@ -1158,6 +1158,8 @@ class _PanchangScreenState extends State<PanchangScreen> {
       longitude: longitude,
     );
     final sakaYear = vikramYear == null ? null : vikramYear - 135;
+    final solarSakaYear = PanchangEngine.traditionalSakaSolarYearAt(date);
+    final kaliYear = solarSakaYear == null ? null : solarSakaYear + 3179;
 
     // IMD's 2026–27 Rashtriya Panchanga explicitly verifies these North
     // Barhaspatya boundaries. Do not extrapolate this mean-Jupiter series
@@ -1183,6 +1185,10 @@ class _PanchangScreenState extends State<PanchangScreen> {
       _detailRow('विक्रम संवत (कार्तिकादि / गुजरात)', gujaratiYear),
       _detailRow('शक संवत (चैत्रादि)',
           sakaYear?.toString() ?? 'गणना उपलब्ध नहीं', alternate: true),
+      _detailRow('शक संवत (मेषादि)', 
+          solarSakaYear?.toString() ?? 'गणना उपलब्ध नहीं'),
+      _detailRow('कलि संवत (मेषादि)',
+          kaliYear?.toString() ?? 'गणना उपलब्ध नहीं', alternate: true),
       const Padding(
         padding: EdgeInsets.only(top: 6),
         child: Text(
