@@ -356,10 +356,9 @@ class _PanchangScreenState extends State<PanchangScreen> {
       latitude: position!.latitude, longitude: position!.longitude,
       sunrise: true,
     );
-    _specialYogaRows = sunrise != null && sunset != null &&
-            nextSunrise != null
+    _specialYogaRows = sunrise != null && nextSunrise != null
         ? _calculateSpecialYogas(
-            sunrise!, sunset!, nextSunrise, date.weekday % 7,
+            sunrise!, nextSunrise, date.weekday % 7,
             position!.latitude, position!.longitude)
         : [];
     _panchakWindow = sunrise == null ? null
@@ -1239,8 +1238,8 @@ class _PanchangScreenState extends State<PanchangScreen> {
   }
 
   List<Map<String, String>> _calculateSpecialYogas(
-      DateTime dayStart, DateTime daySunset, DateTime nextSunrise,
-      int weekday, double latitude, double longitude) {
+      DateTime dayStart, DateTime nextSunrise, int weekday,
+      double latitude, double longitude) {
     // Weekday is Sunday=0 ... Saturday=6. Tithis below are numbered
     // 1..15 within each paksha; nakshatras are zero-based from Ashwini.
     // Muhurta Cintamani 1.28–29. Friday follows the Sanskrit
@@ -1282,7 +1281,7 @@ class _PanchangScreenState extends State<PanchangScreen> {
       [10, 11], [14], [7, 8], [4, 5], [6], [3],
     ];
     const shunyaKrishnaTithis = <List<int>>[
-      [8, 9], [12], [14], [6], [2, 3], [1, 2],
+      [8, 9], [12], [4, 14], [6], [2, 3], [1, 2],
       [10, 11], [5], [7, 8], [4, 5], [5], [4],
     ];
     // Muhurta Cintamani 1.14–15: month-void nakshatras, zero-based.
@@ -1443,28 +1442,16 @@ class _PanchangScreenState extends State<PanchangScreen> {
           shunyaLagnaByOddTithi[pakshaTithi]?.contains(lagnaSign) == true) {
         mark('तिथि-शून्य लग्न', false);
       }
-      final isDaytime = instant.isBefore(daySunset);
       final isGaudaOrMalava = region.startsWith('मालव') ||
           region.startsWith('गौड़');
       if (isGaudaOrMalava &&
           lunarMonthIndexes.any((month) => shunyaRashis[month] == lagnaSign)) {
         mark('मास-शून्य राशि लग्न', false);
       }
-      // Muhurta Chintamani, Vivaha-prakarana, chapter 6 verse 81:
-      // Aquarius is Pangu by day, Pisces by night. Andha-Kana is a
-      // combined category: Leo/Aries/Taurus by day, Virgo/Gemini/Cancer
-      // by night. Verse 82 gives a variant timing for related defects;
-      // the app follows the primary verse-81 day/night classification.
-      if (isGaudaOrMalava && isDaytime && lagnaSign == 10) {
-        mark('पंगु लग्न', false);
-      } else if (isGaudaOrMalava && !isDaytime && lagnaSign == 11) {
-        mark('पंगु लग्न', false);
-      }
-      if (isGaudaOrMalava &&
-          ((isDaytime && [4, 0, 1].contains(lagnaSign)) ||
-           (!isDaytime && [5, 2, 3].contains(lagnaSign)))) {
-        mark('अन्ध-काण लग्न', false);
-      }
+      // Pangu, Andha and Kana are defined in Muhurta Cintamani's
+      // Vivaha-prakarana (6.81–83), not as generic daily Panchanga yogas.
+      // They must be evaluated only inside a marriage-muhurta workflow;
+      // verse 6.82 also gives a differing afternoon/twilight scheme.
 
       final extendedNak = nak <= 20 ? nak : nak + 1;
       final anandadiIndex = (extendedNak - anandadiStart[weekday] + 28) % 28;
