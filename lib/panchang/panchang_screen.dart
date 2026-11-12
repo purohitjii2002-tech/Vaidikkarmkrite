@@ -1283,7 +1283,14 @@ class _PanchangScreenState extends State<PanchangScreen> {
           (tithiNo == 10 && nak == 8);
 
       if (sarvartha[weekday].contains(nak)) mark('सर्वार्थ सिद्धि योग', true);
-      if (amritSiddhi[weekday] == nak) mark('अमृत सिद्धि योग', true);
+      // Muhurta Cintamani 1.20–21: the Amritsiddhi weekday-star
+      // pair is not to be used on its corresponding tithi (Sunday–Saturday:
+      // Panchami, Shashthi, Saptami, Ashtami, Navami, Dashami, Ekadashi).
+      const amritSiddhiAvoidTithi = [5, 6, 7, 8, 9, 10, 11];
+      if (amritSiddhi[weekday] == nak &&
+          amritSiddhiAvoidTithi[weekday] != tithiNo) {
+        mark('अमृत सिद्धि योग', true);
+      }
       if (weekday == 0 && nak == 7) mark('रवि पुष्य योग', true);
       if (weekday == 4 && nak == 7) mark('गुरु पुष्य योग', true);
       final fromSun = ((nak - sunNak + 27) % 27) + 1;
