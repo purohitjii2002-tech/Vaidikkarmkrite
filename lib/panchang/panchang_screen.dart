@@ -979,8 +979,7 @@ class _PanchangScreenState extends State<PanchangScreen> {
   ]);
 
   Widget _departmentTile(String title, String subtitle, IconData icon,
-      Color color, VoidCallback onTap, {bool selected = false}) => Expanded(
-    child: Material(
+      Color color, VoidCallback onTap, {bool selected = false}) => Material(
       color: selected ? color : Colors.white,
       borderRadius: BorderRadius.circular(15),
       child: InkWell(
@@ -1007,8 +1006,7 @@ class _PanchangScreenState extends State<PanchangScreen> {
           ]),
         ),
       ),
-    ),
-  );
+    );
 
   Future<void> _openMonthlyCalendar() async {
     final chosen = await Navigator.push<DateTime>(
