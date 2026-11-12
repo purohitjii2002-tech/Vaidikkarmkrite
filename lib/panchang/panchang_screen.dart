@@ -24,6 +24,7 @@ class _PanchangScreenState extends State<PanchangScreen> {
   Map<String, dynamic>? data;
   DateTime? sunrise, sunset, moonrise, moonset;
   List<Map<String, String>> _specialYogaRows = [];
+  String _regionalRuleSummary = 'स्थान के अनुसार क्षेत्रीय नियम की जाँच';
   ({DateTime start, DateTime end, bool active})? _panchakWindow;
   double? sunriseAscendant;
   bool loading = true;
@@ -1298,8 +1299,8 @@ class _PanchangScreenState extends State<PanchangScreen> {
     };
 
     int? monthIndex(String? label) {
-      if (label == null) return null;
-      final clean = label.replaceFirst('अधिक ', '').trim();
+      if (label == null || label.startsWith('अधिक ')) return null;
+      final clean = label.trim();
       const names = [
         'चैत्र', 'वैशाख', 'ज्येष्ठ', 'आषाढ़', 'श्रावण', 'भाद्रपद',
         'आश्विन', 'कार्तिक', 'मार्गशीर्ष', 'पौष', 'माघ', 'फाल्गुन',
@@ -1308,11 +1309,12 @@ class _PanchangScreenState extends State<PanchangScreen> {
       return index < 0 ? null : index;
     }
 
-    // Historical regions are not modern state boundaries. Prefer known
-    // district names; use published coordinate extents only as fallbacks.
+    // Historical regions are not modern state boundaries. Classify only
+    // recognizable core districts; use a broad Manu-boundary envelope for
+    // Madhyadesha and label that result as approximate.
     final place = city.toLowerCase();
     final isMalavaByName = [
-      'indore', 'उज्जैन', 'ujjain', 'dewas', 'देवास', 'dhar', 'धार',
+      'indore', 'इंदौर', 'उज्जैन', 'ujjain', 'dewas', 'देवास', 'dhar', 'धार',
       'ratlam', 'रतलाम', 'shajapur', 'शाजापुर', 'mandsaur', 'मंदसौर',
       'neemuch', 'नीमच', 'agar malwa', 'आगर मालवा', 'rajgarh', 'राजगढ़',
     ].any(place.contains);
@@ -1321,16 +1323,15 @@ class _PanchangScreenState extends State<PanchangScreen> {
       'purba bardhaman', 'paschim bardhaman', 'bardhaman', 'burdwan',
       'malda', 'মালদা',
     ].any(place.contains);
-    final inMalavaEnvelope = latitude >= 21.1167 && latitude <= 25.0167 &&
-        longitude >= 73.75 && longitude <= 79.2333;
     final region = isGaudaByName
-        ? 'गौड़'
-        : (isMalavaByName || inMalavaEnvelope)
-            ? 'मालव (अनुमानित सीमा)'
+        ? 'गौड़ (ऐतिहासिक मूल क्षेत्र)'
+        : isMalavaByName
+            ? 'मालव (जिला-आधारित पहचान)'
             : (latitude >= 24.5 && latitude <= 32.2 &&
                 longitude >= 74.0 && longitude <= 82.0)
-                ? 'मध्यदेश (अनुमानित सीमा)'
+                ? 'मध्यदेश (अनुमानित भौगोलिक सीमा)'
                 : 'अन्य / अनिर्धारित';
+    _regionalRuleSummary = 'क्षेत्रीय नियम: $region';
     final monthLabels = PanchangEngine.lunarMonthLabels(dayStart);
     final amantaMonth = monthIndex(monthLabels['amanta']);
     final purnimantaMonth = monthIndex(monthLabels['purnimanta']);
@@ -1609,6 +1610,13 @@ class _PanchangScreenState extends State<PanchangScreen> {
           ),
           child: Text(verdict, style: TextStyle(
             color: verdictColor, fontWeight: FontWeight.w700, height: 1.4)),
+        ),
+        Padding(
+          padding: const EdgeInsets.only(top: 8),
+          child: Text(
+            '$_regionalRuleSummary। ऐतिहासिक क्षेत्रों की सीमाएँ अनुमानित हैं; अस्पष्ट स्थान पर क्षेत्रीय दोष स्वतः लागू नहीं किए जाते।',
+            style: const TextStyle(fontSize: 10, color: Color(0xFF705333)),
+          ),
         ),
         const Padding(
           padding: EdgeInsets.only(top: 8),
