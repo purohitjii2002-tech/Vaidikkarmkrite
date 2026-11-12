@@ -1012,7 +1012,11 @@ class _PanchangScreenState extends State<PanchangScreen> {
     final chosen = await Navigator.push<DateTime>(
       context,
       MaterialPageRoute(builder: (_) =>
-        MonthlyPanchangScreen(initialDate: selectedDate)),
+        MonthlyPanchangScreen(
+          initialDate: selectedDate,
+          latitude: position?.latitude ?? _ujjainLatitude,
+          longitude: position?.longitude ?? _ujjainLongitude,
+        )),
     );
     if (chosen == null || !mounted) return;
     setState(() {
@@ -1979,7 +1983,14 @@ class _PanchangScreenState extends State<PanchangScreen> {
 /// Panchang so every daily calculation is refreshed for that location.
 class MonthlyPanchangScreen extends StatefulWidget {
   final DateTime initialDate;
-  const MonthlyPanchangScreen({super.key, required this.initialDate});
+  final double latitude;
+  final double longitude;
+  const MonthlyPanchangScreen({
+    super.key,
+    required this.initialDate,
+    required this.latitude,
+    required this.longitude,
+  });
 
   @override
   State<MonthlyPanchangScreen> createState() => _MonthlyPanchangScreenState();
@@ -1988,6 +1999,7 @@ class MonthlyPanchangScreen extends StatefulWidget {
 class _MonthlyPanchangScreenState extends State<MonthlyPanchangScreen> {
   late DateTime month;
   late DateTime selected;
+  late Future<Map<int, Map<String, String>>> dayInfoFuture;
 
   static const weekdays = ['रवि', 'सोम', 'मंगल', 'बुध', 'गुरु', 'शुक्र', 'शनि'];
   static const months = ['जनवरी','फरवरी','मार्च','अप्रैल','मई','जून',
@@ -1999,10 +2011,50 @@ class _MonthlyPanchangScreenState extends State<MonthlyPanchangScreen> {
     selected = DateTime(widget.initialDate.year, widget.initialDate.month,
       widget.initialDate.day);
     month = DateTime(selected.year, selected.month);
+    dayInfoFuture = _loadMonthInfo();
+  }
+
+  Future<Map<int, Map<String, String>>> _loadMonthInfo() async {
+    final result = <int, Map<String, String>>{};
+    final totalDays = DateTime(month.year, month.month + 1, 0).day;
+    for (var day = 1; day <= totalDays; day++) {
+      final date = DateTime(month.year, month.month, day);
+      final sunrise = PanchangEngine.solarEvent(
+        localDate: date,
+        latitude: widget.latitude,
+        longitude: widget.longitude,
+        sunrise: true,
+      );
+      if (sunrise == null) continue;
+      final limbs = PanchangEngine.indicesAt(sunrise);
+      final tithiIndex = limbs['tithi'];
+      if (tithiIndex == null) continue;
+      final paksha = tithiIndex < 15 ? 'शु' : 'कृ';
+      final tithiName = PanchangEngine.tithis[tithiIndex];
+      final event = switch (tithiIndex) {
+        10 => 'एकादशी व्रत',
+        25 => 'एकादशी व्रत',
+        14 => 'पूर्णिमा',
+        29 => 'अमावस्या',
+        3 => 'विनायक चतुर्थी',
+        18 => 'संकष्टी चतुर्थी',
+        7 => 'अष्टमी',
+        22 => 'अष्टमी',
+        _ => '',
+      };
+      final monthName = PanchangEngine.lunarMonthLabels(sunrise)['amanta'] ?? '';
+      result[day] = {
+        'tithi': '$paksha $tithiName',
+        'event': event,
+        'month': monthName,
+      };
+    }
+    return result;
   }
 
   void moveMonth(int amount) => setState(() {
     month = DateTime(month.year, month.month + amount);
+    dayInfoFuture = _loadMonthInfo();
   });
 
   @override
@@ -2019,6 +2071,7 @@ class _MonthlyPanchangScreenState extends State<MonthlyPanchangScreen> {
             onPressed: () => setState(() {
               selected = DateTime.now();
               month = DateTime(selected.year, selected.month);
+              dayInfoFuture = _loadMonthInfo();
             }),
             icon: const Icon(Icons.today_rounded),
           ),
@@ -2056,42 +2109,104 @@ class _MonthlyPanchangScreenState extends State<MonthlyPanchangScreen> {
                   fontWeight: FontWeight.w800, color: Color(0xFF587064))),
               ))).toList()),
               const SizedBox(height: 8),
-              GridView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: count,
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 7, mainAxisSpacing: 5, crossAxisSpacing: 5,
-                  childAspectRatio: .82,
-                ),
-                itemBuilder: (context, index) {
-                  final day = index - firstWeekday + 1;
-                  if (day < 1 || day > days) return const SizedBox.shrink();
-                  final date = DateTime(month.year, month.month, day);
-                  final isSelected = date.year == selected.year &&
-                    date.month == selected.month && date.day == selected.day;
-                  final isToday = date.year == DateTime.now().year &&
-                    date.month == DateTime.now().month && date.day == DateTime.now().day;
-                  return InkWell(
-                    borderRadius: BorderRadius.circular(11),
-                    onTap: () => setState(() => selected = date),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: isSelected ? const Color(0xFF174C3B) :
-                          isToday ? const Color(0xFFFFE9BD) : const Color(0xFFF5F7F5),
-                        borderRadius: BorderRadius.circular(11),
-                        border: Border.all(color: isSelected
-                          ? const Color(0xFF174C3B) : const Color(0xFFE9EEEA)),
-                      ),
-                      alignment: Alignment.center,
-                      child: Text('$day', style: TextStyle(fontSize: 13,
-                        fontWeight: isSelected || isToday ? FontWeight.w800 : FontWeight.w500,
-                        color: isSelected ? Colors.white : const Color(0xFF263C34))),
+              FutureBuilder<Map<int, Map<String, String>>>(
+                future: dayInfoFuture,
+                builder: (context, snapshot) {
+                  final info = snapshot.data ?? const <int, Map<String, String>>{};
+                  return GridView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: count,
+                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 7, mainAxisSpacing: 5, crossAxisSpacing: 5,
+                      childAspectRatio: .72,
                     ),
+                    itemBuilder: (context, index) {
+                      final day = index - firstWeekday + 1;
+                      if (day < 1 || day > days) return const SizedBox.shrink();
+                      final date = DateTime(month.year, month.month, day);
+                      final isSelected = date.year == selected.year &&
+                        date.month == selected.month && date.day == selected.day;
+                      final isToday = date.year == DateTime.now().year &&
+                        date.month == DateTime.now().month && date.day == DateTime.now().day;
+                      final dayInfo = info[day];
+                      final event = dayInfo?['event'] ?? '';
+                      return InkWell(
+                        borderRadius: BorderRadius.circular(11),
+                        onTap: () => setState(() => selected = date),
+                        child: Container(
+                          padding: const EdgeInsets.only(top: 5, bottom: 3),
+                          decoration: BoxDecoration(
+                            color: isSelected ? const Color(0xFF174C3B) :
+                              isToday ? const Color(0xFFFFE9BD) : const Color(0xFFF5F7F5),
+                            borderRadius: BorderRadius.circular(11),
+                            border: Border.all(color: isSelected
+                              ? const Color(0xFF174C3B) : const Color(0xFFE9EEEA)),
+                          ),
+                          child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                            Text('$day', style: TextStyle(fontSize: 13,
+                              fontWeight: isSelected || isToday ? FontWeight.w800 : FontWeight.w500,
+                              color: isSelected ? Colors.white : const Color(0xFF263C34))),
+                            const SizedBox(height: 2),
+                            Text(dayInfo?['tithi'] ?? '—',
+                              maxLines: 1, overflow: TextOverflow.clip,
+                              style: TextStyle(fontSize: 7,
+                                color: isSelected ? Colors.white70 : const Color(0xFF64766C))),
+                            if (event.isNotEmpty)
+                              Icon(Icons.circle, size: 5,
+                                color: isSelected ? const Color(0xFFFFD88A) : const Color(0xFFB27625)),
+                          ]),
+                        ),
+                      );
+                    },
                   );
                 },
               ),
             ]),
+          ),
+          const SizedBox(height: 14),
+          FutureBuilder<Map<int, Map<String, String>>>(
+            future: dayInfoFuture,
+            builder: (context, snapshot) {
+              final info = snapshot.data ?? const <int, Map<String, String>>{};
+              final events = info.entries.where((e) =>
+                (e.value['event'] ?? '').isNotEmpty).toList()
+                ..sort((a, b) => a.key.compareTo(b.key));
+              return Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: const Color(0xFFE2E9E4))),
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  const Text('इस माह के व्रत एवं तिथि संकेत',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800,
+                      color: Color(0xFF174C3B))),
+                  const SizedBox(height: 8),
+                  if (snapshot.connectionState == ConnectionState.waiting)
+                    const LinearProgressIndicator(minHeight: 2)
+                  else if (events.isEmpty)
+                    const Text('इस माह के तिथि-आधारित संकेत उपलब्ध नहीं हैं।',
+                      style: TextStyle(fontSize: 12, color: Colors.black54))
+                  else
+                    ...events.map((entry) => Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 7),
+                      child: Row(children: [
+                        const Icon(Icons.event_note, size: 18,
+                          color: Color(0xFF9A641E)),
+                        const SizedBox(width: 9),
+                        Expanded(child: Text(entry.value['event']!,
+                          style: const TextStyle(fontWeight: FontWeight.w700))),
+                        Text('${entry.key} ${months[month.month - 1]}',
+                          style: const TextStyle(fontSize: 12,
+                            color: Color(0xFF65736C))),
+                      ]),
+                    )),
+                  const SizedBox(height: 5),
+                  const Text('ये संकेत स्थानीय सूर्योदय की तिथि पर आधारित हैं; क्षेत्रीय पर्व-निर्णय अलग हो सकता है।',
+                    style: TextStyle(fontSize: 10, color: Colors.black54)),
+                ]),
+              );
+            },
           ),
           const SizedBox(height: 14),
           Container(
