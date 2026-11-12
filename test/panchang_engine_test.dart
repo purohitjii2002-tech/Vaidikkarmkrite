@@ -130,4 +130,51 @@ void main() {
       expect(atScorpioIngress, inInclusiveRange(209.7, 210.3));
     });
   });
+
+  group('Regional Samvatsara and Chaitradi era calculations', () {
+    const latitude = 23.1765;
+    const longitude = 75.7885;
+
+    test('60-year southern cycle is anchored to IMD 1948 Parabhava', () {
+      expect(PanchangEngine.southSamvatsaraForSakaYear(1948), 'पराभव');
+      expect(PanchangEngine.southSamvatsaraForSakaYear(1949), 'प्लवंग');
+      expect(PanchangEngine.southSamvatsaraForSakaYear(1950), 'कीलक');
+    });
+
+    test('Mesha ingress is calculated near the published April dates', () {
+      final ingress2026 = PanchangEngine.meshaSankrantiUtc(2026);
+      final ingress2027 = PanchangEngine.meshaSankrantiUtc(2027);
+      expect(ingress2026, isNotNull);
+      expect(ingress2027, isNotNull);
+      expect(ingress2026!.difference(DateTime.utc(2026, 4, 14)).inHours.abs(),
+          lessThan(24));
+      expect(ingress2027!.difference(DateTime.utc(2027, 4, 14)).inHours.abs(),
+          lessThan(24));
+    });
+
+    test('Ujjain Chaitra Shukla Pratipada sets Vikram 2084 on 7 Apr 2027', () {
+      final newYear = PanchangEngine.chaitraNewYearDate(
+        year: 2027,
+        latitude: latitude,
+        longitude: longitude,
+      );
+      expect(newYear, DateTime(2027, 4, 7));
+      expect(
+        PanchangEngine.vikramSamvatChaitradi(
+          localDate: DateTime(2027, 4, 6),
+          latitude: latitude,
+          longitude: longitude,
+        ),
+        2083,
+      );
+      expect(
+        PanchangEngine.vikramSamvatChaitradi(
+          localDate: DateTime(2027, 4, 7),
+          latitude: latitude,
+          longitude: longitude,
+        ),
+        2084,
+      );
+    });
+  });
 }
