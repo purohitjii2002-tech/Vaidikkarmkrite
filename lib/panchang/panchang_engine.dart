@@ -37,6 +37,12 @@ class PanchangEngine {
     'शकुनि','चतुष्पद','नाग','किंस्तुघ्न',
   ];
 
+  // Cache lunation boundaries because special-yoga evaluation samples many
+  // instants within one sunrise-to-sunrise day. The cache stores astronomical
+  // new-moon intervals; Purnimanta labels are derived from the current half.
+  static final List<({DateTime start, DateTime end, int sign, bool adhika})>
+      _lunarMonthCache = [];
+
   static double _norm(double x) => (x % 360 + 360) % 360;
   static double _rad(double x) => x * math.pi / 180;
   static double _deg(double x) => x * 180 / math.pi;
@@ -279,76 +285,117 @@ class PanchangEngine {
   /// Finds the Amanta and Purnimanta month labels from adjacent new moons.
   /// A lunation is named from the sidereal solar sign at its opening new moon;
   /// a lunation without a solar sign ingress is marked Adhika.
-  static Map<String, String> lunarMonthLabels(DateTime instant) {
+  static Map<String, String> lunarMonthLabels(
+    DateTime instant, {
+    bool? isKrishna,
+  }) {
     const monthBySunSign = <String>[
       'वैशाख','ज्येष्ठ','आषाढ़','श्रावण','भाद्रपद','आश्विन',
       'कार्तिक','मार्गशीर्ष','पौष','माघ','फाल्गुन','चैत्र',
     ];
+    final utcInstant = instant.toUtc();
     double elongation(DateTime t) {
       final p = tropicalLongitudes(t.toUtc());
       return _norm(p.moon - p.sun);
     }
+
+    Map<String, String> labelsFor(
+      int sign, bool adhika, bool krishna,
+    ) {
+      final amanta = monthBySunSign[sign];
+      final purnimantaSign = krishna ? (sign + 1) % 12 : sign;
+      final purnimanta = monthBySunSign[purnimantaSign];
+      return {
+        'amanta': adhika ? 'अधिक $amanta' : amanta,
+        'purnimanta': adhika && !krishna
+            ? 'अधिक $purnimanta' : purnimanta,
+      };
+    }
+
+    final krishna = isKrishna ?? elongation(utcInstant) >= 180;
+    for (final cached in _lunarMonthCache.reversed) {
+      if (!utcInstant.isBefore(cached.start) &&
+          utcInstant.isBefore(cached.end)) {
+        return labelsFor(cached.sign, cached.adhika, krishna);
+      }
+    }
+
     // Find the most recent new-moon crossing (elongation wraps 360 -> 0).
     DateTime? left;
     DateTime? right;
-    var newer = instant.toUtc();
+    var newer = utcInstant;
     for (var h = 6; h <= 36 * 24; h += 6) {
-      final older = instant.toUtc().subtract(Duration(hours: h));
+      final older = utcInstant.subtract(Duration(hours: h));
       final a = elongation(older);
       final b = elongation(newer);
-      if (a > 180 && b <= 180) { left = older; right = newer; break; }
+      if (a > 180 && b <= 180) {
+        left = older;
+        right = newer;
+        break;
+      }
       newer = older;
     }
     if (left == null || right == null) {
       return {'amanta': 'गणना उपलब्ध नहीं', 'purnimanta': 'गणना उपलब्ध नहीं'};
     }
-    // Refine the 360° -> 0° crossing to within approximately one second.
+
+    // Refine the new-moon instant to sub-second precision.
     var lo = left;
     var hi = right;
     for (var i = 0; i < 36; i++) {
-      final mid = lo.add(Duration(microseconds: hi.difference(lo).inMicroseconds ~/ 2));
-      if (elongation(mid) > 180) { lo = mid; } else { hi = mid; }
+      final mid = lo.add(Duration(
+        microseconds: hi.difference(lo).inMicroseconds ~/ 2));
+      if (elongation(mid) > 180) {
+        lo = mid;
+      } else {
+        hi = mid;
+      }
     }
     final newMoon = hi;
-    final sun = tropicalLongitudes(newMoon).sun;
-    final sign = (_norm(sun - lahiriAyanamsha(newMoon)) / 30).floor() % 12;
+    final sign = (_norm(tropicalLongitudes(newMoon).sun -
+        lahiriAyanamsha(newMoon)) / 30).floor() % 12;
 
-    // A second new moon with the same sidereal solar sign means no Sankranti
-    // occurred in this lunation: this is Adhika Maas.
+    // Find and refine the next new moon. Its solar sign determines whether
+    // this lunation is Adhika (same sign) or contains a normal Sankranti.
     var nextLeft = newMoon;
     DateTime? nextRight;
     for (var h = 6; h <= 36 * 24; h += 6) {
       final candidate = newMoon.add(Duration(hours: h));
-      if (elongation(nextLeft) < 180 && elongation(candidate) > 180) {
-        // Search for the next wrap; the scan above brackets the opposite
-        // half-cycle, so continue until the actual 360° -> 0° crossing.
-      }
-      final prevAngle = elongation(nextLeft);
+      final previousAngle = elongation(nextLeft);
       final currentAngle = elongation(candidate);
-      if (prevAngle > 180 && currentAngle <= 180) { nextRight = candidate; break; }
+      if (previousAngle > 180 && currentAngle <= 180) {
+        nextRight = candidate;
+        break;
+      }
       nextLeft = candidate;
     }
-    var adhika = false;
-    if (nextRight != null) {
-      var a = nextLeft;
-      var b = nextRight;
-      for (var i = 0; i < 36; i++) {
-        final mid = a.add(Duration(microseconds: b.difference(a).inMicroseconds ~/ 2));
-        if (elongation(mid) > 180) { a = mid; } else { b = mid; }
-      }
-      final nextSign = (_norm(tropicalLongitudes(b).sun -
-          lahiriAyanamsha(b)) / 30).floor() % 12;
-      adhika = nextSign == sign;
+    if (nextRight == null) {
+      return {'amanta': 'गणना उपलब्ध नहीं', 'purnimanta': 'गणना उपलब्ध नहीं'};
     }
-    final amanta = monthBySunSign[sign];
-    final isKrishna = elongation(instant.toUtc()) >= 180;
-    final purnimantaSign = isKrishna ? (sign + 1) % 12 : sign;
-    final purnimanta = monthBySunSign[purnimantaSign];
-    return {
-      'amanta': adhika ? 'अधिक $amanta' : amanta,
-      'purnimanta': adhika && !isKrishna
-          ? 'अधिक $purnimanta' : purnimanta,
-    };
+    var a = nextLeft;
+    var b = nextRight;
+    for (var i = 0; i < 36; i++) {
+      final mid = a.add(Duration(
+        microseconds: b.difference(a).inMicroseconds ~/ 2));
+      if (elongation(mid) > 180) {
+        a = mid;
+      } else {
+        b = mid;
+      }
+    }
+    final nextSign = (_norm(tropicalLongitudes(b).sun -
+        lahiriAyanamsha(b)) / 30).floor() % 12;
+    final adhika = nextSign == sign;
+    _lunarMonthCache.add((
+      start: newMoon,
+      end: b,
+      sign: sign,
+      adhika: adhika,
+    ));
+    if (_lunarMonthCache.length > 8) {
+      _lunarMonthCache.removeAt(0);
+    }
+    return labelsFor(sign, adhika, krishna);
   }
 
   /// Geocentric moonrise and moonset using Meeus rise/set interpolation.
