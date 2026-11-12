@@ -56,6 +56,31 @@ void main() {
           lessThanOrEqualTo(120));
     });
 
+    test('11 Nov 2026 Ujjain sunrise Panchang matches independent references', () {
+      final sunrise = DateTime.utc(2026, 11, 11, 1, 8);
+      final limbs = PanchangEngine.indicesAt(sunrise);
+
+      // RealPanchang, Vedangam and PanchangSaathi independently report
+      // Kartika Shukla Dwitiya and Anuradha at Ujjain sunrise.
+      expect(limbs['tithi'], 1); // Shukla Dwitiya, zero-based
+      expect(limbs['nakshatra'], 16); // Anuradha, zero-based
+      expect(PanchangEngine.lunarMonthLabels(sunrise)['amanta'], 'कार्तिक');
+      expect(PanchangEngine.lunarMonthLabels(sunrise)['purnimanta'], 'कार्तिक');
+    });
+
+    test('11 Nov 2026 Ujjain moonrise agrees with published reference', () {
+      final events = PanchangEngine.moonEvents(
+        localDate: DateTime(2026, 11, 11),
+        latitude: latitude,
+        longitude: longitude,
+      );
+      expect(events.rise, isNotNull);
+      // Published Ujjain references cluster around 08:22–08:27 IST.
+      final expectedUtc = DateTime.utc(2026, 11, 11, 2, 53);
+      expect(events.rise!.toUtc().difference(expectedUtc).inSeconds.abs(),
+          lessThanOrEqualTo(5 * 60));
+    });
+
     test('sunrise ascendant is Tula and Scorpio begins near 07:07 IST', () {
       // MyPanchang Ujjain Lagna table: 11 Nov 2026 Tula until 07:07:06 IST.
       final atSunrise = PanchangEngine.ascendantSiderealLongitude(
