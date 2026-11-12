@@ -44,6 +44,124 @@ class PanchangEngine {
       _lunarMonthCache = [];
 
   static double _norm(double x) => (x % 360 + 360) % 360;
+
+  static const samvatsaraNames = <String>[
+    'प्रभव','विभव','शुक्ल','प्रमोद','प्रजापति','आङ्गिरस','श्रीमुख','भाव',
+    'युव','धाता','ईश्वर','बहुधान्य','प्रमाथी','विक्रम','वृष','चित्रभानु',
+    'स्वभानु','तारण','पार्थिव','व्यय','सर्वजित्','सर्वधारी','विरोधी',
+    'विकृति','खर','नन्दन','विजय','जय','मन्मथ','दुर्मुख','हेमलम्बी',
+    'विलम्बी','विकारी','शार्वरी','प्लव','शुभकृत्','शोभकृत्','क्रोधी',
+    'विश्वावसु','पराभव','प्लवंग','कीलक','सौम्य','साधारण','विरोधकृत्',
+    'परिधावी','प्रमादी','आनन्द','राक्षस','अनल','पिंगल','कालयुक्त',
+    'सिद्धार्थी','रौद्र','दुर्मति','दुन्दुभि','रुधिरोद्गारी','रक्ताक्ष',
+    'क्रोधन','क्षय',
+  ];
+
+  /// Mesha ingress (sidereal solar longitude 0°) in the requested Gregorian
+  /// year. Returned in UTC; the local calendar date depends on the observer's
+  /// time zone. The scan is deliberately bounded to April.
+  static DateTime? meshaSankrantiUtc(int year) {
+    double sunLongitude(DateTime instant) {
+      final p = tropicalLongitudes(instant);
+      return _norm(p.sun - lahiriAyanamsha(instant));
+    }
+
+    var previous = DateTime.utc(year, 4, 1);
+    var previousLongitude = sunLongitude(previous);
+    for (var hour = 1; hour <= 30 * 24; hour++) {
+      final current = DateTime.utc(year, 4, 1).add(Duration(hours: hour));
+      final longitude = sunLongitude(current);
+      if (previousLongitude >= 350 && longitude < 10) {
+        var low = previous;
+        var high = current;
+        for (var i = 0; i < 40; i++) {
+          final middle = low.add(Duration(
+            microseconds: high.difference(low).inMicroseconds ~/ 2,
+          ));
+          if (sunLongitude(middle) >= 350) {
+            low = middle;
+          } else {
+            high = middle;
+          }
+        }
+        return high;
+      }
+      previous = current;
+      previousLongitude = longitude;
+    }
+    return null;
+  }
+
+  /// South-Indian Meshadi Barhaspatya year, calibrated to the IMD
+  /// Rashtriya Panchanga: Saka 1948 = Parabhava (40).
+  static String southSamvatsaraForSakaYear(int sakaYear) {
+    final index = (sakaYear + 11) % 60;
+    return samvatsaraNames[index];
+  }
+
+  static String? southSamvatsaraAt(DateTime localDate) {
+    final ingressUtc = meshaSankrantiUtc(localDate.year);
+    if (ingressUtc == null) return null;
+    final ingressLocal = ingressUtc.toLocal();
+    final date = DateTime(localDate.year, localDate.month, localDate.day);
+    final ingressDate = DateTime(
+      ingressLocal.year, ingressLocal.month, ingressLocal.day,
+    );
+    final sakaSolarYear = date.isBefore(ingressDate)
+        ? localDate.year - 1 : localDate.year;
+    return southSamvatsaraForSakaYear(sakaSolarYear - 78);
+  }
+
+  static final Map<String, DateTime?> _chaitraNewYearCache = {};
+
+  /// First local sunrise on Chaitra Shukla Pratipada. This gives a location-
+  /// aware Chaitradi year boundary instead of assuming a fixed March date.
+  static DateTime? chaitraNewYearDate({
+    required int year,
+    required double latitude,
+    required double longitude,
+  }) {
+    final key = '$year:${latitude.toStringAsFixed(4)}:${longitude.toStringAsFixed(4)}';
+    if (_chaitraNewYearCache.containsKey(key)) {
+      return _chaitraNewYearCache[key];
+    }
+    for (var day = DateTime(year, 3, 1);
+        !day.isAfter(DateTime(year, 4, 20));
+        day = day.add(const Duration(days: 1))) {
+      final sunrise = solarEvent(
+        localDate: day,
+        latitude: latitude,
+        longitude: longitude,
+        sunrise: true,
+      );
+      if (sunrise == null) continue;
+      final limbs = indicesAt(sunrise);
+      if (limbs['tithi'] == 0 &&
+          lunarMonthLabels(sunrise)['amanta'] == 'चैत्र') {
+        final result = DateTime(day.year, day.month, day.day);
+        _chaitraNewYearCache[key] = result;
+        return result;
+      }
+    }
+    _chaitraNewYearCache[key] = null;
+    return null;
+  }
+
+  static int? vikramSamvatChaitradi({
+    required DateTime localDate,
+    required double latitude,
+    required double longitude,
+  }) {
+    final newYear = chaitraNewYearDate(
+      year: localDate.year,
+      latitude: latitude,
+      longitude: longitude,
+    );
+    if (newYear == null) return null;
+    final date = DateTime(localDate.year, localDate.month, localDate.day);
+    return localDate.year + (date.isBefore(newYear) ? 56 : 57);
+  }
+
   static double _rad(double x) => x * math.pi / 180;
   static double _deg(double x) => x * 180 / math.pi;
 
