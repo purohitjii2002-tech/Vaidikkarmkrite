@@ -1239,12 +1239,12 @@ class _PanchangScreenState extends State<PanchangScreen> {
     // Weekday is Sunday=0 ... Saturday=6. Tithis below are numbered
     // 1..15 within each paksha; nakshatras are zero-based from Ashwini.
     // Muhurta Cintamani 1.28–29. Friday follows the Sanskrit
-    // reading भाग्य (Purva Phalguni), not Anuradha; some modern
-    // secondary tables differ, so preserve the verse-based reading.
+    // reading भाग्य (Purva Phalguni), zero-based nakshatra index 10,
+    // not Anuradha as in some modern secondary tables.
     const sarvartha = <List<int>>[
       [0, 7, 11, 12, 18, 20, 25], [3, 4, 7, 16, 21],
       [0, 2, 8, 25], [2, 3, 4, 12, 16], [0, 6, 7, 16, 26],
-      [0, 6, 13, 21, 26], [3, 14, 21],
+      [0, 6, 10, 21, 26], [3, 14, 21],
     ];
     const amritSiddhi = [12, 4, 0, 16, 7, 26, 3];
     const siddhaTithis = <int, List<int>>{
