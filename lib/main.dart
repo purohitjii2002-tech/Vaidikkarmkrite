@@ -324,206 +324,192 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: selectedTab == 0 ? AppBar(
-        title: const BrandMark(dark: true),
-        actions: [
-          IconButton(
-            tooltip: tr('notifications'),
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const NotificationsScreen()),
-            ),
-            icon: const Icon(Icons.notifications_none_rounded),
-          ),
-          PopupMenuButton<String>(
-            tooltip: tr('select'),
-            icon: const Icon(Icons.language_rounded),
-            onSelected: widget.onLanguageChanged,
-            itemBuilder: (context) => const [
-              PopupMenuItem(value: 'hi', child: Text('हिंदी')),
-              PopupMenuItem(value: 'sa', child: Text('संस्कृत')),
-              PopupMenuItem(value: 'en', child: Text('English')),
-            ],
-          ),
-          const SizedBox(width: 6),
-        ],
-      ) : null,
+      backgroundColor: const Color(0xFFF4F1E8),
       body: selectedTab == 0 ? _homeBody() : _otherTabBody(),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: selectedTab,
-        onDestinationSelected: (index) {
-          setState(() => selectedTab = index);
-        },
-        destinations: [
-          NavigationDestination(
-            icon: const Icon(Icons.home_outlined),
-            selectedIcon: const Icon(Icons.home_rounded),
-            label: tr('home'),
-          ),
-          NavigationDestination(
-            icon: const Icon(Icons.menu_book_outlined),
-            label: tr('library'),
-          ),
-          NavigationDestination(
-            icon: const Icon(Icons.bookmark_border_rounded),
-            label: tr('saved'),
-          ),
-        ],
+      bottomNavigationBar: SafeArea(
+        top: false,
+        child: Container(
+          margin: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
+          decoration: BoxDecoration(color: const Color(0xFF102F29), borderRadius: BorderRadius.circular(24),
+            boxShadow: const [BoxShadow(color: Color(0x24102F29), blurRadius: 22, offset: Offset(0, 8))]),
+          child: Row(children: [
+            _navItem(0, Icons.grid_view_rounded, tr('home')),
+            _navItem(1, Icons.auto_stories_rounded, tr('library')),
+            _navItem(2, Icons.bookmark_rounded, tr('saved')),
+          ]),
+        ),
       ),
     );
+  }
+
+  Widget _navItem(int index, IconData icon, String label) {
+    final selected = selectedTab == index;
+    return Expanded(child: InkWell(
+      borderRadius: BorderRadius.circular(18),
+      onTap: () => setState(() => selectedTab = index),
+      child: AnimatedContainer(duration: const Duration(milliseconds: 220),
+        padding: const EdgeInsets.symmetric(vertical: 9),
+        decoration: BoxDecoration(color: selected ? const Color(0xFF244D41) : Colors.transparent,
+          borderRadius: BorderRadius.circular(18)),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Icon(icon, size: 21, color: selected ? const Color(0xFFE8C77C) : const Color(0xFFB8C8BE)),
+          const SizedBox(height: 4),
+          Text(label, style: TextStyle(fontSize: 10, fontWeight: selected ? FontWeight.w800 : FontWeight.w500,
+            color: selected ? const Color(0xFFFFE8B6) : const Color(0xFFB8C8BE))),
+        ]),
+      ),
+    ));
   }
 
   Widget _homeBody() {
     return FutureBuilder<List<ModuleInfo>>(
       future: modulesFuture,
       builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(
-            child: CircularProgressIndicator(),
-          );
-        }
-
-        if (snapshot.hasError) {
-          return Center(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(
-                    Icons.cloud_off_rounded,
-                    size: 48,
-                    color: Color(0xFF79502B),
-                  ),
-                  const SizedBox(height: 12),
-                  const Text(
-                    'डेटाबेस से जानकारी नहीं मिल सकी।',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 12),
-                  SelectableText(
-                    snapshot.error.toString(),
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      color: Colors.red,
-                      fontSize: 13,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  ElevatedButton(
-                    onPressed: refreshModules,
-                    child: const Text('दोबारा प्रयास करें'),
-                  ),
-                ],
-              ),
-            ),
-          );
-        }
+        if (snapshot.connectionState == ConnectionState.waiting)
+          return const Center(child: CircularProgressIndicator(color: Color(0xFFB18A43)));
+        if (snapshot.hasError) return Center(child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            const Icon(Icons.cloud_off_rounded, size: 48, color: Color(0xFF174A3E)),
+            const SizedBox(height: 12),
+            const Text('डेटाबेस से जानकारी नहीं मिल सकी।', textAlign: TextAlign.center,
+              style: TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 16),
+            ElevatedButton(onPressed: refreshModules, child: const Text('दोबारा प्रयास करें')),
+          ]),
+        ));
 
         final allModules = snapshot.data ?? [];
-
-        final filteredModules = allModules.where((module) {
-          final query = searchText.trim().toLowerCase();
-
-          if (query.isEmpty) return true;
-
-          return module.title.toLowerCase().contains(query) ||
-              module.subtitle.toLowerCase().contains(query);
+        final filtered = allModules.where((m) {
+          final q = searchText.trim().toLowerCase();
+          return q.isEmpty || m.title.toLowerCase().contains(q) || m.subtitle.toLowerCase().contains(q);
         }).toList();
+        final now = DateTime.now();
+        const months = ['जनवरी','फरवरी','मार्च','अप्रैल','मई','जून','जुलाई','अगस्त','सितंबर','अक्टूबर','नवंबर','दिसंबर'];
 
         return RefreshIndicator(
-          onRefresh: refreshModules,
-          child: SingleChildScrollView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _welcomeBanner(),
-                const SizedBox(height: 18),
-                _quickAccessStrip(),
-                const SizedBox(height: 18),
-                const HomeBanners(),
-                const SizedBox(height: 12),
-                TextField(
-                  onChanged: (value) {
-                    setState(() => searchText = value);
-                  },
-                  decoration: InputDecoration(
-                    hintText: tr('search'),
-                    prefixIcon: const Icon(Icons.search_rounded),
-                    filled: true,
-                    fillColor: const Color(0xFFFFFCF4),
-                    contentPadding: const EdgeInsets.symmetric(vertical: 17, horizontal: 16),
-                    prefixIconColor: const Color(0xFF9A7A42),
-                    hintStyle: const TextStyle(color: Color(0xFF988B76), fontSize: 13),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(17),
-                      borderSide: const BorderSide(color: Color(0xFFE2D5B8)),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(17),
-                      borderSide: const BorderSide(color: Color(0xFFE2D5B8)),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(17),
-                      borderSide: const BorderSide(color: Color(0xFFC9A45C), width: 1.5),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 24),
+          color: const Color(0xFFB18A43), onRefresh: refreshModules,
+          child: CustomScrollView(physics: const AlwaysScrollableScrollPhysics(), slivers: [
+            SliverToBoxAdapter(child: Container(
+              padding: EdgeInsets.fromLTRB(22, MediaQuery.of(context).padding.top + 15, 22, 28),
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight,
+                  colors: [Color(0xFF0D2924), Color(0xFF174A3E), Color(0xFF225C4C)]),
+                borderRadius: BorderRadius.vertical(bottom: Radius.circular(34))),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Row(children: [
-                  Container(width: 4, height: 24, decoration: BoxDecoration(
-                    color: const Color(0xFFC9A45C), borderRadius: BorderRadius.circular(4))),
-                  const SizedBox(width: 10),
-                  Expanded(child: Text(tr('modules'), style: const TextStyle(
-                    fontSize: 19, fontWeight: FontWeight.w900, color: Color(0xFF173E34)))),
-                  const Text('EXPLORE', style: TextStyle(fontSize: 9, letterSpacing: 1.6,
-                    fontWeight: FontWeight.w900, color: Color(0xFF9A7A42))),
+                  Container(width: 42, height: 42, decoration: BoxDecoration(shape: BoxShape.circle,
+                    border: Border.all(color: Color(0xFFD7B66B), width: 1.2), color: Colors.white.withOpacity(.08)),
+                    child: const Center(child: Text('ॐ', style: TextStyle(color: Color(0xFFFFD98B), fontSize: 25)))),
+                  const SizedBox(width: 11),
+                  const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text('KARMKRITE', style: TextStyle(color: Color(0xFFFFE5AF), fontWeight: FontWeight.w900,
+                      letterSpacing: 2.1, fontSize: 13)),
+                    SizedBox(height: 3),
+                    Text('THE VEDIC KNOWLEDGE EXPERIENCE', style: TextStyle(color: Color(0xFFC7D8CE),
+                      letterSpacing: 1.05, fontSize: 8, fontWeight: FontWeight.w600)),
+                  ])),
+                  IconButton(tooltip: tr('notifications'),
+                    onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const NotificationsScreen())),
+                    icon: const Icon(Icons.notifications_none_rounded, color: Color(0xFFFFE5AF))),
+                  PopupMenuButton<String>(tooltip: tr('select'),
+                    icon: const Icon(Icons.translate_rounded, color: Color(0xFFFFE5AF)),
+                    onSelected: widget.onLanguageChanged,
+                    itemBuilder: (_) => const [
+                      PopupMenuItem(value: 'hi', child: Text('हिंदी')),
+                      PopupMenuItem(value: 'sa', child: Text('संस्कृत')),
+                      PopupMenuItem(value: 'en', child: Text('English')),
+                    ]),
                 ]),
-                const SizedBox(height: 12),
-                if (filteredModules.isEmpty)
-                  const Center(
-                    child: Padding(
-                      padding: EdgeInsets.all(24),
-                      child: Text('कोई Category नहीं मिली।'),
-                    ),
-                  )
-                else
-                  ListView.separated(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    itemCount: filteredModules.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 10),
-                    itemBuilder: (context, index) {
-                      final module = filteredModules[index];
-                      return SizedBox(
-                        height: 94,
-                        child: ModuleCard(
-                          module: module,
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => ModuleScreen(
-                                  module: module,
-                                  language: widget.language,
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-                      );
-                    },
-                  ),
-                const SizedBox(height: 22),
-                _dailyThought(),
-              ],
-            ),
-          ),
+                const SizedBox(height: 27),
+                const Text('ज्ञान की परंपरा,\nअब आपकी उँगलियों पर।',
+                  style: TextStyle(color: Colors.white, fontSize: 27, height: 1.2, fontWeight: FontWeight.w800)),
+                const SizedBox(height: 9),
+                const Text('वेद, शास्त्र, मंत्र और संस्कारों का सुव्यवस्थित डिजिटल संग्रह।',
+                  style: TextStyle(color: Color(0xFFD9E5DE), fontSize: 12, height: 1.55)),
+                const SizedBox(height: 20),
+                Row(children: [
+                  const Icon(Icons.calendar_today_rounded, size: 13, color: Color(0xFFE7C77D)),
+                  const SizedBox(width: 7),
+                  Text('${now.day} ${months[now.month - 1]} ${now.year}',
+                    style: const TextStyle(color: Color(0xFFFFE5AF), fontSize: 11, fontWeight: FontWeight.w700)),
+                  const Spacer(),
+                  const Text('TRADITION • KNOWLEDGE • PRACTICE',
+                    style: TextStyle(color: Color(0xFFB8CFC2), fontSize: 8, letterSpacing: .8)),
+                ]),
+              ]),
+            )),
+            SliverPadding(padding: const EdgeInsets.fromLTRB(20, 22, 20, 12),
+              sliver: SliverToBoxAdapter(child: TextField(
+                onChanged: (value) => setState(() => searchText = value),
+                decoration: InputDecoration(hintText: tr('search'),
+                  prefixIcon: const Icon(Icons.search_rounded, color: Color(0xFF9A7A42)),
+                  suffixIcon: const Icon(Icons.tune_rounded, color: Color(0xFF9A7A42)),
+                  filled: true, fillColor: const Color(0xFFFFFEFA),
+                  contentPadding: const EdgeInsets.symmetric(vertical: 17),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(17),
+                    borderSide: const BorderSide(color: Color(0xFFE3D9C5))),
+                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(17),
+                    borderSide: const BorderSide(color: Color(0xFFE3D9C5))),
+                  focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(17),
+                    borderSide: const BorderSide(color: Color(0xFFB18A43), width: 1.4))),
+              ))),
+            SliverPadding(padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
+              sliver: SliverToBoxAdapter(child: Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
+                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  const Text('DISCOVER', style: TextStyle(color: Color(0xFFAD8743), fontSize: 9,
+                    letterSpacing: 2, fontWeight: FontWeight.w900)),
+                  const SizedBox(height: 4),
+                  Text(tr('modules'), style: const TextStyle(color: Color(0xFF173E34), fontSize: 21,
+                    fontWeight: FontWeight.w900)),
+                ])),
+                Text('${filtered.length.toString().padLeft(2, '0')} COLLECTIONS',
+                  style: const TextStyle(color: Color(0xFF8B887D), fontSize: 9, letterSpacing: .8, fontWeight: FontWeight.w700)),
+              ]))),
+            if (filtered.isEmpty)
+              const SliverToBoxAdapter(child: Padding(padding: EdgeInsets.all(30),
+                child: Center(child: Text('कोई Category नहीं मिली।'))))
+            else
+              SliverPadding(padding: const EdgeInsets.fromLTRB(20, 10, 20, 12),
+                sliver: SliverGrid(
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2, crossAxisSpacing: 12, mainAxisSpacing: 12, childAspectRatio: 1.12),
+                  delegate: SliverChildBuilderDelegate((context, index) => _modernCategoryTile(filtered[index]),
+                    childCount: filtered.length))),
+            SliverPadding(padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
+              sliver: SliverToBoxAdapter(child: _dailyThought())),
+          ]),
         );
       },
+    );
+  }
+
+  Widget _modernCategoryTile(ModuleInfo module) {
+    return Material(color: const Color(0xFFFFFEFA), borderRadius: BorderRadius.circular(22),
+      child: InkWell(borderRadius: BorderRadius.circular(22),
+        onTap: () => Navigator.push(context, MaterialPageRoute(
+          builder: (_) => ModuleScreen(module: module, language: widget.language)),
+        child: Container(padding: const EdgeInsets.fromLTRB(15, 15, 13, 13),
+          decoration: BoxDecoration(borderRadius: BorderRadius.circular(22),
+            border: Border.all(color: const Color(0xFFE5DCC9)),
+            boxShadow: const [BoxShadow(color: Color(0x0B1B382F), blurRadius: 16, offset: Offset(0, 6))]),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Row(children: [
+              Container(width: 46, height: 46, decoration: BoxDecoration(
+                color: const Color(0xFFECE7D9), borderRadius: BorderRadius.circular(15)),
+                alignment: Alignment.center, child: Text(module.icon, style: const TextStyle(fontSize: 25))),
+              const Spacer(), const Icon(Icons.north_east_rounded, color: Color(0xFFB18A43), size: 19),
+            ]),
+            const Spacer(),
+            Text(module.title, maxLines: 2, overflow: TextOverflow.ellipsis,
+              style: const TextStyle(color: Color(0xFF173E34), fontSize: 14, height: 1.25, fontWeight: FontWeight.w900)),
+            const SizedBox(height: 5),
+            Text(module.subtitle, maxLines: 2, overflow: TextOverflow.ellipsis,
+              style: const TextStyle(color: Color(0xFF898477), fontSize: 10, height: 1.35)),
+          ]),
+        ),
+      ),
     );
   }
 
