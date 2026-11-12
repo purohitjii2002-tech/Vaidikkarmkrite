@@ -112,6 +112,19 @@ class PanchangEngine {
     return southSamvatsaraForSakaYear(sakaSolarYear - 78);
   }
 
+  static int? traditionalSakaSolarYearAt(DateTime localDate) {
+    final ingressUtc = meshaSankrantiUtc(localDate.year);
+    if (ingressUtc == null) return null;
+    final ingressLocal = ingressUtc.toLocal();
+    final date = DateTime(localDate.year, localDate.month, localDate.day);
+    final ingressDate = DateTime(
+      ingressLocal.year, ingressLocal.month, ingressLocal.day,
+    );
+    final solarYear = date.isBefore(ingressDate)
+        ? localDate.year - 1 : localDate.year;
+    return solarYear - 78;
+  }
+
   static final Map<String, DateTime?> _chaitraNewYearCache = {};
 
   /// First local sunrise on Chaitra Shukla Pratipada. This gives a location-
