@@ -1291,7 +1291,9 @@ class _PanchangScreenState extends State<PanchangScreen> {
       // Panchami, Shashthi, Saptami, Ashtami, Navami, Dashami, Ekadashi).
       const amritSiddhiAvoidTithi = [5, 6, 7, 8, 9, 10, 11];
       if (amritSiddhi[weekday] == nak &&
-          amritSiddhiAvoidTithi[weekday] != tithiNo) {
+          amritSiddhiAvoidTithi[weekday] == tithiNo) {
+        mark('निषिद्ध वार-नक्षत्र-तिथि संयोग', false);
+      } else if (amritSiddhi[weekday] == nak) {
         mark('अमृत सिद्धि योग', true);
       }
       if (weekday == 0 && nak == 7) mark('रवि पुष्य योग', true);
