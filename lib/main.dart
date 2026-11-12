@@ -1060,7 +1060,7 @@ class _ModuleScreenState extends State<ModuleScreen> {
 
 // Full Content Detail Screen
 class SaveItemButton extends StatefulWidget { final Map<String,dynamic> item; const SaveItemButton({super.key,required this.item}); @override State<SaveItemButton> createState()=>_SaveItemButtonState(); }
-class _SaveItemButtonState extends State<SaveItemButton>{ bool saved=false; bool busy=false; @override void initState(){super.initState();SavedStore.has(widget.item).then((v){if(mounted)setState(()=>saved=v);});} Future<void> toggle() async {if(busy)return;setState(()=>busy=true);await SavedStore.toggle({...widget.item,'_remove':saved});if(!mounted)return;setState((){saved=!saved;busy=false;});ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(saved?'सहेज दिया गया।':'सहेजी गई सामग्री से हटाया गया।')));} @override Widget build(BuildContext context)=>IconButton(tooltip:saved?'सहेजे गए से हटाएँ':'सहेजें',onPressed:busy?null:toggle,icon:Icon(saved?Icons.bookmark:Icons.bookmark_border,color:const Color(0xFF79502B))); }
+class _SaveItemButtonState extends State<SaveItemButton>{ bool saved=false; bool busy=false; @override void initState(){super.initState();SavedStore.has(widget.item).then((v){if(mounted)setState(()=>saved=v);});} Future<void> toggle() async {if(busy)return;setState(()=>busy=true);await SavedStore.toggle({...widget.item,'_remove':saved});if(!mounted)return;setState((){saved=!saved;busy=false;});ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(saved?'सहेज दिया गया।':'सहेजी गई सामग्री से हटाया गया।')));} @override Widget build(BuildContext context)=>IconButton(tooltip:saved?'सहेजे गए से हटाएँ':'सहेजें',onPressed:busy?null:toggle,icon:Icon(saved?Icons.bookmark:Icons.bookmark_border,color:const Color(0xFF173E34))); }
 class SavedStore {
   static const key = 'saved_content_items';
   static Future<List<Map<String,dynamic>>> read() async {
@@ -1195,7 +1195,7 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
             borderRadius: BorderRadius.circular(22),
             gradient: const LinearGradient(
               begin: Alignment.topLeft, end: Alignment.bottomRight,
-              colors: [Color(0xFF49301F), Color(0xFF79502E), Color(0xFF9A7044)],
+              colors: [Color(0xFF0C2D26), Color(0xFF145044), Color(0xFF1C6553)],
             ),
             border: Border.all(color: const Color(0xFFD9B879), width: 0.8),
             boxShadow: const [BoxShadow(color: Color(0x18000000), blurRadius: 15, offset: Offset(0, 6))],
@@ -1205,7 +1205,7 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
               const Icon(Icons.auto_stories_rounded, color: Color(0xFFE8C987), size: 18),
               const SizedBox(width: 7),
               const Text('KARMKRITE  •  ज्ञान-संग्रह',
-                style: TextStyle(color: Color(0xFFE8C987), fontSize: 10, fontWeight: FontWeight.w800, letterSpacing: 1.1)),
+                style: TextStyle(color: Color(0xFFFFD98B), fontSize: 10, fontWeight: FontWeight.w800, letterSpacing: 1.1)),
               const Spacer(),
               if (saved) const Icon(Icons.bookmark_rounded, color: Color(0xFFE8C987), size: 18),
             ]),
@@ -1223,8 +1223,8 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
           const SizedBox(height: 18),
           Container(
             padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(color: const Color(0xFFFFFEFA),
-              borderRadius: BorderRadius.circular(18), border: Border.all(color: const Color(0xFFE9DCC8))),
+            decoration: BoxDecoration(color: const Color(0xFFFFFCF4),
+              borderRadius: BorderRadius.circular(18), border: Border.all(color: const Color(0xFFE0D4B9))),
             child: ClipRRect(borderRadius: BorderRadius.circular(12),
               child: _cachedMediaFile != null && _cachedMediaFile!.existsSync()
                   ? Image.file(_cachedMediaFile!, width: double.infinity, fit: BoxFit.contain)
@@ -1237,19 +1237,19 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
         if (widget.mediaType == 'audio' && widget.mediaUrl.isNotEmpty) ...[
           const SizedBox(height: 18),
           Card(
-            color: const Color(0xFFFFFEFA),
+            color: const Color(0xFFFFFCF4),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18),
-              side: const BorderSide(color: Color(0xFFE9DCC8))),
+              side: const BorderSide(color: Color(0xFFD9C99F))),
             child: Padding(padding: const EdgeInsets.fromLTRB(12, 12, 16, 10), child: Row(children: [
               IconButton(
-                iconSize: 42, color: const Color(0xFF79502B), onPressed: playPause,
+                iconSize: 42, color: const Color(0xFF174A3E), onPressed: playPause,
                 icon: Icon(_playerState == PlayerState.playing ? Icons.pause_circle_filled_rounded : Icons.play_circle_fill_rounded)),
               Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 const Text('ऑडियो सुनें', style: TextStyle(fontWeight: FontWeight.w800, color: Color(0xFF563719))),
                 Slider(value: _duration.inMilliseconds == 0 ? 0 :
                   _position.inMilliseconds.clamp(0, _duration.inMilliseconds).toDouble(),
                   max: _duration.inMilliseconds == 0 ? 1 : _duration.inMilliseconds.toDouble(),
-                  activeColor: const Color(0xFF9A7044),
+                  activeColor: const Color(0xFFC9A45C),
                   onChanged: _duration.inMilliseconds == 0 ? null :
                     (v) => _audioPlayer.seek(Duration(milliseconds: v.round()))),
                 Text('${_position.inSeconds} / ${_duration.inSeconds} सेकंड',
@@ -1264,7 +1264,7 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
             color: const Color(0xFFD5A34B), borderRadius: BorderRadius.circular(4))),
           const SizedBox(width: 9),
           const Text('विस्तृत जानकारी', style: TextStyle(
-            fontSize: 17, fontWeight: FontWeight.w800, color: Color(0xFF563719))),
+            fontSize: 17, fontWeight: FontWeight.w800, color: Color(0xFF173E34))),
         ]),
         const SizedBox(height: 12),
         Container(
@@ -1627,7 +1627,7 @@ class _InAppPdfReaderState extends State<InAppPdfReader> {
   @override
   Widget build(BuildContext context){
     return Scaffold(
-      backgroundColor:const Color(0xFFF5F0E7),
+      backgroundColor:const Color(0xFFF5F1E7),
       appBar:AppBar(
         title:Row(children:[
           const Icon(Icons.menu_book_rounded,color:Color(0xFFE8C987),size:20),
@@ -1659,8 +1659,8 @@ class _InAppPdfReaderState extends State<InAppPdfReader> {
               padding:const EdgeInsets.all(24),
               child:Container(
                 padding:const EdgeInsets.all(22),
-                decoration:BoxDecoration(color:const Color(0xFFFFFEFA),borderRadius:BorderRadius.circular(20),
-                  border:Border.all(color:const Color(0xFFE9DCC8))),
+                decoration:BoxDecoration(color:const Color(0xFFFFFCF4),borderRadius:BorderRadius.circular(20),
+                  border:Border.all(color:const Color(0xFFD9C99F))),
                 child:Column(mainAxisSize:MainAxisSize.min,children:[
                   const Icon(Icons.picture_as_pdf_outlined,size:52,color:Color(0xFF79502B)),
                   const SizedBox(height:12),
@@ -1681,8 +1681,8 @@ class _InAppPdfReaderState extends State<InAppPdfReader> {
               padding:const EdgeInsets.fromLTRB(12,10,12,9),
               child:Container(
                 padding:const EdgeInsets.fromLTRB(12,8,8,8),
-                decoration:BoxDecoration(color:const Color(0xFFFFFEFA),borderRadius:BorderRadius.circular(16),
-                  border:Border.all(color:const Color(0xFFE8DCCB)),
+                decoration:BoxDecoration(color:const Color(0xFFFFFCF4),borderRadius:BorderRadius.circular(16),
+                  border:Border.all(color:const Color(0xFFD9C99F)),
                   boxShadow:const [BoxShadow(color:Color(0x0C000000),blurRadius:9,offset:Offset(0,3))]),
                 child:Row(children:[
                   const Icon(Icons.search_rounded,color:Color(0xFF98652D),size:21),
@@ -1696,7 +1696,7 @@ class _InAppPdfReaderState extends State<InAppPdfReader> {
                   )),
                   Container(
                     padding:const EdgeInsets.symmetric(horizontal:9,vertical:7),
-                    decoration:BoxDecoration(color:const Color(0xFFFFF1D9),borderRadius:BorderRadius.circular(9)),
+                    decoration:BoxDecoration(color:const Color(0xFFECE2C9),borderRadius:BorderRadius.circular(9)),
                     child:Text(_totalPages>0 ? '$_currentPage / $_totalPages' : 'पेज',
                       style:const TextStyle(fontSize:11,fontWeight:FontWeight.w800,color:Color(0xFF79502B))),
                   ),
@@ -1862,7 +1862,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             itemBuilder: (context,index) {
               final item=items[index];
               return Card(child:ListTile(
-                leading:const CircleAvatar(backgroundColor:Color(0xFFFFF0D5),child:Icon(Icons.notifications_active_outlined,color:Color(0xFF79502B))),
+                leading:const CircleAvatar(backgroundColor:Color(0xFFECE2C9),child:Icon(Icons.notifications_active_outlined,color:Color(0xFF174A3E))),
                 title:Text((item['title']??'').toString(),style:const TextStyle(fontWeight:FontWeight.bold)),
                 subtitle:Padding(padding:const EdgeInsets.only(top:6),child:Text((item['message']??'').toString())),
               ));
