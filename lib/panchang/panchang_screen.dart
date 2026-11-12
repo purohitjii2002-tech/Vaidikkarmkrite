@@ -898,12 +898,52 @@ class _PanchangScreenState extends State<PanchangScreen> {
                                 style: const TextStyle(fontSize: 12,
                                   fontWeight: FontWeight.w700,
                                   color: Color(0xFF563719)))),
-                              Text(_date(selectedDate),
-                                style: const TextStyle(fontSize: 11,
-                                  color: Color(0xFF79502B))),
-                              const SizedBox(width: 5),
-                              const Icon(Icons.edit_calendar_outlined,
-                                size: 17, color: Color(0xFF79502B)),
+                              IconButton(
+                                tooltip: 'पिछला दिन',
+                                visualDensity: VisualDensity.compact,
+                                constraints: const BoxConstraints.tightFor(
+                                  width: 34, height: 36),
+                                padding: EdgeInsets.zero,
+                                onPressed: () => _shiftSelectedDate(-1),
+                                icon: const Icon(Icons.chevron_left_rounded,
+                                  size: 25, color: Color(0xFF174C3B)),
+                              ),
+                              Flexible(
+                                child: InkWell(
+                                  onTap: _chooseDate,
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 3, vertical: 8),
+                                    child: Text(_date(selectedDate),
+                                      maxLines: 1,
+                                      textAlign: TextAlign.center,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(fontSize: 11,
+                                        fontWeight: FontWeight.w800,
+                                        color: Color(0xFF79502B))),
+                                  ),
+                                ),
+                              ),
+                              IconButton(
+                                tooltip: 'अगला दिन',
+                                visualDensity: VisualDensity.compact,
+                                constraints: const BoxConstraints.tightFor(
+                                  width: 34, height: 36),
+                                padding: EdgeInsets.zero,
+                                onPressed: () => _shiftSelectedDate(1),
+                                icon: const Icon(Icons.chevron_right_rounded,
+                                  size: 25, color: Color(0xFF174C3B)),
+                              ),
+                              IconButton(
+                                tooltip: 'आज पर जाएँ',
+                                visualDensity: VisualDensity.compact,
+                                constraints: const BoxConstraints.tightFor(
+                                  width: 34, height: 36),
+                                padding: EdgeInsets.zero,
+                                onPressed: _goToToday,
+                                icon: const Icon(Icons.today_rounded,
+                                  size: 18, color: Color(0xFF79502B)),
+                              ),
                             ]),
                           ),
                         ),
@@ -991,6 +1031,26 @@ class _PanchangScreenState extends State<PanchangScreen> {
         ),
       ),
     );
+
+  void _shiftSelectedDate(int days) {
+    final next = DateTime(selectedDate.year, selectedDate.month, selectedDate.day)
+        .add(Duration(days: days));
+    setState(() {
+      selectedDate = next;
+      selectedMuhuratTab = 0;
+      _calculate();
+    });
+  }
+
+  void _goToToday() {
+    final today = DateTime.now();
+    setState(() {
+      selectedDate = DateTime(today.year, today.month, today.day);
+      selectedMuhuratTab = 0;
+      _liveNow = today;
+      _calculate();
+    });
+  }
 
   Future<void> _openMonthlyCalendar() async {
     final chosen = await Navigator.push<DateTime>(
