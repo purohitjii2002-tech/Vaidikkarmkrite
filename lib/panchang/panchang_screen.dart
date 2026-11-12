@@ -1287,6 +1287,11 @@ class _PanchangScreenState extends State<PanchangScreen> {
       final tithiNo = (limb['tithi']! % 15) + 1;
       final nak = limb['nakshatra']!;
       final sunNak = limb['sunNakshatra']!;
+      // Jwalamukhi: a traditional five-pair tithi–nakshatra rule
+      // (Pratipada–Mula, Panchami–Bharani, Ashtami–Krittika,
+      // Navami–Rohini, Dashami–Ashlesha). Jyotishsara Prakrit 147–148
+      // records this set; other paddhatis give variant sets, so keep
+      // its provenance distinct from Muhurta Cintamani's numbered rules.
       final jwalamukhi =
           (tithiNo == 1 && nak == 18) || (tithiNo == 5 && nak == 1) ||
           (tithiNo == 8 && nak == 2) || (tithiNo == 9 && nak == 3) ||
@@ -1308,8 +1313,9 @@ class _PanchangScreenState extends State<PanchangScreen> {
       final fromSun = ((nak - sunNak + 27) % 27) + 1;
       if ([4, 6, 9, 10, 13, 20].contains(fromSun)) mark('रवि योग', true);
 
-      // Dwi/Tripushkar are distinguished by the nakshatra's division:
-      // Mrigashira-Chitra-Dhanishtha are dual; the six listed stars are tri.
+      // Narada Purana, Purvabhaga 55 (verses 198–199 in this edition):
+      // Sunday/Tuesday/Saturday + Bhadra tithi (2, 7, 12) + the
+      // three Dwi or six Tri nakshatras listed below.
       if ([0, 2, 6].contains(weekday) && [2, 7, 12].contains(tithiNo) &&
           [4, 13, 22].contains(nak)) mark('द्विपुष्कर योग', true);
       if ([0, 2, 6].contains(weekday) && [2, 7, 12].contains(tithiNo) &&
