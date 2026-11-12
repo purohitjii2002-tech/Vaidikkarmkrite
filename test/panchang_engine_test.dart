@@ -81,6 +81,22 @@ void main() {
           lessThanOrEqualTo(5 * 60));
     });
 
+    test('Amanta month changes at the exact new-moon boundary', () {
+      final beforeNewMoon = DateTime.utc(2026, 11, 9, 6, 45);
+      final afterNewMoon = DateTime.utc(2026, 11, 9, 7, 15);
+
+      expect(PanchangEngine.indicesAt(beforeNewMoon)['tithi'], 29);
+      expect(PanchangEngine.indicesAt(afterNewMoon)['tithi'], 0);
+
+      final before = PanchangEngine.lunarMonthLabels(beforeNewMoon);
+      final after = PanchangEngine.lunarMonthLabels(afterNewMoon);
+
+      expect(before['amanta'], 'आश्विन');
+      expect(after['amanta'], 'कार्तिक');
+      expect(before['purnimanta'], 'कार्तिक');
+      expect(after['purnimanta'], 'कार्तिक');
+    });
+
     test('Purnimanta month changes at the exact full-moon boundary', () {
       final beforeFullMoon = DateTime.utc(2026, 11, 24, 14, 45);
       final afterFullMoon = DateTime.utc(2026, 11, 24, 15, 0);
