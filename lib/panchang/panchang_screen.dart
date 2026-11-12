@@ -957,26 +957,44 @@ class _PanchangScreenState extends State<PanchangScreen> {
     );
   }
 
-  Widget _mainCategoryTabs() => Row(children: [
-    Expanded(child: _departmentTile(
-      'दैनिक पंचांग', 'तिथि, नक्षत्र, योग और करण',
-      Icons.calendar_month_rounded, const Color(0xFF174C3B),
-      () => setState(() => selectedMuhuratTab = 0), selected: selectedMuhuratTab == 0,
-    )),
-    const SizedBox(width: 8),
-    Expanded(child: _departmentTile(
-      'मासिक कैलेंडर', 'मास और तारीख़ चुनें',
-      Icons.calendar_view_month_rounded, const Color(0xFF9A641E),
-      _openMonthlyCalendar,
-    )),
-    const SizedBox(width: 8),
-    Expanded(child: _departmentTile(
-      'विशेष मुहूर्त', 'विवाह, गृह प्रवेश आदि',
-      Icons.event_available_rounded, const Color(0xFF315C75),
-      () => Navigator.push(context,
-        MaterialPageRoute(builder: (_) => const MuhuratListScreen())),
-    )),
-  ]);
+  Widget _mainCategoryTabs() => LayoutBuilder(builder: (context, constraints) {
+    final width = (constraints.maxWidth - 10) / 2;
+    return Wrap(spacing: 10, runSpacing: 10, children: [
+      SizedBox(width: width, child: _departmentTile(
+        'दैनिक पंचांग', 'तिथि, नक्षत्र, योग और करण',
+        Icons.calendar_month_rounded, const Color(0xFF174C3B),
+        () => setState(() => selectedMuhuratTab = 0),
+        selected: selectedMuhuratTab == 0,
+      )),
+      SizedBox(width: width, child: _departmentTile(
+        'मासिक कैलेंडर', 'मास, पक्ष और तारीख़ चुनें',
+        Icons.calendar_view_month_rounded, const Color(0xFF9A641E),
+        _openMonthlyCalendar,
+      )),
+      SizedBox(width: width, child: _departmentTile(
+        'व्रत एवं त्योहार', 'मासिक व्रत और पर्व सूची',
+        Icons.temple_hindu_rounded, const Color(0xFF8A4F63),
+        _openFestivalVrat,
+      )),
+      SizedBox(width: width, child: _departmentTile(
+        'विशेष मुहूर्त', 'विवाह, गृह प्रवेश आदि',
+        Icons.event_available_rounded, const Color(0xFF315C75),
+        () => Navigator.push(context,
+          MaterialPageRoute(builder: (_) => const MuhuratListScreen())),
+      )),
+    ]);
+  });
+
+  Future<void> _openFestivalVrat() async {
+    await Navigator.push<void>(
+      context,
+      MaterialPageRoute(builder: (_) => FestivalVratScreen(
+        initialDate: selectedDate,
+        latitude: position?.latitude ?? _ujjainLatitude,
+        longitude: position?.longitude ?? _ujjainLongitude,
+      )),
+    );
+  }
 
   Widget _departmentTile(String title, String subtitle, IconData icon,
       Color color, VoidCallback onTap, {bool selected = false}) => Material(
@@ -2243,6 +2261,137 @@ class _MonthlyPanchangScreenState extends State<MonthlyPanchangScreen> {
       ),
     );
   }
+}
+
+
+/// Separate monthly observance department. Dates are derived from local
+/// sunrise tithi; region-specific festival decisions are explicitly labelled
+/// for later Panchanga verification.
+class FestivalVratScreen extends StatefulWidget {
+  final DateTime initialDate;
+  final double latitude;
+  final double longitude;
+  const FestivalVratScreen({
+    super.key,
+    required this.initialDate,
+    required this.latitude,
+    required this.longitude,
+  });
+
+  @override
+  State<FestivalVratScreen> createState() => _FestivalVratScreenState();
+}
+
+class _FestivalVratScreenState extends State<FestivalVratScreen> {
+  late DateTime month;
+  late Future<List<Map<String, String>>> eventsFuture;
+
+  static const monthNames = ['जनवरी','फरवरी','मार्च','अप्रैल','मई','जून',
+    'जुलाई','अगस्त','सितंबर','अक्टूबर','नवंबर','दिसंबर'];
+
+  @override
+  void initState() {
+    super.initState();
+    month = DateTime(widget.initialDate.year, widget.initialDate.month);
+    eventsFuture = _loadEvents();
+  }
+
+  Future<List<Map<String, String>>> _loadEvents() async {
+    final rows = <Map<String, String>>[];
+    final days = DateTime(month.year, month.month + 1, 0).day;
+    for (var day = 1; day <= days; day++) {
+      final date = DateTime(month.year, month.month, day);
+      final sunrise = PanchangEngine.solarEvent(
+        localDate: date,
+        latitude: widget.latitude,
+        longitude: widget.longitude,
+        sunrise: true,
+      );
+      if (sunrise == null) continue;
+      final tithiIndex = PanchangEngine.indicesAt(sunrise)['tithi'];
+      if (tithiIndex == null) continue;
+      final event = switch (tithiIndex) {
+        10 || 25 => 'एकादशी व्रत',
+        14 => 'पूर्णिमा',
+        29 => 'अमावस्या',
+        3 => 'विनायक चतुर्थी',
+        18 => 'संकष्टी चतुर्थी',
+        _ => '',
+      };
+      if (event.isEmpty) continue;
+      final paksha = tithiIndex < 15 ? 'शुक्ल पक्ष' : 'कृष्ण पक्ष';
+      rows.add({
+        'date': '$day ${monthNames[month.month - 1]} ${month.year}',
+        'weekday': ['रविवार','सोमवार','मंगलवार','बुधवार','गुरुवार','शुक्रवार','शनिवार'][date.weekday % 7],
+        'event': event,
+        'detail': '$paksha • ${PanchangEngine.tithis[tithiIndex]}',
+      });
+    }
+    return rows;
+  }
+
+  void _moveMonth(int amount) => setState(() {
+    month = DateTime(month.year, month.month + amount);
+    eventsFuture = _loadEvents();
+  });
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(title: const Text('व्रत एवं त्योहार')),
+    body: ListView(padding: const EdgeInsets.all(14), children: [
+      Container(
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(colors: [Color(0xFF174C3B), Color(0xFF28705A)]),
+          borderRadius: BorderRadius.circular(18),
+        ),
+        child: Row(children: [
+          IconButton(onPressed: () => _moveMonth(-1),
+            icon: const Icon(Icons.chevron_left, color: Colors.white)),
+          Expanded(child: Text('${monthNames[month.month - 1]} ${month.year}',
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: Colors.white, fontSize: 18,
+              fontWeight: FontWeight.w800))),
+          IconButton(onPressed: () => _moveMonth(1),
+            icon: const Icon(Icons.chevron_right, color: Colors.white)),
+        ]),
+      ),
+      const SizedBox(height: 14),
+      const Text('इस माह के व्रत एवं तिथि-आधारित पर्व',
+        style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800,
+          color: Color(0xFF174C3B))),
+      const SizedBox(height: 8),
+      FutureBuilder<List<Map<String, String>>>(
+        future: eventsFuture,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Padding(padding: EdgeInsets.all(24),
+              child: Center(child: CircularProgressIndicator()));
+          }
+          final rows = snapshot.data ?? [];
+          if (rows.isEmpty) {
+            return const Card(child: Padding(padding: EdgeInsets.all(18),
+              child: Text('इस महीने के तिथि-आधारित व्रत संकेत उपलब्ध नहीं हैं।')));
+          }
+          return Card(child: Column(children: rows.map((row) => ListTile(
+            leading: const CircleAvatar(
+              backgroundColor: Color(0xFFFFF0D5),
+              child: Icon(Icons.event, color: Color(0xFF9A641E))),
+            title: Text(row['event']!,
+              style: const TextStyle(fontWeight: FontWeight.w800)),
+            subtitle: Text('${row['date']} • ${row['weekday']}\n${row['detail']}'),
+            isThreeLine: true,
+          )).toList())),
+        },
+      ),
+      const SizedBox(height: 12),
+      const Card(color: Color(0xFFFFF7E8), child: Padding(
+        padding: EdgeInsets.all(14),
+        child: Text('महत्वपूर्ण: यह सूची स्थानीय सूर्योदय पर तिथि की उपस्थिति से तैयार होती है। एकादशी, संकष्टी, क्षेत्रीय पर्व, अधिकमास तथा क्षय तिथि के अंतिम व्रत-निर्णय के लिए संबंधित परंपरा के धर्मशास्त्रीय नियमों का अलग मिलान आवश्यक है।',
+          style: TextStyle(fontSize: 11, height: 1.45,
+            color: Color(0xFF705333))),
+      )),
+    ]),
+  );
 }
 
 
