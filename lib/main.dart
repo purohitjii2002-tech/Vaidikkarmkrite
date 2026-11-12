@@ -1887,7 +1887,7 @@ class BrandMark extends StatelessWidget {
         ClipRRect(
           borderRadius: BorderRadius.circular(8),
           child: Image.asset(
-            'assets/images/karmkrite_vedic_emblem png.png',
+            'assets/images/karmkrite_logo.png',
             width: 38,
             height: 38,
             fit: BoxFit.contain,
