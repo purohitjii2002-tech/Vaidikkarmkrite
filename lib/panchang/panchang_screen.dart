@@ -1260,6 +1260,12 @@ class _PanchangScreenState extends State<PanchangScreen> {
       0: [16], 1: [20], 2: [23], 3: [0],
       4: [4], 5: [8], 6: [12],
     };
+    // Muhurta Cintamani 1.5: weekday-wise Dagdha nakshatras,
+    // Sunday–Saturday: Bharani, Chitra, Uttara Ashadha, Dhanishtha,
+    // Uttara Phalguni, Jyeshtha, Revati (zero-based indices).
+    const dagdhaNakshatras = [1, 13, 20, 22, 11, 17, 26];
+    // Muhurta Cintamani 1.8: paksha-local Dagdha, Visha and Hutashana
+    // tithis for Sunday–Saturday.
     const dagdha = [12, 11, 5, 3, 6, 8, 9];
     const visha = [4, 6, 7, 2, 8, 9, 7];
     const hutashana = [12, 6, 7, 8, 9, 10, 11];
@@ -1315,7 +1321,10 @@ class _PanchangScreenState extends State<PanchangScreen> {
       if (mrityuNakshatras[weekday]?.contains(nak) == true) {
         mark('मृत्यु योग', false);
       }
-      if (dagdha[weekday] == tithiNo) mark('दग्ध योग', false);
+      if (dagdha[weekday] == tithiNo) mark('दग्ध तिथि योग', false);
+      if (dagdhaNakshatras[weekday] == nak) {
+        mark('दग्ध नक्षत्र', false);
+      }
       if (visha[weekday] == tithiNo) mark('विष योग', false);
       if (hutashana[weekday] == tithiNo) mark('हुताशन योग', false);
       // Muhurta Cintamani 1.6: Krakacha/Kakracha is the
