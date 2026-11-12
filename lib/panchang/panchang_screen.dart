@@ -1149,28 +1149,36 @@ class _PanchangScreenState extends State<PanchangScreen> {
 
   List<Widget> _samvatsaraRows() {
     final date = DateTime(selectedDate.year, selectedDate.month, selectedDate.day);
+    // These are separately named systems with different year boundaries.
+    // The current reference interval is bounded to the verified 2026–27 data.
     final southStart = DateTime(2026, 4, 14);
-    final northStart = DateTime(2026, 5, 7);
     final nextSouth = DateTime(2027, 4, 14);
-    final nextNorth = DateTime(2027, 5, 7);
+    final northStart = DateTime(2026, 5, 7);
     final supported = !date.isBefore(southStart) && date.isBefore(nextSouth);
     if (!supported) {
       return [
-        _detailRow('बार्हस्पत्य संवत्सर', 'चयनित वर्ष का संदर्भ मिलान शेष', alternate: true),
-        _detailRow('दक्षिण भारतीय पद्धति', 'चयनित वर्ष का संदर्भ मिलान शेष'),
+        _detailRow('बार्हस्पत्य संवत्सर (उत्तर)', 'चयनित वर्ष का संदर्भ मिलान शेष', alternate: true),
+        _detailRow('बार्हस्पत्य संवत्सर (दक्षिण)', 'चयनित वर्ष का संदर्भ मिलान शेष'),
         _detailRow('विक्रम / शक / कलि संवत', 'संदर्भ-पंचांग मिलान शेष', alternate: true),
       ];
     }
-    final southName = 'पराभव';
-    final northName = date.isBefore(northStart) ? 'पूर्व चक्र (मिलान शेष)' : date.isBefore(nextNorth) ? 'रौद्र' : 'अगला चक्र (मिलान शेष)';
+
+    final northName = date.isBefore(northStart) ? 'सिद्धार्थी (53)' : 'रौद्र (54)';
+    final gujaratiYear = date.isBefore(DateTime(2026, 11, 10)) ? '2082' : '2083';
     return [
       _detailRow('बार्हस्पत्य संवत्सर (उत्तर)', northName, alternate: true),
-      _detailRow('बार्हस्पत्य संवत्सर (दक्षिण)', southName),
-      _detailRow('विक्रम संवत', '2083 — सिद्धार्थी', alternate: true),
-      _detailRow('गुजराती संवत', '2083 — कलायुक्त'),
-      _detailRow('शक संवत', '1948'),
+      _detailRow('बार्हस्पत्य संवत्सर (दक्षिण)', 'पराभव (40)'),
+      _detailRow('विक्रम संवत (चैत्रादि)', '2083'),
+      _detailRow('विक्रम संवत (कार्तिकादि / गुजरात)', gujaratiYear, alternate: true),
+      _detailRow('शक संवत (निरयण सौर)', '1948'),
       _detailRow('कलि संवत', '5127', alternate: true),
-      const Padding(padding: EdgeInsets.only(top: 6), child: Text('ये वर्ष-नाम अलग-अलग क्षेत्रीय/युग-गणना पद्धतियों के अनुसार हैं; बार्हस्पत्य संवत्सर को विक्रम संवत के नाम के रूप में न पढ़ें।', style: TextStyle(fontSize: 11, color: Color(0xFF705333)))),
+      const Padding(
+        padding: EdgeInsets.only(top: 6),
+        child: Text(
+          'उत्तर का बार्हस्पत्य चक्र, दक्षिण का 60-वर्षीय चक्र तथा विक्रम/शक/कलि संवत अलग गणना-पद्धतियाँ हैं। इनके नाम और नववर्ष की तिथियाँ एक-दूसरे के स्थान पर नहीं पढ़नी चाहिए। इस बिल्ड में वर्ष-संदर्भ केवल सत्यापित 14 अप्रैल 2026–13 अप्रैल 2027 अवधि के लिए दिखाया गया है।',
+          style: TextStyle(fontSize: 11, color: Color(0xFF705333)),
+        ),
+      ),
     ];
   }
   double _siderealSun() => ((data!['sunLongitude'] as num).toDouble() - (data!['ayanamsha'] as num).toDouble());
