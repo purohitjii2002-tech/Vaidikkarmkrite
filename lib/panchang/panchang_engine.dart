@@ -57,10 +57,15 @@ class PanchangEngine {
     'क्रोधन','क्षय',
   ];
 
+  static final Map<int, DateTime?> _meshaSankrantiCache = {};
+
   /// Mesha ingress (sidereal solar longitude 0°) in the requested Gregorian
   /// year. Returned in UTC; the local calendar date depends on the observer's
   /// time zone. The scan is deliberately bounded to April.
   static DateTime? meshaSankrantiUtc(int year) {
+    if (_meshaSankrantiCache.containsKey(year)) {
+      return _meshaSankrantiCache[year];
+    }
     double sunLongitude(DateTime instant) {
       final p = tropicalLongitudes(instant);
       return _norm(p.sun - lahiriAyanamsha(instant));
@@ -84,11 +89,13 @@ class PanchangEngine {
             high = middle;
           }
         }
+        _meshaSankrantiCache[year] = high;
         return high;
       }
       previous = current;
       previousLongitude = longitude;
     }
+    _meshaSankrantiCache[year] = null;
     return null;
   }
 
