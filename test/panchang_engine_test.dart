@@ -129,6 +129,39 @@ void main() {
       );
       expect(atScorpioIngress, inInclusiveRange(209.7, 210.3));
     });
+
+    test('Ujjain ascendant follows the full published 12-sign transition table', () {
+      // MyPanchang Ujjain, 11 Nov 2026; IST boundaries converted to UTC.
+      final transitions = <(DateTime, double)>[
+        (DateTime.utc(2026, 11, 11, 1, 37, 6), 210),
+        (DateTime.utc(2026, 11, 11, 3, 53, 5), 240),
+        (DateTime.utc(2026, 11, 11, 5, 58, 14), 270),
+        (DateTime.utc(2026, 11, 11, 7, 44, 42), 300),
+        (DateTime.utc(2026, 11, 11, 9, 17, 32), 330),
+        (DateTime.utc(2026, 11, 11, 10, 48, 3), 0),
+        (DateTime.utc(2026, 11, 11, 12, 28, 9), 30),
+        (DateTime.utc(2026, 11, 11, 14, 26, 17), 60),
+        (DateTime.utc(2026, 11, 11, 16, 39, 44), 90),
+        (DateTime.utc(2026, 11, 11, 18, 55, 52), 120),
+        (DateTime.utc(2026, 11, 11, 21, 7, 45), 150),
+        (DateTime.utc(2026, 11, 11, 23, 18, 30), 180),
+      ];
+      for (final transition in transitions) {
+        final actual = PanchangEngine.ascendantSiderealLongitude(
+          instant: transition.$1,
+          latitude: latitude,
+          longitude: longitude,
+        );
+        final difference = ((actual - transition.$2 + 540) % 360) - 180;
+        expect(
+          difference.abs(),
+          lessThan(0.8),
+          reason: 'Lagna boundary mismatch at ' +
+              transition.$1.toIso8601String() + ': got ' +
+              actual.toString() + '°',
+        );
+      }
+    });
   });
 
   group('Regional Samvatsara and Chaitradi era calculations', () {
