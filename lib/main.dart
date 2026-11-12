@@ -475,33 +475,29 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   )
                 else
-                  GridView.builder(
+                  ListView.separated(
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
                     itemCount: filteredModules.length,
-                    gridDelegate:
-                        const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 2,
-                      crossAxisSpacing: 12,
-                      mainAxisSpacing: 12,
-                      childAspectRatio: 0.88,
-                    ),
+                    separatorBuilder: (_, __) => const SizedBox(height: 10),
                     itemBuilder: (context, index) {
                       final module = filteredModules[index];
-
-                      return ModuleCard(
-                        module: module,
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => ModuleScreen(
-                                module: module,
-                                language: widget.language,
+                      return SizedBox(
+                        height: 94,
+                        child: ModuleCard(
+                          module: module,
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => ModuleScreen(
+                                  module: module,
+                                  language: widget.language,
+                                ),
                               ),
-                            ),
-                          );
-                        },
+                            );
+                          },
+                        ),
                       );
                     },
                   ),
@@ -702,121 +698,70 @@ class ModuleCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const ink = Color(0xFF563719);
+    const ink = Color(0xFF49301C);
     const gold = Color(0xFFB9853E);
-    const muted = Color(0xFF817565);
     return Material(
       color: const Color(0xFFFFFEFA),
-      borderRadius: BorderRadius.circular(22),
+      borderRadius: BorderRadius.circular(18),
       child: InkWell(
-        borderRadius: BorderRadius.circular(22),
+        borderRadius: BorderRadius.circular(18),
         onTap: onTap,
         child: Ink(
           decoration: BoxDecoration(
             color: const Color(0xFFFFFEFA),
-            borderRadius: BorderRadius.circular(22),
-            border: Border.all(color: const Color(0xFFE9DDC8), width: 1),
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: const Color(0xFFE8DDCA)),
             boxShadow: const [
-              BoxShadow(
-                color: Color(0x102B1A0D),
-                blurRadius: 16,
-                offset: Offset(0, 6),
-              ),
+              BoxShadow(color: Color(0x0C2B1A0D), blurRadius: 12, offset: Offset(0, 4)),
             ],
           ),
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(15, 15, 14, 14),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+            child: Row(
               children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Container(
-                      width: 52,
-                      height: 52,
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [Color(0xFFFFF3D9), Color(0xFFF1DFBA)],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
-                        borderRadius: BorderRadius.circular(17),
-                        border: Border.all(color: const Color(0xFFE8D3A8)),
-                      ),
-                      alignment: Alignment.center,
-                      child: Text(module.icon, style: const TextStyle(fontSize: 27)),
+                Container(
+                  width: 58,
+                  height: 58,
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFFFFF3D9), Color(0xFFF0DEB9)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
                     ),
-                    Container(
-                      width: 30,
-                      height: 30,
-                      decoration: const BoxDecoration(
-                        color: Color(0xFFFAF4E9),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(Icons.arrow_outward_rounded, size: 16, color: gold),
-                    ),
-                  ],
+                    borderRadius: BorderRadius.circular(15),
+                    border: Border.all(color: const Color(0xFFE8D3A8)),
+                  ),
+                  alignment: Alignment.center,
+                  child: Text(module.icon, style: const TextStyle(fontSize: 28)),
                 ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFAF4E9),
-                        borderRadius: BorderRadius.circular(20),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        module.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: ink),
                       ),
-                      child: const Text(
-                        'ज्ञान विभाग',
-                        style: TextStyle(
-                          color: gold,
-                          fontSize: 9,
-                          letterSpacing: .35,
-                          fontWeight: FontWeight.w800,
-                        ),
+                      const SizedBox(height: 5),
+                      Text(
+                        module.subtitle,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontSize: 11, height: 1.3, color: Color(0xFF817565)),
                       ),
-                    ),
-                    const SizedBox(height: 9),
-                    Text(
-                      module.title,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 15,
-                        height: 1.22,
-                        fontWeight: FontWeight.w800,
-                        color: ink,
-                      ),
-                    ),
-                    const SizedBox(height: 5),
-                    Text(
-                      module.subtitle,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 10.5,
-                        height: 1.35,
-                        color: muted,
-                      ),
-                    ),
-                    const SizedBox(height: 11),
-                    Row(
-                      children: [
-                        const Text(
-                          'अध्ययन करें',
-                          style: TextStyle(
-                            color: ink,
-                            fontSize: 10.5,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                        const SizedBox(width: 5),
-                        const Icon(Icons.east_rounded, size: 14, color: gold),
-                      ],
-                    ),
-                  ],
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Container(
+                  width: 32,
+                  height: 32,
+                  decoration: const BoxDecoration(color: Color(0xFFFAF2E4), shape: BoxShape.circle),
+                  child: const Icon(Icons.chevron_right_rounded, color: gold, size: 22),
                 ),
               ],
             ),
