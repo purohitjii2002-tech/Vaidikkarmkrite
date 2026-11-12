@@ -12,7 +12,6 @@ import 'package:pdfx/pdfx.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:crypto/crypto.dart';
 import 'package:audioplayers/audioplayers.dart';
-import 'panchang/panchang_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -189,13 +188,6 @@ const List<ModuleInfo> modules = [
   ),
   ModuleInfo(
     id: '',
-    title: 'पंचांग एवं मुहूर्त',
-    subtitle: 'तिथि, नक्षत्र एवं शुभ समय',
-    icon: '🌞',
-    items: [],
-  ),
-  ModuleInfo(
-    id: '',
     title: 'ऑडियो एवं पुस्तकें',
     subtitle: 'श्रवण एवं अध्ययन सामग्री',
     icon: '🎧',
@@ -213,7 +205,14 @@ Future<List<ModuleInfo>> loadModules(String language) async {
       'book': '📚', 'temple': '🪔', 'om': '🕉️',
       'flower': '🙏', 'calendar': '🌞', 'headphones': '🎧',
     };
-    return rows.map((raw) {
+    final visibleRows = rows.where((raw) {
+      final row = Map<String, dynamic>.from(raw as Map);
+      final hindi = (row['name_hi'] ?? '').toString().toLowerCase();
+      final english = (row['name_en'] ?? '').toString().toLowerCase();
+      return !hindi.contains('पंचांग') &&
+          !english.contains('panchang');
+    }).toList();
+    return visibleRows.map((raw) {
       final row = Map<String, dynamic>.from(raw as Map);
       final hindiName = (row['name_hi'] ?? '').toString();
       final englishName = (row['name_en'] ?? hindiName).toString();
@@ -264,8 +263,7 @@ Future<List<ModuleInfo>> loadModules(String language) async {
         'कर्मकांड': 'Rituals',
         'मंत्र एवं स्तोत्र': 'Mantras & Hymns',
         'षोडश संस्कार': 'Sixteen Samskaras',
-        'पंचांग एवं मुहूर्त': 'Panchang & Muhurat',
-        'ऑडियो एवं पुस्तकें': 'Audio & Books',
+          'ऑडियो एवं पुस्तकें': 'Audio & Books',
       }[module.title] ?? module.title : module.title,
       subtitle: module.subtitle,
       icon: module.icon,
@@ -620,10 +618,18 @@ class _HomeScreenState extends State<HomeScreen> {
       ));
     }
     return Row(children: [
-      action(icon: Icons.calendar_month_rounded, title: 'आज का पंचांग',
-        subtitle: 'तिथि • नक्षत्र • मुहूर्त', onTap: () {
+      action(icon: Icons.temple_hindu_rounded, title: 'पूजा एवं यज्ञ',
+        subtitle: 'कर्मकांड • विधि • मंत्र', onTap: () async {
+          final available = await modulesFuture;
+          if (!mounted || available.isEmpty) return;
+          final module = available.firstWhere(
+            (item) => item.title.contains('कर्मकांड') ||
+                item.title.toLowerCase().contains('ritual'),
+            orElse: () => available.first,
+          );
           Navigator.push(context, MaterialPageRoute(
-            builder: (_) => PanchangScreen(language: widget.language)));
+            builder: (_) => ModuleScreen(module: module, language: widget.language),
+          ));
         }),
       const SizedBox(width: 10),
       action(icon: Icons.menu_book_rounded, title: 'ज्ञान पुस्तकालय',
@@ -906,12 +912,6 @@ class _ModuleScreenState extends State<ModuleScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isPanchang = widget.module.icon == '🌞' ||
-        widget.module.title.contains('पंचांग') ||
-        widget.module.title.toLowerCase().contains('panchang');
-    if (isPanchang) {
-      return PanchangScreen(language: widget.language);
-    }
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.module.title),
