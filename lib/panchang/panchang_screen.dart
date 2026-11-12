@@ -876,6 +876,11 @@ class _PanchangScreenState extends State<PanchangScreen> {
                   child: ListView(
                     padding: const EdgeInsets.fromLTRB(14, 8, 14, 24),
                     children: [
+                      if (selectedDate.year == _liveNow.year &&
+                          selectedDate.month == _liveNow.month &&
+                          selectedDate.day == _liveNow.day)
+                        _liveDashboard(),
+                      const SizedBox(height: 10),
                       Container(
                         width: double.infinity,
                         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
@@ -911,6 +916,7 @@ class _PanchangScreenState extends State<PanchangScreen> {
                         ),
                       ),
                       const SizedBox(height: 4),
+                      const SizedBox(height: 10),
                       Container(
                         padding: const EdgeInsets.fromLTRB(12, 12, 12, 14),
                         decoration: BoxDecoration(
@@ -944,14 +950,11 @@ class _PanchangScreenState extends State<PanchangScreen> {
                           ]),
                         ]),
                       ),
-                      const SizedBox(height: 10),
+                      const SizedBox(height: 12),
                       _mainCategoryTabs(),
                       const SizedBox(height: 12),
-                      _muhuratTabs(),
-                      const SizedBox(height: 12),
                       ..._selectedTabContent(),
-                      const SizedBox(height: 10),
-                    ],
+                      const SizedBox(height: 10),,
                   ),
                 ),
     );
@@ -959,29 +962,32 @@ class _PanchangScreenState extends State<PanchangScreen> {
 
   Widget _mainCategoryTabs() => LayoutBuilder(builder: (context, constraints) {
     final width = (constraints.maxWidth - 10) / 2;
+    Widget tile(String title, String subtitle, IconData icon, Color color,
+        int? tab, VoidCallback? action) => SizedBox(
+      width: width,
+      child: _departmentTile(title, subtitle, icon, color, () {
+        if (action != null) {
+          action();
+        } else if (tab != null) {
+          setState(() => selectedMuhuratTab = tab);
+        }
+      }),
+    );
     return Wrap(spacing: 10, runSpacing: 10, children: [
-      SizedBox(width: width, child: _departmentTile(
-        'दैनिक पंचांग', 'तिथि, नक्षत्र, योग और करण',
-        Icons.calendar_month_rounded, const Color(0xFF174C3B),
-        () => setState(() => selectedMuhuratTab = 0),
-        selected: selectedMuhuratTab == 0,
-      )),
-      SizedBox(width: width, child: _departmentTile(
-        'मासिक कैलेंडर', 'मास, पक्ष और तारीख़ चुनें',
-        Icons.calendar_view_month_rounded, const Color(0xFF9A641E),
-        _openMonthlyCalendar,
-      )),
-      SizedBox(width: width, child: _departmentTile(
-        'व्रत एवं त्योहार', 'मासिक व्रत और पर्व सूची',
-        Icons.temple_hindu_rounded, const Color(0xFF8A4F63),
-        _openFestivalVrat,
-      )),
-      SizedBox(width: width, child: _departmentTile(
-        'विशेष मुहूर्त', 'विवाह, गृह प्रवेश आदि',
-        Icons.event_available_rounded, const Color(0xFF315C75),
-        () => Navigator.push(context,
-          MaterialPageRoute(builder: (_) => const MuhuratListScreen())),
-      )),
+      tile('दैनिक पंचांग', 'तिथि, नक्षत्र, योग, करण', Icons.calendar_month_rounded,
+        const Color(0xFF174C3B), 0, null),
+      tile('मासिक कैलेंडर', 'मास, पक्ष और तारीख़', Icons.calendar_view_month_rounded,
+        const Color(0xFF9A641E), null, _openMonthlyCalendar),
+      tile('व्रत एवं त्योहार', 'मासिक व्रत और पर्व सूची', Icons.temple_hindu_rounded,
+        const Color(0xFF8A4F63), null, _openFestivalVrat),
+      tile('विशेष मुहूर्त', 'दैनिक शुभ-अशुभ काल', Icons.event_available_rounded,
+        const Color(0xFF315C75), 1, null),
+      tile('चौघड़िया', 'दिन और रात्रि के आठ-आठ भाग', Icons.wb_sunny_rounded,
+        const Color(0xFF567B48), 2, null),
+      tile('होरा', 'सात ग्रहों की दिन-रात्रि होरा', Icons.timelapse_rounded,
+        const Color(0xFF76558A), 3, null),
+      tile('लग्न समय-सारणी', 'बारह राशियों का लग्न समय', Icons.auto_awesome_rounded,
+        const Color(0xFF9A5A3A), 4, null),
     ]);
   });
 
@@ -1928,11 +1934,6 @@ class _PanchangScreenState extends State<PanchangScreen> {
     final yogaEnd = d['yogaEnd'] as DateTime?;
     final karanaEnd = d['karanaEnd'] as DateTime?;
     return [
-      // 1. Live Panchang is shown first for the current local date.
-      if (selectedDate.year == _liveNow.year &&
-          selectedDate.month == _liveNow.month &&
-          selectedDate.day == _liveNow.day)
-        _liveDashboard(),
       // 2. Main Panchang.
       _detailCard('पंचांग', Icons.calendar_month, [
         _detailRow('तिथि', '${d['tithi'] ?? '—'}  •  ${_time(tithiEnd)}', alternate: true, compact: true),
