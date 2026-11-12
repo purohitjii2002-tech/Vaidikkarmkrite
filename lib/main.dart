@@ -41,34 +41,38 @@ class _KarmKriteAppState extends State<KarmKriteApp> {
       title: 'KARMKRITE',
       theme: ThemeData(
         useMaterial3: true,
-        scaffoldBackgroundColor: const Color(0xFFFAF7F0),
+        scaffoldBackgroundColor: const Color(0xFFF5F1E7),
         colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF70451F),
-          primary: const Color(0xFF70451F),
-          secondary: const Color(0xFFD5A34B),
-          surface: const Color(0xFFFFFEFA),
+          seedColor: const Color(0xFF123D32),
+          primary: const Color(0xFF123D32),
+          secondary: const Color(0xFFC9A45C),
+          surface: const Color(0xFFFFFCF4),
+          onPrimary: const Color(0xFFFFFCF4),
         ),
         appBarTheme: const AppBarTheme(
-          backgroundColor: Color(0xFFFAF7F0),
-          foregroundColor: Color(0xFF563719),
+          backgroundColor: Color(0xFF123D32),
+          foregroundColor: Color(0xFFFFF8E8),
           elevation: 0,
           centerTitle: false,
+          titleTextStyle: TextStyle(color: Color(0xFFFFF8E8), fontSize: 19, fontWeight: FontWeight.w800, letterSpacing: .6),
+          iconTheme: IconThemeData(color: Color(0xFFE5C77E)),
         ),
         navigationBarTheme: NavigationBarThemeData(
-          backgroundColor: const Color(0xFFFFFEFA),
-          indicatorColor: const Color(0xFFF4E4C5),
+          backgroundColor: const Color(0xFF10352D),
+          indicatorColor: const Color(0xFF315B4D),
           labelTextStyle: WidgetStateProperty.resolveWith((states) =>
             TextStyle(fontSize: 11, fontWeight: states.contains(WidgetState.selected)
               ? FontWeight.w800 : FontWeight.w500,
               color: states.contains(WidgetState.selected)
-                ? const Color(0xFF70451F) : const Color(0xFF877967))),
+                ? const Color(0xFFFFD98B) : const Color(0xFFD7D0BE))),
           iconTheme: WidgetStateProperty.resolveWith((states) => IconThemeData(
             color: states.contains(WidgetState.selected)
-              ? const Color(0xFF70451F) : const Color(0xFF877967))),
-          elevation: 10,
+              ? const Color(0xFFFFD98B) : const Color(0xFFD7D0BE))),
+          elevation: 12,
+          shadowColor: const Color(0x33000000),
         ),
         cardTheme: CardThemeData(
-          color: const Color(0xFFFFFEFA),
+          color: const Color(0xFFFFFCF4),
           elevation: 0,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         ),
@@ -321,7 +325,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: selectedTab == 0 ? AppBar(
-        title: const BrandMark(),
+        title: const BrandMark(dark: true),
         actions: [
           IconButton(
             tooltip: tr('notifications'),
@@ -520,11 +524,11 @@ class _HomeScreenState extends State<HomeScreen> {
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(26),
         gradient: const LinearGradient(
-          colors: [Color(0xFF2A1A10), Color(0xFF65401F), Color(0xFF9A6B35)],
+          colors: [Color(0xFF0C2D26), Color(0xFF145044), Color(0xFF1C6553)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        border: Border.all(color: const Color(0xFFD8B46B).withOpacity(.75), width: 1),
+        border: Border.all(color: const Color(0xFFD9B96E).withOpacity(.85), width: 1.1),
         boxShadow: const [BoxShadow(color: Color(0x24133D35), blurRadius: 20, offset: Offset(0, 9))],
       ),
       child: Stack(
@@ -583,7 +587,7 @@ class _HomeScreenState extends State<HomeScreen> {
     Widget action({required IconData icon, required String title,
       required String subtitle, required VoidCallback onTap}) {
       return Expanded(child: Material(
-        color: const Color(0xFFFFFEFA),
+        color: const Color(0xFFFFFCF4),
         borderRadius: BorderRadius.circular(17),
         child: InkWell(
           borderRadius: BorderRadius.circular(17),
@@ -592,18 +596,19 @@ class _HomeScreenState extends State<HomeScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 13),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(17),
-              border: Border.all(color: const Color(0xFFE7DDC9)),
+              border: Border.all(color: const Color(0xFFE0D4B9)),
               boxShadow: const [BoxShadow(color: Color(0x0B332514), blurRadius: 9, offset: Offset(0, 3))],
             ),
             child: Row(children: [
               Container(width: 39, height: 39,
-                decoration: BoxDecoration(color: const Color(0xFFF3E7CB),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(colors: [Color(0xFF174A3E), Color(0xFF0D332B)]),
                   borderRadius: BorderRadius.circular(13)),
-                child: Icon(icon, color: const Color(0xFF9A672D), size: 21)),
+                child: Icon(icon, color: const Color(0xFFE7C77D), size: 21)),
               const SizedBox(width: 9),
               Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Text(title, maxLines: 1, overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(color: Color(0xFF563719), fontSize: 12, fontWeight: FontWeight.w800)),
+                  style: const TextStyle(color: Color(0xFF173E34), fontSize: 12, fontWeight: FontWeight.w800)),
                 const SizedBox(height: 3),
                 Text(subtitle, maxLines: 1, overflow: TextOverflow.ellipsis,
                   style: const TextStyle(color: Color(0xFF887B67), fontSize: 9.5)),
@@ -698,8 +703,8 @@ class ModuleCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const ink = Color(0xFF49301C);
-    const gold = Color(0xFFB9853E);
+    const ink = Color(0xFF173E34);
+    const gold = Color(0xFFB18A43);
     return Material(
       color: const Color(0xFFFFFEFA),
       borderRadius: BorderRadius.circular(18),
@@ -724,12 +729,12 @@ class ModuleCard extends StatelessWidget {
                   height: 58,
                   decoration: BoxDecoration(
                     gradient: const LinearGradient(
-                      colors: [Color(0xFFFFF3D9), Color(0xFFF0DEB9)],
+                      colors: [Color(0xFF174A3E), Color(0xFF0D332B)],
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                     ),
                     borderRadius: BorderRadius.circular(15),
-                    border: Border.all(color: const Color(0xFFE8D3A8)),
+                    border: Border.all(color: const Color(0xFFC9A45C), width: 1.1),
                   ),
                   alignment: Alignment.center,
                   child: Text(module.icon, style: const TextStyle(fontSize: 28)),
@@ -760,7 +765,7 @@ class ModuleCard extends StatelessWidget {
                 Container(
                   width: 32,
                   height: 32,
-                  decoration: const BoxDecoration(color: Color(0xFFFAF2E4), shape: BoxShape.circle),
+                  decoration: const BoxDecoration(color: Color(0xFFF1E7D1), shape: BoxShape.circle),
                   child: const Icon(Icons.chevron_right_rounded, color: gold, size: 22),
                 ),
               ],
