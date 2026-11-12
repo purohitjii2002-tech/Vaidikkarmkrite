@@ -81,6 +81,22 @@ void main() {
           lessThanOrEqualTo(5 * 60));
     });
 
+    test('Purnimanta month changes at the exact full-moon boundary', () {
+      final beforeFullMoon = DateTime.utc(2026, 11, 24, 14, 45);
+      final afterFullMoon = DateTime.utc(2026, 11, 24, 15, 0);
+
+      expect(PanchangEngine.indicesAt(beforeFullMoon)['tithi'], 14);
+      expect(PanchangEngine.indicesAt(afterFullMoon)['tithi'], 15);
+
+      final before = PanchangEngine.lunarMonthLabels(beforeFullMoon);
+      final after = PanchangEngine.lunarMonthLabels(afterFullMoon);
+
+      expect(before['amanta'], 'कार्तिक');
+      expect(after['amanta'], 'कार्तिक');
+      expect(before['purnimanta'], 'कार्तिक');
+      expect(after['purnimanta'], 'मार्गशीर्ष');
+    });
+
     test('sunrise ascendant is Tula and Scorpio begins near 07:07 IST', () {
       // MyPanchang Ujjain Lagna table: 11 Nov 2026 Tula until 07:07:06 IST.
       final atSunrise = PanchangEngine.ascendantSiderealLongitude(
