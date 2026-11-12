@@ -1315,9 +1315,10 @@ class _PanchangScreenState extends State<PanchangScreen> {
     // explicitly labelled approximate to avoid claiming exact borders.
     final place = city.toLowerCase();
     final isMalavaByName = [
-      'indore', 'इंदौर', 'उज्जैन', 'ujjain', 'dewas', 'देवास', 'dhar', 'धार',
-      'ratlam', 'रतलाम', 'shajapur', 'शाजापुर', 'mandsaur', 'मंदसौर',
-      'neemuch', 'नीमच', 'agar malwa', 'आगर मालवा', 'rajgarh', 'राजगढ़',
+      'malwa', 'मालवा', 'indore', 'इंदौर', 'उज्जैन', 'ujjain',
+      'dewas', 'देवास', 'dhar', 'धार', 'ratlam', 'रतलाम',
+      'shajapur', 'शाजापुर', 'mandsaur', 'मंदसौर', 'neemuch', 'नीमच',
+      'agar malwa', 'आगर मालवा', 'rajgarh', 'राजगढ़',
     ].any(place.contains);
     final isGaudaByName = [
       'murshidabad', 'मुर्शिदाबाद', 'birbhum', 'बीरभूम',
