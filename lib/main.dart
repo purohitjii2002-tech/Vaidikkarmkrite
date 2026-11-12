@@ -441,11 +441,11 @@ class _HomeScreenState extends State<HomeScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _welcomeBanner(),
-                const SizedBox(height: 14),
+                const SizedBox(height: 18),
                 _quickAccessStrip(),
-                const SizedBox(height: 14),
+                const SizedBox(height: 18),
                 const HomeBanners(),
-                const SizedBox(height: 8),
+                const SizedBox(height: 12),
                 TextField(
                   onChanged: (value) {
                     setState(() => searchText = value);
@@ -454,22 +454,34 @@ class _HomeScreenState extends State<HomeScreen> {
                     hintText: tr('search'),
                     prefixIcon: const Icon(Icons.search_rounded),
                     filled: true,
-                    fillColor: Colors.white,
+                    fillColor: const Color(0xFFFFFCF4),
+                    contentPadding: const EdgeInsets.symmetric(vertical: 17, horizontal: 16),
+                    prefixIconColor: const Color(0xFF9A7A42),
+                    hintStyle: const TextStyle(color: Color(0xFF988B76), fontSize: 13),
                     border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(16),
-                      borderSide: BorderSide.none,
+                      borderRadius: BorderRadius.circular(17),
+                      borderSide: const BorderSide(color: Color(0xFFE2D5B8)),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(17),
+                      borderSide: const BorderSide(color: Color(0xFFE2D5B8)),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(17),
+                      borderSide: const BorderSide(color: Color(0xFFC9A45C), width: 1.5),
                     ),
                   ),
                 ),
                 const SizedBox(height: 24),
-                Text(
-                  tr('modules'),
-                  style: const TextStyle(
-                    fontSize: 19,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF563719),
-                  ),
-                ),
+                Row(children: [
+                  Container(width: 4, height: 24, decoration: BoxDecoration(
+                    color: const Color(0xFFC9A45C), borderRadius: BorderRadius.circular(4))),
+                  const SizedBox(width: 10),
+                  Expanded(child: Text(tr('modules'), style: const TextStyle(
+                    fontSize: 19, fontWeight: FontWeight.w900, color: Color(0xFF173E34)))),
+                  const Text('EXPLORE', style: TextStyle(fontSize: 9, letterSpacing: 1.6,
+                    fontWeight: FontWeight.w900, color: Color(0xFF9A7A42))),
+                ]),
                 const SizedBox(height: 12),
                 if (filteredModules.isEmpty)
                   const Center(
@@ -706,16 +718,16 @@ class ModuleCard extends StatelessWidget {
     const ink = Color(0xFF173E34);
     const gold = Color(0xFFB18A43);
     return Material(
-      color: const Color(0xFFFFFEFA),
+      color: const Color(0xFFFFFCF4),
       borderRadius: BorderRadius.circular(18),
       child: InkWell(
         borderRadius: BorderRadius.circular(18),
         onTap: onTap,
         child: Ink(
           decoration: BoxDecoration(
-            color: const Color(0xFFFFFEFA),
+            color: const Color(0xFFFFFCF4),
             borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: const Color(0xFFE8DDCA)),
+            border: Border.all(color: const Color(0xFFE0D4B9)),
             boxShadow: const [
               BoxShadow(color: Color(0x0C2B1A0D), blurRadius: 12, offset: Offset(0, 4)),
             ],
@@ -874,14 +886,14 @@ class _ModuleScreenState extends State<ModuleScreen> {
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
               gradient: const LinearGradient(
-                colors: [Color(0xFF342014), Color(0xFF70451F)],
+                colors: [Color(0xFF0C2D26), Color(0xFF145044), Color(0xFF1C6553)],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
               borderRadius: BorderRadius.circular(23),
-              border: Border.all(color: const Color(0xFFD5A34B).withOpacity(.65)),
+              border: Border.all(color: const Color(0xFFD9B96E).withOpacity(.85)),
               boxShadow: const [
-                BoxShadow(color: Color(0x1C342014), blurRadius: 17, offset: Offset(0, 7)),
+                BoxShadow(color: Color(0x24133D35), blurRadius: 19, offset: Offset(0, 8)),
               ],
             ),
             child: Row(
@@ -1352,11 +1364,11 @@ class _BooksScreenState extends State<BooksScreen> {
                   padding:const EdgeInsets.all(19),
                   decoration:BoxDecoration(
                     gradient:const LinearGradient(
-                      colors:[Color(0xFF342014),Color(0xFF70451F)],
+                      colors:[Color(0xFF0C2D26),Color(0xFF145044),Color(0xFF1C6553)],
                       begin:Alignment.topLeft,end:Alignment.bottomRight,
                     ),
                     borderRadius:BorderRadius.circular(22),
-                    border:Border.all(color:const Color(0xFFD5A34B).withOpacity(.65)),
+                    border:Border.all(color:const Color(0xFFD9B96E).withOpacity(.85)),
                   ),
                   child:Row(children:[
                     Container(
@@ -1887,10 +1899,10 @@ class BrandMark extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 8),
-        const Text(
+        Text(
           'KARMKRITE',
           style: TextStyle(
-            color: dark ? Color(0xFFFFE7B0) : Color(0xFF173E34),
+            color: dark ? const Color(0xFFFFE7B0) : const Color(0xFF173E34),
             fontWeight: FontWeight.w900,
             fontSize: 19,
             letterSpacing: 1.25,
