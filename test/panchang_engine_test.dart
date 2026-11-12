@@ -139,6 +139,10 @@ void main() {
       expect(PanchangEngine.southSamvatsaraForSakaYear(1948), 'पराभव');
       expect(PanchangEngine.southSamvatsaraForSakaYear(1949), 'प्लवंग');
       expect(PanchangEngine.southSamvatsaraForSakaYear(1950), 'कीलक');
+      expect(PanchangEngine.southSamvatsaraAt(DateTime(2026, 4, 14)),
+          'पराभव');
+      expect(PanchangEngine.traditionalSakaSolarYearAt(DateTime(2026, 4, 14)),
+          1948);
     });
 
     test('Mesha ingress is calculated near the published April dates', () {
