@@ -265,6 +265,102 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     }
   }
 
+  Future<bool> addLesson(Map<String,dynamic> course) async {
+    final title=TextEditingController(), description=TextEditingController(), media=TextEditingController();
+    final duration=TextEditingController(text:'0');
+    String type='video';
+    final values=await showDialog<Map<String,String>>(context:context,builder:(dialogContext)=>
+      StatefulBuilder(builder:(context,setDialogState)=>AlertDialog(
+        title:const Text('नया पाठ जोड़ें'),
+        content:SingleChildScrollView(child:Column(mainAxisSize:MainAxisSize.min,children:[
+          TextField(controller:title,decoration:const InputDecoration(labelText:'पाठ का शीर्षक')),
+          const SizedBox(height:8),
+          TextField(controller:description,maxLines:2,decoration:const InputDecoration(labelText:'विवरण')),
+          const SizedBox(height:8),
+          DropdownButtonFormField<String>(value:type,decoration:const InputDecoration(labelText:'सामग्री का प्रकार'),
+            items:const [
+              DropdownMenuItem(value:'video',child:Text('Video')),
+              DropdownMenuItem(value:'pdf',child:Text('PDF / पुस्तक')),
+              DropdownMenuItem(value:'audio',child:Text('Audio / मंत्र')),
+              DropdownMenuItem(value:'text',child:Text('Text Lesson')),
+            ],onChanged:(v)=>setDialogState(()=>type=v??'video')),
+          const SizedBox(height:8),
+          TextField(controller:media,keyboardType:TextInputType.url,decoration:const InputDecoration(labelText:'Media URL (वैकल्पिक)')),
+          const SizedBox(height:8),
+          TextField(controller:duration,keyboardType:TextInputType.number,decoration:const InputDecoration(labelText:'अवधि (मिनट)')),
+        ])),
+        actions:[
+          TextButton(onPressed:()=>Navigator.pop(dialogContext),child:const Text('रद्द करें')),
+          ElevatedButton(onPressed:()=>Navigator.pop(dialogContext,{
+            'title':title.text.trim(),'description':description.text.trim(),'lesson_type':type,
+            'media_url':media.text.trim(),'duration':duration.text.trim(),
+          }),child:const Text('पाठ सेव करें')),
+        ],
+      )));
+    if(values==null){title.dispose();description.dispose();media.dispose();duration.dispose();return false;}
+    if((values['title']??'').isEmpty){
+      if(mounted)ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('पाठ का शीर्षक आवश्यक है।')));
+      title.dispose();description.dispose();media.dispose();duration.dispose();return false;
+    }
+    try{
+      final existing=await Supabase.instance.client.from('course_lessons')
+        .select('id').eq('course_id',course['id']);
+      await Supabase.instance.client.from('course_lessons').insert({
+        'course_id':course['id'],'title':values['title'],'description':values['description'],
+        'lesson_type':values['lesson_type'],'media_url':(values['media_url']??'').isEmpty?null:values['media_url'],
+        'duration_minutes':int.tryParse(values['duration']??'0')??0,'sort_order':existing.length,
+        'created_by':Supabase.instance.client.auth.currentUser?.id,
+      });
+      if(mounted)ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('पाठ सेव हो गया। अभी unpublished है।')));
+      await refresh();
+      title.dispose();description.dispose();media.dispose();duration.dispose();
+      return true;
+    }catch(e){
+      if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('पाठ सेव नहीं हुआ: $e')));
+      title.dispose();description.dispose();media.dispose();duration.dispose();
+      return false;
+    }
+  }
+
+  Future<void> manageLessons(Map<String,dynamic> course) async {
+    Future<List<Map<String,dynamic>>> load() async {
+      final rows=await Supabase.instance.client.from('course_lessons')
+        .select('id,title,lesson_type,duration_minutes,is_published,sort_order')
+        .eq('course_id',course['id']).order('sort_order');
+      return List<Map<String,dynamic>>.from(rows);
+    }
+    var lessonsFuture=load();
+    await showDialog<void>(context:context,builder:(dialogContext)=>StatefulBuilder(
+      builder:(context,setDialogState)=>AlertDialog(
+        title:Text('पाठ: ${course['title']}'),
+        content:SizedBox(width:420,height:360,child:FutureBuilder<List<Map<String,dynamic>>>(
+          future:lessonsFuture,builder:(context,snapshot){
+            if(snapshot.connectionState==ConnectionState.waiting)return const Center(child:CircularProgressIndicator());
+            if(snapshot.hasError)return const Center(child:Text('पाठ लोड नहीं हो सके।'));
+            final rows=snapshot.data??[];
+            if(rows.isEmpty)return const Center(child:Text('अभी कोई पाठ नहीं जोड़ा गया है।'));
+            return ListView.separated(itemCount:rows.length,separatorBuilder:(_,__)=>const Divider(height:1),
+              itemBuilder:(context,index){final lesson=rows[index];return ListTile(
+                contentPadding:EdgeInsets.zero,
+                leading:Icon(lesson['lesson_type']=='video'?Icons.play_circle_outline:
+                  lesson['lesson_type']=='pdf'?Icons.picture_as_pdf_outlined:
+                  lesson['lesson_type']=='audio'?Icons.headphones:Icons.article_outlined,color:KarmKritePalette.maroon),
+                title:Text((lesson['title']??'').toString(),maxLines:2,overflow:TextOverflow.ellipsis),
+                subtitle:Text('${lesson['lesson_type']} • ${lesson['duration_minutes']} min • ${lesson['is_published']==true?'Published':'Draft'}'),
+              );}),
+          },
+        )),
+        actions:[
+          TextButton(onPressed:()=>Navigator.pop(dialogContext),child:const Text('बंद करें')),
+          ElevatedButton.icon(onPressed:()async{
+            final added=await addLesson(course);
+            if(added)setDialogState(()=>lessonsFuture=load());
+          },icon:const Icon(Icons.add),label:const Text('पाठ जोड़ें')),
+        ],
+      ),
+    ));
+  }
+
   Future<void> togglePublish(Map<String,dynamic> course) async {
     try {
       await Supabase.instance.client.from('courses')
@@ -326,6 +422,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           title:Text((course['title']??'').toString(),style:const TextStyle(fontWeight:FontWeight.w800)),
           subtitle:Text('${course['academy']} • ${course['level']}'),
           trailing:Row(mainAxisSize:MainAxisSize.min,children:[
+            IconButton(tooltip:'पाठ प्रबंधित करें',onPressed:()=>manageLessons(course),
+              icon:const Icon(Icons.library_add_outlined,color:KarmKritePalette.maroon,size:20)),
             IconButton(tooltip:'Teacher assign करें',onPressed:()=>assignTeacher(course,staff),
               icon:const Icon(Icons.person_add_alt_1_rounded,color:KarmKritePalette.maroon,size:20)),
             Switch(value:course['is_published']==true,onChanged:(_)=>togglePublish(course),
