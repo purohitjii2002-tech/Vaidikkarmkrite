@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'theme/karmkrite_theme.dart';
+import 'staff/staff_portal.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -404,6 +405,11 @@ class _HomeScreenState extends State<HomeScreen> {
                     Text('THE VEDIC KNOWLEDGE EXPERIENCE', style: TextStyle(color: Color(0xFFF1DDE0),
                       letterSpacing: 1.05, fontSize: 8, fontWeight: FontWeight.w600)),
                   ])),
+                  IconButton(
+                    tooltip: 'Staff Portal',
+                    onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const StaffPortalScreen())),
+                    icon: const Icon(Icons.admin_panel_settings_outlined, color: Color(0xFFFFE5AF)),
+                  ),
                   IconButton(
                     tooltip: widget.isDarkMode ? 'Light Mode' : 'Dark Mode',
                     onPressed: widget.onThemeToggle,
