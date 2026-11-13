@@ -142,6 +142,49 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     return {'courses':rows[0], 'staff':rows[1], 'students':(rows[2] as List).length, 'lessons':(rows[3] as List).length};
   }
   Future<void> refresh() async { final f=loadData(); setState(()=>dataFuture=f); await f; }
+  Future<void> inviteTeacher() async {
+    final name = TextEditingController();
+    final email = TextEditingController();
+    final values = await showDialog<Map<String,String>>(context:context,builder:(dialogContext)=>AlertDialog(
+      title:const Text('Teacher को आमंत्रित करें'),
+      content:Column(mainAxisSize:MainAxisSize.min,children:[
+        TextField(controller:name, textCapitalization:TextCapitalization.words,
+          decoration:const InputDecoration(labelText:'शिक्षक का नाम (वैकल्पिक)')),
+        const SizedBox(height:10),
+        TextField(controller:email, keyboardType:TextInputType.emailAddress,
+          decoration:const InputDecoration(labelText:'शिक्षक का ईमेल')),
+        const SizedBox(height:8),
+        const Text('शिक्षक को account setup के लिए invitation email भेजा जाएगा।',style:TextStyle(fontSize:11)),
+      ]),
+      actions:[
+        TextButton(onPressed:()=>Navigator.pop(dialogContext),child:const Text('रद्द करें')),
+        ElevatedButton(onPressed:()=>Navigator.pop(dialogContext,{
+          'name':name.text.trim(),'email':email.text.trim(),
+        }),child:const Text('Invitation भेजें')),
+      ],
+    ));
+    if(values==null){name.dispose();email.dispose();return;}
+    final address=values['email']??'';
+    if(address.isEmpty || !address.contains('@')){
+      if(mounted)ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('सही ईमेल पता भरें।')));
+      name.dispose();email.dispose();return;
+    }
+    try{
+      final response=await Supabase.instance.client.functions.invoke('invite-teacher',
+        body:{'email':address,'display_name':values['name']??''});
+      if(response.status<200 || response.status>=300){
+        final message=(response.data is Map)?(response.data['error']??'Invitation असफल रही।'):'Invitation असफल रही।';
+        throw Exception(message);
+      }
+      if(mounted){
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('$address पर शिक्षक आमंत्रण भेज दिया गया।')));
+        await refresh();
+      }
+    }catch(e){
+      if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('Invitation नहीं भेजी जा सकी: $e')));
+    }
+    name.dispose();email.dispose();
+  }
 
   Future<void> addCourse() async {
     final title=TextEditingController(), description=TextEditingController();
@@ -289,7 +332,13 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               activeThumbColor:KarmKritePalette.gold),
           ]),
         ))),
-        const SizedBox(height:18),const Text('Staff Directory',style:TextStyle(fontSize:17,fontWeight:FontWeight.w900)),
+        const SizedBox(height:18),
+        Row(children:[
+          const Expanded(child:Text('Staff Directory',style:TextStyle(fontSize:17,fontWeight:FontWeight.w900))),
+          if(widget.role=='super_admin') TextButton.icon(
+            onPressed:inviteTeacher, icon:const Icon(Icons.person_add_alt_1_rounded,size:18),
+            label:const Text('Teacher Invite')),
+        ]),
         const SizedBox(height:7),
         ...staff.map((person)=>ListTile(contentPadding:const EdgeInsets.symmetric(horizontal:4),
           leading:CircleAvatar(backgroundColor:KarmKritePalette.maroon.withOpacity(.1),
