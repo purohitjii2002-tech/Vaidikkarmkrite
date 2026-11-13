@@ -1795,27 +1795,179 @@ class _InAppPdfReaderState extends State<InAppPdfReader> {
 class SavedScreen extends StatefulWidget {
   final String language;
   final VoidCallback onBack;
-  const SavedScreen({super.key,required this.language,required this.onBack});
+  const SavedScreen({super.key, required this.language, required this.onBack});
   @override
-  State<SavedScreen> createState()=>_SavedScreenState();
+  State<SavedScreen> createState() => _SavedScreenState();
 }
-class _SavedScreenState extends State<SavedScreen>{
-  late Future<List<Map<String,dynamic>>> future;
+
+class _SavedScreenState extends State<SavedScreen> {
+  late Future<List<Map<String, dynamic>>> future;
   @override
-  void initState(){super.initState();future=SavedStore.read();}
+  void initState() { super.initState(); future = SavedStore.read(); }
+
+  Future<void> refreshSaved() async {
+    final next = SavedStore.read();
+    setState(() => future = next);
+    await next;
+  }
+
   @override
-  Widget build(BuildContext context)=>Scaffold(appBar:AppBar(leading:IconButton(tooltip:'वापस जाएँ',icon:const Icon(Icons.arrow_back),onPressed:widget.onBack),title:Text(widget.language=='en'?'Saved Items':'सहेजी गई सामग्री')),
-    body:FutureBuilder<List<Map<String,dynamic>>>(future:future,builder:(context,s){
-      if(s.connectionState==ConnectionState.waiting)return const Center(child:CircularProgressIndicator());
-      final items=s.data??[];
-      if(items.isEmpty)return const Center(child:Padding(padding:EdgeInsets.all(28),child:Text('किसी सामग्री, फोटो, ऑडियो या विचार के बुकमार्क बटन को दबाएँ। वह यहाँ दिखाई देगा।',textAlign:TextAlign.center)));
-      return ListView.builder(padding:const EdgeInsets.all(14),itemCount:items.length,itemBuilder:(context,i){final x=items[i];final image=x['media_type']=='image'?(x['media_url']??'').toString():'';
-        return Card(child:ListTile(
-        leading:image.isNotEmpty?ClipRRect(borderRadius:BorderRadius.circular(8),child:Image.network(image,width:48,height:54,fit:BoxFit.cover,errorBuilder:(_,__,___)=>const Icon(Icons.image_not_supported))):Icon(x['media_type']=='audio'?Icons.headphones:Icons.bookmark,color:const Color(0xFF681D24)),
-        title:Text((x['title']??'').toString()),subtitle:Text((x['description']??x['category']??'').toString(),maxLines:2,overflow:TextOverflow.ellipsis),
-        onTap:()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>ContentDetailScreen(title:(x['title']??'').toString(),content:(x['body']??'').toString(),description:(x['description']??'').toString(),mediaUrl:(x['media_url']??'').toString(),mediaType:(x['media_type']??'').toString(),savedItem:x))).then((_){setState(()=>future=SavedStore.read());}),
-        trailing:IconButton(icon:const Icon(Icons.delete_outline),tooltip:'हटाएँ',onPressed:()async{await SavedStore.toggle({...x,'_remove':true});setState(()=>future=SavedStore.read());})));});
-    }));
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final surface = Theme.of(context).colorScheme.surface;
+    final muted = isDark ? KarmKritePalette.darkMuted : const Color(0xFF817565);
+    final english = widget.language == 'en';
+    return Scaffold(
+      appBar: AppBar(
+        leading: IconButton(tooltip: 'वापस जाएँ', icon: const Icon(Icons.arrow_back_rounded), onPressed: widget.onBack),
+        title: Text(english ? 'Saved Collection' : 'आपका संग्रह'),
+      ),
+      body: FutureBuilder<List<Map<String, dynamic>>>(
+        future: future,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          final items = snapshot.data ?? [];
+          return RefreshIndicator(
+            color: KarmKritePalette.gold,
+            onRefresh: refreshSaved,
+            child: CustomScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              slivers: [
+                SliverToBoxAdapter(
+                  child: Container(
+                    margin: const EdgeInsets.fromLTRB(18, 14, 18, 18),
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        begin: Alignment.topLeft, end: Alignment.bottomRight,
+                        colors: [KarmKritePalette.maroonDeep, KarmKritePalette.maroon, KarmKritePalette.maroonSoft],
+                      ),
+                      borderRadius: BorderRadius.circular(23),
+                      border: Border.all(color: KarmKritePalette.gold.withOpacity(.65)),
+                    ),
+                    child: Row(children: [
+                      Container(
+                        width: 52, height: 52,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(.10),
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: const Icon(Icons.bookmarks_rounded, color: KarmKritePalette.goldLight, size: 27),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        const Text('KARMKRITE  /  PERSONAL LIBRARY',
+                          style: TextStyle(color: KarmKritePalette.goldLight, fontSize: 9,
+                            letterSpacing: 1.1, fontWeight: FontWeight.w800)),
+                        const SizedBox(height: 6),
+                        Text(english ? 'Your saved knowledge' : 'आपकी सहेजी हुई सामग्री',
+                          style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w900)),
+                        const SizedBox(height: 3),
+                        Text('${items.length} ${english ? 'saved items' : 'सहेजे गए विषय'}',
+                          style: const TextStyle(color: Color(0xFFF1DDE0), fontSize: 11)),
+                      ])),
+                    ]),
+                  ),
+                ),
+                if (items.isEmpty)
+                  SliverFillRemaining(
+                    hasScrollBody: false,
+                    child: Center(child: Padding(
+                      padding: const EdgeInsets.all(30),
+                      child: Column(mainAxisSize: MainAxisSize.min, children: [
+                        Icon(Icons.bookmark_add_outlined, size: 52, color: KarmKritePalette.gold.withOpacity(.9)),
+                        const SizedBox(height: 14),
+                        Text(english
+                          ? 'Bookmark a lesson, image, audio or thought to keep it here.'
+                          : 'किसी पाठ, फोटो, ऑडियो या विचार को बुकमार्क करें। वह यहाँ सुरक्षित रहेगा।',
+                          textAlign: TextAlign.center, style: TextStyle(color: muted, height: 1.5)),
+                      ]),
+                    )),
+                  )
+                else
+                  SliverPadding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 28),
+                    sliver: SliverList(
+                      delegate: SliverChildBuilderDelegate((context, index) {
+                        final item = items[index];
+                        final image = item['media_type'] == 'image' ? (item['media_url'] ?? '').toString() : '';
+                        final title = (item['title'] ?? '').toString();
+                        final subtitle = (item['description'] ?? item['category'] ?? '').toString();
+                        return Container(
+                          margin: const EdgeInsets.only(bottom: 11),
+                          decoration: BoxDecoration(
+                            color: surface,
+                            borderRadius: BorderRadius.circular(18),
+                            border: Border.all(color: KarmKritePalette.gold.withOpacity(isDark ? .22 : .30)),
+                          ),
+                          child: Material(
+                            color: Colors.transparent,
+                            borderRadius: BorderRadius.circular(18),
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(18),
+                              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) =>
+                                ContentDetailScreen(
+                                  title: title, content: (item['body'] ?? '').toString(),
+                                  description: (item['description'] ?? '').toString(),
+                                  mediaUrl: (item['media_url'] ?? '').toString(),
+                                  mediaType: (item['media_type'] ?? '').toString(), savedItem: item,
+                                ))).then((_) => refreshSaved()),
+                              child: Padding(
+                                padding: const EdgeInsets.all(12),
+                                child: Row(children: [
+                                  ClipRRect(
+                                    borderRadius: BorderRadius.circular(12),
+                                    child: image.isNotEmpty
+                                      ? Image.network(image, width: 54, height: 62, fit: BoxFit.cover,
+                                          errorBuilder: (_, __, ___) => _savedPlaceholder())
+                                      : _savedPlaceholder(item['media_type'] == 'audio'),
+                                  ),
+                                  const SizedBox(width: 13),
+                                  Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                    Text(title, maxLines: 2, overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(color: Theme.of(context).colorScheme.onSurface,
+                                        fontWeight: FontWeight.w800, fontSize: 14, height: 1.25)),
+                                    if (subtitle.isNotEmpty) ...[
+                                      const SizedBox(height: 5),
+                                      Text(subtitle, maxLines: 2, overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(color: muted, fontSize: 11, height: 1.35)),
+                                    ],
+                                  ])),
+                                  IconButton(
+                                    tooltip: english ? 'Remove bookmark' : 'बुकमार्क हटाएँ',
+                                    icon: const Icon(Icons.bookmark_remove_outlined, color: KarmKritePalette.maroon),
+                                    onPressed: () async {
+                                      await SavedStore.toggle({...item, '_remove': true});
+                                      if (mounted) await refreshSaved();
+                                    },
+                                  ),
+                                ]),
+                              ),
+                            ),
+                          ),
+                        );
+                      }, childCount: items.length),
+                    ),
+                  ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _savedPlaceholder([bool audio = false]) => Container(
+    width: 54, height: 62,
+    decoration: BoxDecoration(
+      color: KarmKritePalette.maroon.withOpacity(.09),
+      borderRadius: BorderRadius.circular(12),
+    ),
+    child: Icon(audio ? Icons.headphones_rounded : Icons.menu_book_rounded,
+      color: KarmKritePalette.gold, size: 26),
+  );
 }
 
 class NotificationsScreen extends StatefulWidget {
