@@ -1181,7 +1181,12 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final surface = Theme.of(context).colorScheme.surface;
+    final textColor = Theme.of(context).colorScheme.onSurface;
+    final mutedColor = isDark ? KarmKritePalette.darkMuted : const Color(0xFF817565);
+    return Scaffold(
     appBar: AppBar(
       title: const BrandMark(),
       actions: [
@@ -1231,8 +1236,8 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
           const SizedBox(height: 18),
           Container(
             padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(color: const Color(0xFFFFFBF5),
-              borderRadius: BorderRadius.circular(18), border: Border.all(color: const Color(0xFFE0D4B9))),
+            decoration: BoxDecoration(color: surface,
+              borderRadius: BorderRadius.circular(18), border: Border.all(color: isDark ? const Color(0xFF49383B) : const Color(0xFFE0D4B9))),
             child: ClipRRect(borderRadius: BorderRadius.circular(12),
               child: _cachedMediaFile != null && _cachedMediaFile!.existsSync()
                   ? Image.file(_cachedMediaFile!, width: double.infinity, fit: BoxFit.contain)
@@ -1245,7 +1250,7 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
         if (widget.mediaType == 'audio' && widget.mediaUrl.isNotEmpty) ...[
           const SizedBox(height: 18),
           Card(
-            color: const Color(0xFFFFFBF5),
+            color: surface,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18),
               side: const BorderSide(color: Color(0xFFE4D2B5))),
             child: Padding(padding: const EdgeInsets.fromLTRB(12, 12, 16, 10), child: Row(children: [
@@ -1277,8 +1282,8 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
         const SizedBox(height: 12),
         Container(
           width: double.infinity, padding: const EdgeInsets.all(18),
-          decoration: BoxDecoration(color: const Color(0xFFFFFBF5),
-            borderRadius: BorderRadius.circular(18), border: Border.all(color: const Color(0xFFECE2D3))),
+          decoration: BoxDecoration(color: surface,
+            borderRadius: BorderRadius.circular(18), border: Border.all(color: isDark ? const Color(0xFF49383B) : const Color(0xFFECE2D3))),
           child: SelectableText(
             widget.content.isEmpty ? 'इस विषय की विस्तृत सामग्री शीघ्र उपलब्ध होगी।' : widget.content,
             style: const TextStyle(fontSize: 16, height: 1.9, color: Color(0xFF3F352B))),
@@ -1286,6 +1291,7 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
       ]),
     ),
   );
+  }
 }
 
 class BooksScreen extends StatefulWidget {
