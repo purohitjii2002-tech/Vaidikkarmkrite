@@ -1297,8 +1297,12 @@ class BooksScreen extends StatefulWidget {
 }
 class _BooksScreenState extends State<BooksScreen> {
   late Future<List<Map<String,dynamic>>> future;
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
   @override
   void initState(){super.initState();future=load();}
+  @override
+  void dispose(){_searchController.dispose();super.dispose();}
   Future<List<Map<String,dynamic>>> load() async {
     final prefs = await SharedPreferences.getInstance();
     try {
@@ -1362,6 +1366,13 @@ class _BooksScreenState extends State<BooksScreen> {
             ]));
           }
           final books=s.data??[];
+          final query = _searchQuery.trim().toLowerCase();
+          final filteredBooks = query.isEmpty ? books : books.where((book) {
+            final title = ((en ? book['title_en'] : book['title_hi']) ?? book['title_hi'] ?? '').toString().toLowerCase();
+            final author = (book['author'] ?? '').toString().toLowerCase();
+            final description = (book['description'] ?? '').toString().toLowerCase();
+            return title.contains(query) || author.contains(query) || description.contains(query);
+          }).toList();
           return RefreshIndicator(
             color:const Color(0xFFA64B32),
             onRefresh:()async { setState(()=>future=load()); await future; },
@@ -1397,11 +1408,32 @@ class _BooksScreenState extends State<BooksScreen> {
                     ])),
                   ]),
                 ),
-                const SizedBox(height:20),
+                const SizedBox(height:18),
+                Container(
+                  padding:const EdgeInsets.symmetric(horizontal:14,vertical:3),
+                  decoration:BoxDecoration(color:const Color(0xFFFFFBF5),
+                    borderRadius:BorderRadius.circular(15),border:Border.all(color:const Color(0xFFE4D2B5))),
+                  child:TextField(
+                    controller:_searchController,
+                    onChanged:(value)=>setState(()=>_searchQuery=value),
+                    decoration:InputDecoration(
+                      border:InputBorder.none,
+                      hintText:en?'Search books, authors or topics':'पुस्तक, लेखक या विषय खोजें',
+                      hintStyle:const TextStyle(color:Color(0xFF9B8B79),fontSize:13),
+                      prefixIcon:const Icon(Icons.search_rounded,color:Color(0xFFA64B32)),
+                      suffixIcon:_searchQuery.isEmpty ? null : IconButton(
+                        tooltip:'खोज हटाएँ',
+                        onPressed:()=>setState((){_searchController.clear();_searchQuery='';}),
+                        icon:const Icon(Icons.close_rounded,color:Color(0xFF8A765C)),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height:18),
                 Row(children:[
                   const Expanded(child:Text('उपलब्ध पुस्तकें',
                     style:TextStyle(color:Color(0xFF392B28),fontSize:17,fontWeight:FontWeight.w800))),
-                  Text('${books.length} पुस्तकें',
+                  Text('${filteredBooks.length} / ${books.length}',
                     style:const TextStyle(color:Color(0xFF8A765C),fontSize:11,fontWeight:FontWeight.w700)),
                 ]),
                 const SizedBox(height:10),
@@ -1417,8 +1449,20 @@ class _BooksScreenState extends State<BooksScreen> {
                         style:TextStyle(color:Color(0xFF817565),height:1.4)),
                     ]),
                   )
+                else if(filteredBooks.isEmpty)
+                  Container(
+                    padding:const EdgeInsets.all(24),
+                    decoration:BoxDecoration(color:const Color(0xFFFFFBF5),
+                      borderRadius:BorderRadius.circular(18),border:Border.all(color:const Color(0xFFE9DDC8))),
+                    child:const Column(children:[
+                      Icon(Icons.search_off_rounded,size:38,color:Color(0xFFC69A43)),
+                      SizedBox(height:9),
+                      Text('इस खोज से कोई पुस्तक नहीं मिली।',textAlign:TextAlign.center,
+                        style:TextStyle(color:Color(0xFF817565),height:1.4)),
+                    ]),
+                  )
                 else
-                  ...books.map((b){
+                  ...filteredBooks.map((b){
                     final title=(en?b['title_en']:b['title_hi'])??b['title_hi']??'';
                     final coverUrl=(b['cover_url']??'').toString().trim();
                     final author=(b['author']??'').toString();
