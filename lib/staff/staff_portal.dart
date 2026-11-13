@@ -36,7 +36,7 @@ class _StaffPortalScreenState extends State<StaffPortalScreen> {
         throw Exception('इस खाते को Staff Portal की अनुमति नहीं है।');
       }
       final value = (row['role'] ?? '').toString();
-      if (!['super_admin','admin','editor','teacher'].contains(value)) {
+      if (!['super_admin','admin','teacher'].contains(value)) {
         await Supabase.instance.client.auth.signOut();
         throw Exception('इस खाते की भूमिका मान्य नहीं है।');
       }
@@ -70,7 +70,7 @@ class _StaffPortalScreenState extends State<StaffPortalScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (role == 'super_admin' || role == 'admin' || role == 'editor') {
+    if (role == 'super_admin' || role == 'admin') {
       return AdminDashboardScreen(role: role!, onLogout: logout);
     }
     if (role == 'teacher') return TeacherDashboardScreen(onLogout: logout);
@@ -187,6 +187,41 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     }
     title.dispose(); description.dispose();
   }
+  Future<void> assignTeacher(Map<String,dynamic> course, List<Map<String,dynamic>> staff) async {
+    final teachers=staff.where((person)=>person['role']=='teacher' && person['is_active']==true).toList();
+    if(teachers.isEmpty){
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('पहले Staff Portal में Teacher account provision करें।')));
+      return;
+    }
+    String selected=(teachers.first['id']??'').toString();
+    final teacherId=await showDialog<String>(context:context,builder:(dialogContext)=>
+      StatefulBuilder(builder:(context,setDialogState)=>AlertDialog(
+        title:const Text('Teacher assign करें'),
+        content:DropdownButtonFormField<String>(
+          value:selected,decoration:const InputDecoration(labelText:'Teacher'),
+          items:teachers.map((person)=>DropdownMenuItem<String>(
+            value:(person['id']??'').toString(),
+            child:Text((person['email']??'Teacher').toString(),overflow:TextOverflow.ellipsis),
+          )).toList(),
+          onChanged:(value)=>setDialogState(()=>selected=value??selected),
+        ),
+        actions:[
+          TextButton(onPressed:()=>Navigator.pop(dialogContext),child:const Text('रद्द करें')),
+          ElevatedButton(onPressed:()=>Navigator.pop(dialogContext,selected),child:const Text('Assign करें')),
+        ],
+      )));
+    if(teacherId==null)return;
+    try{
+      await Supabase.instance.client.from('teacher_course_assignments').upsert({
+        'teacher_id':teacherId,'course_id':course['id'],
+        'assigned_by':Supabase.instance.client.auth.currentUser?.id,
+      },onConflict:'teacher_id,course_id');
+      if(mounted){ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('Teacher को course assign कर दिया गया।')));await refresh();}
+    }catch(e){
+      if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('Assignment नहीं हो सका: $e')));
+    }
+  }
+
   Future<void> togglePublish(Map<String,dynamic> course) async {
     try {
       await Supabase.instance.client.from('courses')
@@ -247,8 +282,12 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             child:Icon(course['academy']=='jyotish'?Icons.auto_awesome:course['academy']=='karmkand'?Icons.temple_hindu:Icons.menu_book,color:KarmKritePalette.maroon)),
           title:Text((course['title']??'').toString(),style:const TextStyle(fontWeight:FontWeight.w800)),
           subtitle:Text('${course['academy']} • ${course['level']}'),
-          trailing:widget.role=='editor'?const Icon(Icons.visibility_outlined):Switch(
-            value:course['is_published']==true,onChanged:(_)=>togglePublish(course),activeThumbColor:KarmKritePalette.gold),
+          trailing:Row(mainAxisSize:MainAxisSize.min,children:[
+            IconButton(tooltip:'Teacher assign करें',onPressed:()=>assignTeacher(course,staff),
+              icon:const Icon(Icons.person_add_alt_1_rounded,color:KarmKritePalette.maroon,size:20)),
+            Switch(value:course['is_published']==true,onChanged:(_)=>togglePublish(course),
+              activeThumbColor:KarmKritePalette.gold),
+          ]),
         ))),
         const SizedBox(height:18),const Text('Staff Directory',style:TextStyle(fontSize:17,fontWeight:FontWeight.w900)),
         const SizedBox(height:7),
