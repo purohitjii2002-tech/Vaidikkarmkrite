@@ -792,6 +792,7 @@ class ModuleScreen extends StatefulWidget {
 
 class _ModuleScreenState extends State<ModuleScreen> {
   late Future<List<Map<String, dynamic>>> contentFuture;
+  String query = '';
 
   String tr(String key) => AppText.get(widget.language, key);
 
@@ -854,191 +855,211 @@ class _ModuleScreenState extends State<ModuleScreen> {
           mediaType: (item['media_type'] ?? '').toString(),
           savedItem:{...item,'title':getTitle(item),'category':widget.module.title,'body':(item['body']??'').toString(),'description':(item['description']??'').toString()},
         ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final surface = Theme.of(context).colorScheme.surface;
+    final muted = isDark ? KarmKritePalette.darkMuted : const Color(0xFF817565);
     return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.module.title),
-      ),
-      body: Column(
-        children: [
-          Container(
-            width: double.infinity,
-            margin: const EdgeInsets.fromLTRB(16, 12, 16, 14),
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFF421219), Color(0xFF8A343C), Color(0xFF8A343C)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
+      body: FutureBuilder<List<Map<String, dynamic>>>(
+        future: contentFuture,
+        builder: (context, snapshot) {
+          final allItems = snapshot.data ?? [];
+          final filteredItems = allItems.where((item) {
+            final q = query.trim().toLowerCase();
+            return q.isEmpty || getTitle(item).toLowerCase().contains(q) ||
+              (item['description'] ?? '').toString().toLowerCase().contains(q);
+          }).toList();
+          return CustomScrollView(
+            slivers: [
+              SliverAppBar(
+                pinned: true,
+                expandedHeight: 218,
+                leading: IconButton(
+                  tooltip: 'वापस जाएँ',
+                  icon: const Icon(Icons.arrow_back_rounded),
+                  onPressed: () => Navigator.maybePop(context),
+                ),
+                title: Text(widget.module.title, maxLines: 1, overflow: TextOverflow.ellipsis),
+                flexibleSpace: FlexibleSpaceBar(
+                  background: Container(
+                    decoration: const BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft, end: Alignment.bottomRight,
+                        colors: [KarmKritePalette.maroonDeep, KarmKritePalette.maroon, KarmKritePalette.maroonSoft],
+                      ),
+                    ),
+                    child: SafeArea(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(22, 58, 22, 22),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            Row(children: [
+                              Container(
+                                width: 54, height: 54,
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withOpacity(.10),
+                                  borderRadius: BorderRadius.circular(17),
+                                  border: Border.all(color: KarmKritePalette.gold.withOpacity(.65)),
+                                ),
+                                alignment: Alignment.center,
+                                child: Text(widget.module.icon, style: const TextStyle(fontSize: 30)),
+                              ),
+                              const SizedBox(width: 14),
+                              Expanded(child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text('KARMKRITE  /  KNOWLEDGE SERIES',
+                                    style: TextStyle(color: KarmKritePalette.goldLight, fontSize: 9,
+                                      letterSpacing: 1.2, fontWeight: FontWeight.w800)),
+                                  const SizedBox(height: 5),
+                                  Text(widget.module.title, maxLines: 2, overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(color: Colors.white, fontSize: 22,
+                                      height: 1.15, fontWeight: FontWeight.w900)),
+                                ],
+                              )),
+                            ]),
+                            const SizedBox(height: 12),
+                            Text(widget.module.subtitle, maxLines: 2, overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(color: Color(0xFFF1DDE0), fontSize: 12, height: 1.4)),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
               ),
-              borderRadius: BorderRadius.circular(23),
-              border: Border.all(color: const Color(0xFFD9B96E).withOpacity(.85)),
-              boxShadow: const [
-                BoxShadow(color: Color(0x24133D35), blurRadius: 19, offset: Offset(0, 8)),
-              ],
-            ),
-            child: Row(
-              children: [
-                Container(
-                  width: 62,
-                  height: 62,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFFF4DC).withOpacity(.13),
-                    borderRadius: BorderRadius.circular(19),
-                    border: Border.all(color: const Color(0xFFD5A34B).withOpacity(.55)),
-                  ),
-                  alignment: Alignment.center,
-                  child: Text(widget.module.icon, style: const TextStyle(fontSize: 34)),
-                ),
-                const SizedBox(width: 15),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text('KARMKRITE KNOWLEDGE',
-                        style: TextStyle(color: Color(0xFFE8C98E), fontSize: 9,
-                          letterSpacing: 1.5, fontWeight: FontWeight.w800)),
-                      const SizedBox(height: 5),
-                      Text(widget.module.title, maxLines: 2, overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(color: Colors.white, fontSize: 19,
-                          height: 1.2, fontWeight: FontWeight.w800)),
-                      const SizedBox(height: 5),
-                      Text(widget.module.subtitle, maxLines: 2, overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(color: Color(0xFFE8DED0), fontSize: 11)),
-                    ],
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(18, 20, 18, 10),
+                sliver: SliverToBoxAdapter(
+                  child: TextField(
+                    onChanged: (value) => setState(() => query = value),
+                    decoration: InputDecoration(
+                      hintText: widget.language == 'en' ? 'Search this collection' : 'इस संग्रह में खोजें',
+                      prefixIcon: const Icon(Icons.search_rounded),
+                      filled: true,
+                      fillColor: surface,
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(16),
+                        borderSide: BorderSide(color: KarmKritePalette.gold.withOpacity(.35))),
+                      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16),
+                        borderSide: BorderSide(color: KarmKritePalette.gold.withOpacity(.35))),
+                    ),
                   ),
                 ),
-              ],
-            ),
-          ),
-          Expanded(
-            child: FutureBuilder<List<Map<String, dynamic>>>(
-              future: contentFuture,
-              builder: (context, snapshot) {
-                if (snapshot.connectionState ==
-                    ConnectionState.waiting) {
-                  return const Center(
-                    child: CircularProgressIndicator(),
-                  );
-                }
-
-                if (snapshot.hasError) {
-                  return Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(20),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            tr('error'),
-                            textAlign: TextAlign.center,
-                          ),
-                          const SizedBox(height: 10),
-                          ElevatedButton(
-                            onPressed: () {
-                              setState(() {
-                                contentFuture = loadContent();
-                              });
-                            },
-                            child: Text(tr('retry')),
-                          ),
-                        ],
+              ),
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(20, 8, 20, 10),
+                sliver: SliverToBoxAdapter(
+                  child: Row(children: [
+                    Expanded(child: Text(widget.language == 'en' ? 'Study material' : 'अध्ययन सामग्री',
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900))),
+                    Text(snapshot.connectionState == ConnectionState.waiting
+                      ? '…' : '${filteredItems.length} विषय',
+                      style: TextStyle(color: muted, fontSize: 11, fontWeight: FontWeight.w700)),
+                  ]),
+                ),
+              ),
+              if (snapshot.connectionState == ConnectionState.waiting)
+                const SliverFillRemaining(hasScrollBody: false,
+                  child: Center(child: CircularProgressIndicator()))
+              else if (snapshot.hasError)
+                SliverFillRemaining(hasScrollBody: false,
+                  child: Center(child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(mainAxisSize: MainAxisSize.min, children: [
+                      Icon(Icons.cloud_off_rounded, size: 42, color: KarmKritePalette.maroon),
+                      const SizedBox(height: 12),
+                      Text(tr('error'), textAlign: TextAlign.center),
+                      const SizedBox(height: 12),
+                      ElevatedButton.icon(
+                        onPressed: () => setState(() => contentFuture = loadContent()),
+                        icon: const Icon(Icons.refresh_rounded), label: Text(tr('retry')),
                       ),
-                    ),
-                  );
-                }
-
-                final items = snapshot.data ?? [];
-
-                if (items.isEmpty) {
-                  return Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(20),
-                      child: Text(
-                        tr('empty'),
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
-                  );
-                }
-
-                return ListView.builder(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 4,
-                  ),
-                  itemCount: items.length,
-                  itemBuilder: (context, index) {
-                    final item = items[index];
-
-                    return Container(
-                      margin: const EdgeInsets.only(bottom: 10),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFFFBF5),
-                        borderRadius: BorderRadius.circular(18),
-                        border: Border.all(color: const Color(0xFFE9DDC8)),
-                        boxShadow: const [
-                          BoxShadow(color: Color(0x0D332514), blurRadius: 12, offset: Offset(0, 4)),
-                        ],
-                      ),
-                      child: Material(
-                        color: Colors.transparent,
-                        borderRadius: BorderRadius.circular(18),
-                        child: InkWell(
+                    ]),
+                  )))
+              else if (filteredItems.isEmpty)
+                SliverFillRemaining(hasScrollBody: false,
+                  child: Center(child: Padding(
+                    padding: const EdgeInsets.all(28),
+                    child: Column(mainAxisSize: MainAxisSize.min, children: [
+                      Icon(Icons.auto_stories_outlined, size: 48, color: KarmKritePalette.gold),
+                      const SizedBox(height: 12),
+                      Text(query.isEmpty ? tr('empty') : 'इस खोज से कोई विषय नहीं मिला।',
+                        textAlign: TextAlign.center, style: TextStyle(color: muted)),
+                    ]),
+                  )))
+              else
+                SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(16, 2, 16, 30),
+                  sliver: SliverList(
+                    delegate: SliverChildBuilderDelegate((context, index) {
+                      final item = filteredItems[index];
+                      final description = (item['description'] ?? '').toString();
+                      final savedItem = {...item, 'title': getTitle(item),
+                        'category': widget.module.title, 'body': (item['body'] ?? '').toString(),
+                        'description': description};
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 11),
+                        decoration: BoxDecoration(
+                          color: surface,
                           borderRadius: BorderRadius.circular(18),
-                          onTap: () => openContent(item),
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 12),
-                            child: Row(
-                              children: [
+                          border: Border.all(color: KarmKritePalette.gold.withOpacity(isDark ? .24 : .30)),
+                          boxShadow: [BoxShadow(
+                            color: Colors.black.withOpacity(isDark ? .12 : .035),
+                            blurRadius: 14, offset: const Offset(0, 5))],
+                        ),
+                        child: Material(
+                          color: Colors.transparent,
+                          borderRadius: BorderRadius.circular(18),
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(18),
+                            onTap: () => openContent(item),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 15),
+                              child: Row(children: [
                                 Container(
-                                  width: 43,
-                                  height: 43,
+                                  width: 42, height: 48,
                                   decoration: BoxDecoration(
-                                    color: const Color(0xFFFAF1DF),
-                                    borderRadius: BorderRadius.circular(14),
-                                  ),
+                                    color: KarmKritePalette.maroon.withOpacity(isDark ? .25 : .08),
+                                    borderRadius: BorderRadius.circular(13)),
                                   alignment: Alignment.center,
-                                  child: Text('${index + 1}',
-                                    style: const TextStyle(color: Color(0xFFA64B32),
-                                      fontWeight: FontWeight.w800, fontSize: 15)),
+                                  child: Text('${(index + 1).toString().padLeft(2, '0')}',
+                                    style: const TextStyle(color: KarmKritePalette.gold,
+                                      fontSize: 13, fontWeight: FontWeight.w900)),
                                 ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(getTitle(item), maxLines: 2, overflow: TextOverflow.ellipsis,
-                                        style: const TextStyle(color: Color(0xFF392B28),
-                                          fontWeight: FontWeight.w800, fontSize: 14, height: 1.25)),
-                                      if ((item['description'] ?? '').toString().isNotEmpty) ...[
-                                        const SizedBox(height: 4),
-                                        Text((item['description'] ?? '').toString(),
-                                          maxLines: 2, overflow: TextOverflow.ellipsis,
-                                          style: const TextStyle(color: Color(0xFF817565), fontSize: 11, height: 1.3)),
-                                      ],
+                                const SizedBox(width: 13),
+                                Expanded(child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(getTitle(item), maxLines: 2, overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(color: Theme.of(context).colorScheme.onSurface,
+                                        fontWeight: FontWeight.w800, fontSize: 14, height: 1.3)),
+                                    if (description.isNotEmpty) ...[
+                                      const SizedBox(height: 5),
+                                      Text(description, maxLines: 2, overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(color: muted, fontSize: 11, height: 1.35)),
                                     ],
-                                  ),
-                                ),
-                                SaveItemButton(item:{...item,'title':getTitle(item),'category':widget.module.title,'body':(item['body']??'').toString(),'description':(item['description']??'').toString()}),
-                                const Icon(Icons.chevron_right_rounded, color: Color(0xFFC69A43), size: 22),
-                              ],
+                                  ],
+                                )),
+                                const SizedBox(width: 8),
+                                SaveItemButton(item: savedItem),
+                                Icon(Icons.chevron_right_rounded, color: KarmKritePalette.gold.withOpacity(.9)),
+                              ]),
                             ),
                           ),
                         ),
-                      ),
-                    );
-                  },
-                );
-              },
-            ),
-          ),
-        ],
+                      );
+                    }, childCount: filteredItems.length),
+                  ),
+                ),
+            ],
+          );
+        },
+      ),
+    );
+  },
       ),
     );
   }
