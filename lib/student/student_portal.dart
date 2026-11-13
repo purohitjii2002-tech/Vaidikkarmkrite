@@ -62,6 +62,15 @@ class _StudentPortalScreenState extends State<StudentPortalScreen> {
         await auth.signInWithPassword(email: email, password: password);
       }
       if (!mounted) return;
+      final user = auth.currentUser!;
+      final profileName = (user.userMetadata?['full_name'] ?? _name.text.trim()).toString().trim();
+      await Supabase.instance.client.from('student_profiles').upsert({
+        'user_id': user.id,
+        'email': (user.email ?? email).toLowerCase(),
+        'full_name': profileName,
+        'updated_at': DateTime.now().toUtc().toIso8601String(),
+      }, onConflict: 'user_id');
+      if (!mounted) return;
       Navigator.of(context).pushReplacement(MaterialPageRoute(
         builder: (_) => const StudentDashboardScreen()));
     } on AuthException catch (e) {
