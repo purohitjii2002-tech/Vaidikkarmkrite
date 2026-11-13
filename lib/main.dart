@@ -2,6 +2,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'theme/karmkrite_theme.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -33,55 +34,42 @@ class KarmKriteApp extends StatefulWidget {
 
 class _KarmKriteAppState extends State<KarmKriteApp> {
   String language = 'hi';
+  bool isDarkMode = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _restoreThemeMode();
+  }
+
+  Future<void> _restoreThemeMode() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
+    setState(() => isDarkMode = prefs.getBool('karmkrite_dark_mode') ?? false);
+  }
+
+  Future<void> _toggleThemeMode() async {
+    final next = !isDarkMode;
+    setState(() => isDarkMode = next);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('karmkrite_dark_mode', next);
+  }
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'KARMKRITE',
-      theme: ThemeData(
-        useMaterial3: true,
-        scaffoldBackgroundColor: const Color(0xFFF5F1E7),
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF123D32),
-          primary: const Color(0xFF123D32),
-          secondary: const Color(0xFFC9A45C),
-          surface: const Color(0xFFFFFCF4),
-          onPrimary: const Color(0xFFFFFCF4),
-        ),
-        appBarTheme: const AppBarTheme(
-          backgroundColor: Color(0xFF123D32),
-          foregroundColor: Color(0xFFFFF8E8),
-          elevation: 0,
-          centerTitle: false,
-          titleTextStyle: TextStyle(color: Color(0xFFFFF8E8), fontSize: 19, fontWeight: FontWeight.w800, letterSpacing: .6),
-          iconTheme: IconThemeData(color: Color(0xFFE5C77E)),
-        ),
-        navigationBarTheme: NavigationBarThemeData(
-          backgroundColor: const Color(0xFF10352D),
-          indicatorColor: const Color(0xFF315B4D),
-          labelTextStyle: WidgetStateProperty.resolveWith((states) =>
-            TextStyle(fontSize: 11, fontWeight: states.contains(WidgetState.selected)
-              ? FontWeight.w800 : FontWeight.w500,
-              color: states.contains(WidgetState.selected)
-                ? const Color(0xFFFFD98B) : const Color(0xFFD7D0BE))),
-          iconTheme: WidgetStateProperty.resolveWith((states) => IconThemeData(
-            color: states.contains(WidgetState.selected)
-              ? const Color(0xFFFFD98B) : const Color(0xFFD7D0BE))),
-          elevation: 12,
-          shadowColor: const Color(0x33000000),
-        ),
-        cardTheme: CardThemeData(
-          color: const Color(0xFFFFFCF4),
-          elevation: 0,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        ),
-      ),
+      theme: KarmKriteTheme.light,
+      darkTheme: KarmKriteTheme.dark,
+      themeMode: isDarkMode ? ThemeMode.dark : ThemeMode.light,
       home: HomeScreen(
         language: language,
         onLanguageChanged: (value) {
           setState(() => language = value);
         },
+        isDarkMode: isDarkMode,
+        onThemeToggle: _toggleThemeMode,
       ),
     );
   }
@@ -279,11 +267,15 @@ Future<List<ModuleInfo>> loadModules(String language) async {
 class HomeScreen extends StatefulWidget {
   final String language;
   final ValueChanged<String> onLanguageChanged;
+  final bool isDarkMode;
+  final VoidCallback onThemeToggle;
 
   const HomeScreen({
     super.key,
     required this.language,
     required this.onLanguageChanged,
+    required this.isDarkMode,
+    required this.onThemeToggle,
   });
 
   @override
@@ -324,14 +316,14 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F1E8),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: selectedTab == 0 ? _homeBody() : _otherTabBody(),
       bottomNavigationBar: SafeArea(
         top: false,
         child: Container(
           margin: const EdgeInsets.fromLTRB(16, 0, 16, 10),
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
-          decoration: BoxDecoration(color: const Color(0xFF102F29), borderRadius: BorderRadius.circular(24),
+          decoration: BoxDecoration(color: Theme.of(context).brightness == Brightness.dark ? KarmKritePalette.darkSurface : KarmKritePalette.maroonDeep, borderRadius: BorderRadius.circular(24),
             boxShadow: const [BoxShadow(color: Color(0x24102F29), blurRadius: 22, offset: Offset(0, 8))]),
           child: Row(children: [
             _navItem(0, Icons.grid_view_rounded, tr('home')),
@@ -350,13 +342,13 @@ class _HomeScreenState extends State<HomeScreen> {
       onTap: () => setState(() => selectedTab = index),
       child: AnimatedContainer(duration: const Duration(milliseconds: 220),
         padding: const EdgeInsets.symmetric(vertical: 9),
-        decoration: BoxDecoration(color: selected ? const Color(0xFF244D41) : Colors.transparent,
+        decoration: BoxDecoration(color: selected ? (Theme.of(context).brightness == Brightness.dark ? const Color(0xFF633039) : KarmKritePalette.maroonSoft) : Colors.transparent,
           borderRadius: BorderRadius.circular(18)),
         child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Icon(icon, size: 21, color: selected ? const Color(0xFFE8C77C) : const Color(0xFFB8C8BE)),
+          Icon(icon, size: 21, color: selected ? KarmKritePalette.goldLight : (Theme.of(context).brightness == Brightness.dark ? KarmKritePalette.darkMuted : const Color(0xFFE8D9D3))),
           const SizedBox(height: 4),
           Text(label, style: TextStyle(fontSize: 10, fontWeight: selected ? FontWeight.w800 : FontWeight.w500,
-            color: selected ? const Color(0xFFFFE8B6) : const Color(0xFFB8C8BE))),
+            color: selected ? KarmKritePalette.goldLight : (Theme.of(context).brightness == Brightness.dark ? KarmKritePalette.darkMuted : const Color(0xFFE8D9D3)))),
         ]),
       ),
     ));
@@ -389,13 +381,15 @@ class _HomeScreenState extends State<HomeScreen> {
         const months = ['जनवरी','फरवरी','मार्च','अप्रैल','मई','जून','जुलाई','अगस्त','सितंबर','अक्टूबर','नवंबर','दिसंबर'];
 
         return RefreshIndicator(
-          color: const Color(0xFFB18A43), onRefresh: refreshModules,
+          color: KarmKritePalette.gold, onRefresh: refreshModules,
           child: CustomScrollView(physics: const AlwaysScrollableScrollPhysics(), slivers: [
             SliverToBoxAdapter(child: Container(
               padding: EdgeInsets.fromLTRB(22, MediaQuery.of(context).padding.top + 15, 22, 28),
               decoration: const BoxDecoration(
                 gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight,
-                  colors: [Color(0xFF0D2924), Color(0xFF174A3E), Color(0xFF225C4C)]),
+                  colors: Theme.of(context).brightness == Brightness.dark
+                    ? [KarmKritePalette.maroonDeep, KarmKritePalette.maroon, const Color(0xFF78313A)]
+                    : [KarmKritePalette.maroonDeep, KarmKritePalette.maroon, KarmKritePalette.maroonSoft]),
                 borderRadius: BorderRadius.vertical(bottom: Radius.circular(34))),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Row(children: [
@@ -410,6 +404,12 @@ class _HomeScreenState extends State<HomeScreen> {
                     Text('THE VEDIC KNOWLEDGE EXPERIENCE', style: TextStyle(color: Color(0xFFC7D8CE),
                       letterSpacing: 1.05, fontSize: 8, fontWeight: FontWeight.w600)),
                   ])),
+                  IconButton(
+                    tooltip: widget.isDarkMode ? 'Light Mode' : 'Dark Mode',
+                    onPressed: widget.onThemeToggle,
+                    icon: Icon(widget.isDarkMode ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
+                      color: KarmKritePalette.goldLight),
+                  ),
                   IconButton(tooltip: tr('notifications'),
                     onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const NotificationsScreen())),
                     icon: const Icon(Icons.notifications_none_rounded, color: Color(0xFFFFE5AF))),
@@ -446,7 +446,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 decoration: InputDecoration(hintText: tr('search'),
                   prefixIcon: const Icon(Icons.search_rounded, color: Color(0xFF9A7A42)),
                   suffixIcon: const Icon(Icons.tune_rounded, color: Color(0xFF9A7A42)),
-                  filled: true, fillColor: const Color(0xFFFFFEFA),
+                  filled: true, fillColor: Theme.of(context).colorScheme.surface,
                   contentPadding: const EdgeInsets.symmetric(vertical: 17),
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(17),
                     borderSide: const BorderSide(color: Color(0xFFE3D9C5))),
@@ -1046,7 +1046,7 @@ class _ModuleScreenState extends State<ModuleScreen> {
 
 // Full Content Detail Screen
 class SaveItemButton extends StatefulWidget { final Map<String,dynamic> item; const SaveItemButton({super.key,required this.item}); @override State<SaveItemButton> createState()=>_SaveItemButtonState(); }
-class _SaveItemButtonState extends State<SaveItemButton>{ bool saved=false; bool busy=false; @override void initState(){super.initState();SavedStore.has(widget.item).then((v){if(mounted)setState(()=>saved=v);});} Future<void> toggle() async {if(busy)return;setState(()=>busy=true);await SavedStore.toggle({...widget.item,'_remove':saved});if(!mounted)return;setState((){saved=!saved;busy=false;});ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(saved?'सहेज दिया गया।':'सहेजी गई सामग्री से हटाया गया।')));} @override Widget build(BuildContext context)=>IconButton(tooltip:saved?'सहेजे गए से हटाएँ':'सहेजें',onPressed:busy?null:toggle,icon:Icon(saved?Icons.bookmark:Icons.bookmark_border,color:const Color(0xFF173E34))); }
+class _SaveItemButtonState extends State<SaveItemButton>{ bool saved=false; bool busy=false; @override void initState(){super.initState();SavedStore.has(widget.item).then((v){if(mounted)setState(()=>saved=v);});} Future<void> toggle() async {if(busy)return;setState(()=>busy=true);await SavedStore.toggle({...widget.item,'_remove':saved});if(!mounted)return;setState((){saved=!saved;busy=false;});ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(saved?'सहेज दिया गया।':'सहेजी गई सामग्री से हटाया गया।')));} @override Widget build(BuildContext context)=>IconButton(tooltip:saved?'सहेजे गए से हटाएँ':'सहेजें',onPressed:busy?null:toggle,icon:Icon(saved?Icons.bookmark:Icons.bookmark_border,color:KarmKritePalette.maroon)); }
 class SavedStore {
   static const key = 'saved_content_items';
   static Future<List<Map<String,dynamic>>> read() async {
@@ -1228,7 +1228,7 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
               side: const BorderSide(color: Color(0xFFD9C99F))),
             child: Padding(padding: const EdgeInsets.fromLTRB(12, 12, 16, 10), child: Row(children: [
               IconButton(
-                iconSize: 42, color: const Color(0xFF174A3E), onPressed: playPause,
+                iconSize: 42, color: KarmKritePalette.maroon, onPressed: playPause,
                 icon: Icon(_playerState == PlayerState.playing ? Icons.pause_circle_filled_rounded : Icons.play_circle_fill_rounded)),
               Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 const Text('ऑडियो सुनें', style: TextStyle(fontWeight: FontWeight.w800, color: Color(0xFF563719))),
