@@ -237,7 +237,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
           const SizedBox(height: 12),
           Wrap(spacing: 8, children: [
             Chip(label: Text(type.toUpperCase())),
-            Chip(label: Text('\${lesson['duration_minutes'] ?? 0} मिनट')),
+            Chip(label: Text('${lesson['duration_minutes'] ?? 0} मिनट')),
           ]),
           const SizedBox(height: 14),
           if (url.isNotEmpty) SizedBox(width: double.infinity, child: ElevatedButton.icon(
@@ -289,7 +289,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator(color: _studentGold));
           }
-          if (snapshot.hasError) return _message('जानकारी लोड नहीं हो सकी।\n\${snapshot.error}', _refresh);
+          if (snapshot.hasError) return _message('जानकारी लोड नहीं हो सकी।\n${snapshot.error}', _refresh);
           final data = snapshot.data ?? {};
           final courses = List<Map<String, dynamic>>.from(data['courses'] ?? []);
           final progress = Set<String>.from(data['progress'] ?? <String>{});
@@ -394,7 +394,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
           Expanded(child: ClipRRect(borderRadius: BorderRadius.circular(6),
             child: LinearProgressIndicator(value: ratio, minHeight: 6, backgroundColor: _studentSand, color: _studentMaroon))),
           const SizedBox(width: 10),
-          Text('$done / \${lessons.length}', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800)),
+          Text('$done / ${lessons.length}', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800)),
         ]),
         const SizedBox(height: 10),
         if (lessons.isEmpty) const Text('इस कोर्स के पाठ शीघ्र उपलब्ध होंगे।', style: TextStyle(color: _studentMuted, fontSize: 11)),
@@ -408,7 +408,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
               color: complete ? Colors.green : _studentMaroon),
             title: Text(lesson['title']?.toString() ?? '',
               style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
-            subtitle: Text('$type • \${lesson['duration_minutes'] ?? 0} मिनट',
+            subtitle: Text('$type • ${lesson['duration_minutes'] ?? 0} मिनट',
               style: const TextStyle(fontSize: 10, color: _studentMuted)),
             trailing: const Icon(Icons.chevron_right_rounded, color: _studentGold),
             onTap: () => _openLesson(course, lesson, complete),
@@ -422,7 +422,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
     final course = matching.isEmpty ? null : matching.first;
     final start = DateTime.tryParse(session['starts_at']?.toString() ?? '')?.toLocal();
     final date = start == null ? 'समय निर्धारित नहीं' :
-      '\${start.day.toString().padLeft(2, '0')}/\${start.month.toString().padLeft(2, '0')}/\${start.year} • \${start.hour.toString().padLeft(2, '0')}:\${start.minute.toString().padLeft(2, '0')}';
+      '${start.day.toString().padLeft(2, '0')}/${start.month.toString().padLeft(2, '0')}/${start.year} • ${start.hour.toString().padLeft(2, '0')}:${start.minute.toString().padLeft(2, '0')}';
     final url = (session['meeting_url'] ?? '').toString();
     return Card(color: Theme.of(context).colorScheme.surface, margin: const EdgeInsets.only(top: 10),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16),
@@ -432,7 +432,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
           child: Icon(Icons.video_camera_front_rounded, color: _studentGoldLight)),
         title: Text(session['title']?.toString() ?? 'Live Class',
           style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13)),
-        subtitle: Text('\${course?['title'] ?? 'Course'}\n$date',
+        subtitle: Text('${course?['title'] ?? 'Course'}\n$date',
           style: const TextStyle(fontSize: 10, color: _studentMuted)),
         isThreeLine: true,
         trailing: IconButton(tooltip: 'कक्षा में जाएँ', onPressed: url.isEmpty ? null : () async {
