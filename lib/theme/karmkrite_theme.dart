@@ -181,7 +181,6 @@ abstract final class KarmKriteTheme {
       textTheme: base.textTheme.apply(
         bodyColor: scheme.onSurface,
         displayColor: scheme.onSurface,
-        fontFamily: 'NotoSansDevanagari',
       ),
     );
   }
