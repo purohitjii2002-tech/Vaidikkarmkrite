@@ -282,7 +282,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               DropdownMenuItem(value:'video',child:Text('Video')),
               DropdownMenuItem(value:'pdf',child:Text('PDF / पुस्तक')),
               DropdownMenuItem(value:'audio',child:Text('Audio / मंत्र')),
-              DropdownMenuItem(value:'text',child:Text('Text Lesson')),
+              DropdownMenuItem(value:'article',child:Text('Text Lesson')),
             ],onChanged:(v)=>setDialogState(()=>type=v??'video')),
           const SizedBox(height:8),
           TextField(controller:media,keyboardType:TextInputType.url,decoration:const InputDecoration(labelText:'Media URL (वैकल्पिक)')),
