@@ -385,7 +385,7 @@ class _HomeScreenState extends State<HomeScreen> {
           child: CustomScrollView(physics: const AlwaysScrollableScrollPhysics(), slivers: [
             SliverToBoxAdapter(child: Container(
               padding: EdgeInsets.fromLTRB(22, MediaQuery.of(context).padding.top + 15, 22, 28),
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight,
                   colors: Theme.of(context).brightness == Brightness.dark
                     ? [KarmKritePalette.maroonDeep, KarmKritePalette.maroon, const Color(0xFF78313A)]
