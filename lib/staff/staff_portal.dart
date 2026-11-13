@@ -384,7 +384,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                         tilePadding: EdgeInsets.zero,
                         title: Text(name.isEmpty ? student['email'].toString() : name,
                           style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13)),
-                        subtitle: Text('\${student['email']} • \${active.length} सक्रिय कोर्स',
+                        subtitle: Text('${student['email']} • ${active.length} सक्रिय कोर्स',
                           style: const TextStyle(fontSize: 10)),
                         children: [
                           if (studentEnrollments.isEmpty)
