@@ -339,15 +339,29 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             if(snapshot.hasError)return const Center(child:Text('पाठ लोड नहीं हो सके।'));
             final rows=snapshot.data??[];
             if(rows.isEmpty)return const Center(child:Text('अभी कोई पाठ नहीं जोड़ा गया है।'));
-            return ListView.separated(itemCount:rows.length,separatorBuilder:(_,__)=>const Divider(height:1),
-              itemBuilder:(context,index){final lesson=rows[index];return ListTile(
-                contentPadding:EdgeInsets.zero,
-                leading:Icon(lesson['lesson_type']=='video'?Icons.play_circle_outline:
-                  lesson['lesson_type']=='pdf'?Icons.picture_as_pdf_outlined:
-                  lesson['lesson_type']=='audio'?Icons.headphones:Icons.article_outlined,color:KarmKritePalette.maroon),
-                title:Text((lesson['title']??'').toString(),maxLines:2,overflow:TextOverflow.ellipsis),
-                subtitle:Text('${lesson['lesson_type']} • ${lesson['duration_minutes']} min • ${lesson['is_published']==true?'Published':'Draft'}'),
-              );}),
+            return ListView.separated(
+              itemCount: rows.length,
+              separatorBuilder: (context, index) => const Divider(height: 1),
+              itemBuilder: (context, index) {
+                final lesson = rows[index];
+                final lessonIcon = lesson['lesson_type'] == 'video'
+                    ? Icons.play_circle_outline
+                    : lesson['lesson_type'] == 'pdf'
+                        ? Icons.picture_as_pdf_outlined
+                        : lesson['lesson_type'] == 'audio'
+                            ? Icons.headphones
+                            : Icons.article_outlined;
+                final stateLabel = lesson['is_published'] == true ? 'Published' : 'Draft';
+                return ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: Icon(lessonIcon, color: KarmKritePalette.maroon),
+                  title: Text((lesson['title'] ?? '').toString(),
+                      maxLines: 2, overflow: TextOverflow.ellipsis),
+                  subtitle: Text(
+                    '${lesson['lesson_type']} • ${lesson['duration_minutes']} min • $stateLabel'),
+                );
+              },
+            );
           },
         )),
         actions:[
