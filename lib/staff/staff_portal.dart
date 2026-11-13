@@ -136,10 +136,14 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     final rows = await Future.wait([
       db.from('courses').select('id,title,academy,level,is_published,created_at').order('created_at', ascending:false),
       db.from('admin_users').select('id,email,role,is_active').order('created_at', ascending:false),
-      db.from('student_enrollments').select('id'),
+      db.from('student_enrollments').select('id,student_id,course_id,status,enrolled_at').order('enrolled_at', ascending:false),
       db.from('course_lessons').select('id'),
+      db.from('student_profiles').select('user_id,email,full_name,created_at').order('created_at', ascending:false),
     ]);
-    return {'courses':rows[0], 'staff':rows[1], 'students':(rows[2] as List).length, 'lessons':(rows[3] as List).length};
+    return {
+      'courses': rows[0], 'staff': rows[1], 'enrollments': rows[2],
+      'students': (rows[4] as List).length, 'lessons': (rows[3] as List).length,
+    };
   }
   Future<void> refresh() async { final f=loadData(); setState(()=>dataFuture=f); await f; }
   Future<void> inviteTeacher() async {
@@ -263,6 +267,173 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     }catch(e){
       if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('Assignment नहीं हो सका: $e')));
     }
+  }
+
+  Future<void> manageStudents(List<Map<String,dynamic>> courses) async {
+    if (courses.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('पहले कम-से-कम एक कोर्स बनाएँ।')));
+      return;
+    }
+    final db = Supabase.instance.client;
+    List<Map<String,dynamic>> students;
+    List<Map<String,dynamic>> enrollments;
+    try {
+      final result = await Future.wait([
+        db.from('student_profiles').select('user_id,email,full_name,created_at').order('created_at', ascending: false),
+        db.from('student_enrollments').select('id,student_id,course_id,status,enrolled_at').order('enrolled_at', ascending: false),
+      ]);
+      students = List<Map<String,dynamic>>.from(result[0]);
+      enrollments = List<Map<String,dynamic>>.from(result[1]);
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('विद्यार्थी सूची लोड नहीं हुई: $e')));
+      return;
+    }
+    if (students.isEmpty) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('अभी किसी विद्यार्थी ने लॉगिन करके प्रोफाइल नहीं बनाई है।')));
+      return;
+    }
+    String selectedStudent = students.first['user_id'].toString();
+    String selectedCourse = courses.first['id'].toString();
+    bool saving = false;
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('विद्यार्थी एवं कोर्स प्रवेश'),
+          content: SizedBox(
+            width: 520, height: 520,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                DropdownButtonFormField<String>(
+                  value: selectedStudent, isExpanded: true,
+                  decoration: const InputDecoration(labelText: 'विद्यार्थी चुनें'),
+                  items: students.map((student) => DropdownMenuItem<String>(
+                    value: student['user_id'].toString(),
+                    child: Text(
+                      (student['full_name']?.toString().trim().isNotEmpty == true
+                        ? student['full_name'] : student['email']).toString(),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  )).toList(),
+                  onChanged: saving ? null : (value) => setDialogState(
+                    () => selectedStudent = value ?? selectedStudent),
+                ),
+                const SizedBox(height: 10),
+                DropdownButtonFormField<String>(
+                  value: selectedCourse, isExpanded: true,
+                  decoration: const InputDecoration(labelText: 'कोर्स चुनें'),
+                  items: courses.map((course) => DropdownMenuItem<String>(
+                    value: course['id'].toString(),
+                    child: Text(course['title'].toString(), overflow: TextOverflow.ellipsis),
+                  )).toList(),
+                  onChanged: saving ? null : (value) => setDialogState(
+                    () => selectedCourse = value ?? selectedCourse),
+                ),
+                const SizedBox(height: 10),
+                ElevatedButton.icon(
+                  onPressed: saving ? null : () async {
+                    setDialogState(() => saving = true);
+                    try {
+                      await db.from('student_enrollments').upsert({
+                        'student_id': selectedStudent,
+                        'course_id': selectedCourse,
+                        'status': 'active',
+                        'enrolled_at': DateTime.now().toUtc().toIso8601String(),
+                      }, onConflict: 'student_id,course_id');
+                      final refreshed = await db.from('student_enrollments')
+                        .select('id,student_id,course_id,status,enrolled_at')
+                        .order('enrolled_at', ascending: false);
+                      enrollments = List<Map<String,dynamic>>.from(refreshed);
+                      if (mounted) {
+                        ScaffoldMessenger.of(this.context).showSnackBar(
+                          const SnackBar(content: Text('विद्यार्थी को कोर्स में प्रवेश दे दिया गया।')));
+                        await refresh();
+                      }
+                    } catch (e) {
+                      if (mounted) ScaffoldMessenger.of(this.context).showSnackBar(
+                        SnackBar(content: Text('Enrollment नहीं हो सका: $e')));
+                    } finally {
+                      setDialogState(() => saving = false);
+                    }
+                  },
+                  icon: saving
+                    ? const SizedBox(width: 16,height: 16,child: CircularProgressIndicator(strokeWidth: 2))
+                    : const Icon(Icons.person_add_alt_1_rounded),
+                  label: const Text('कोर्स में प्रवेश दें'),
+                ),
+                const Divider(height: 24),
+                const Text('विद्यार्थी सूची', style: TextStyle(fontWeight: FontWeight.w900)),
+                const SizedBox(height: 6),
+                Expanded(
+                  child: ListView.separated(
+                    itemCount: students.length,
+                    separatorBuilder: (_, __) => const Divider(height: 1),
+                    itemBuilder: (context, index) {
+                      final student = students[index];
+                      final id = student['user_id'].toString();
+                      final studentEnrollments = enrollments.where(
+                        (entry) => entry['student_id'].toString() == id).toList();
+                      final active = studentEnrollments.where(
+                        (entry) => entry['status'] == 'active').toList();
+                      final name = (student['full_name'] ?? '').toString().trim();
+                      return ExpansionTile(
+                        tilePadding: EdgeInsets.zero,
+                        title: Text(name.isEmpty ? student['email'].toString() : name,
+                          style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13)),
+                        subtitle: Text('\${student['email']} • \${active.length} सक्रिय कोर्स',
+                          style: const TextStyle(fontSize: 10)),
+                        children: [
+                          if (studentEnrollments.isEmpty)
+                            const ListTile(dense: true,title: Text('अभी कोई कोर्स नहीं दिया गया।'))
+                          else ...studentEnrollments.map((entry) {
+                            final course = courses.where(
+                              (item) => item['id'].toString() == entry['course_id'].toString());
+                            final courseName = course.isEmpty ? 'कोर्स' : course.first['title'].toString();
+                            final isActive = entry['status'] == 'active';
+                            return ListTile(
+                              dense: true,
+                              title: Text(courseName, style: const TextStyle(fontSize: 12)),
+                              subtitle: Text(entry['status'].toString()),
+                              trailing: isActive ? IconButton(
+                                tooltip: 'प्रवेश रद्द करें',
+                                icon: const Icon(Icons.remove_circle_outline,color: Colors.redAccent),
+                                onPressed: () async {
+                                  try {
+                                    await db.from('student_enrollments')
+                                      .update({'status':'cancelled'}).eq('id',entry['id']);
+                                    final refreshed = await db.from('student_enrollments')
+                                      .select('id,student_id,course_id,status,enrolled_at')
+                                      .order('enrolled_at', ascending: false);
+                                    setDialogState(() => enrollments =
+                                      List<Map<String,dynamic>>.from(refreshed));
+                                    if (mounted) await refresh();
+                                  } catch (e) {
+                                    if (mounted) ScaffoldMessenger.of(this.context).showSnackBar(
+                                      SnackBar(content: Text('प्रवेश रद्द नहीं हुआ: $e')));
+                                  }
+                                },
+                              ) : null,
+                            );
+                          }),
+                        ],
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('बंद करें')),
+          ],
+        ),
+      ),
+    );
   }
 
   Future<bool> addLesson(Map<String,dynamic> course) async {
@@ -421,9 +592,21 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             const SizedBox(height:5),Text('Courses, staff और learning activity का प्रबंधन।',style:TextStyle(color:Colors.white.withOpacity(.8),fontSize:12)),
           ])),
         const SizedBox(height:15),
-        Row(children:[metric('Courses','${courses.length}',Icons.video_library_outlined),const SizedBox(width:9),metric('Enrolments','${data['students']}',Icons.groups_2_outlined)]),
+        Row(children:[metric('Courses','${courses.length}',Icons.video_library_outlined),const SizedBox(width:9),metric('Students','${data['students']}',Icons.groups_2_outlined)]),
         const SizedBox(height:9),
-        Row(children:[metric('Lessons','${data['lessons']}',Icons.play_lesson_outlined),const SizedBox(width:9),metric('Staff','${staff.length}',Icons.badge_outlined)]),
+        Row(children:[metric('Enrolments','${(data['enrollments'] as List).length}',Icons.school_outlined),const SizedBox(width:9),metric('Lessons','${data['lessons']}',Icons.play_lesson_outlined)]),
+        const SizedBox(height:9),
+        Row(children:[metric('Staff','${staff.length}',Icons.badge_outlined),const SizedBox(width:9),metric('Published','${courses.where((x)=>x['is_published']==true).length}',Icons.public_rounded)]),
+        const SizedBox(height:22),
+        Card(child: ListTile(
+          leading: const CircleAvatar(backgroundColor: Color(0xFFF4EBDD),
+            child: Icon(Icons.groups_rounded, color: KarmKritePalette.maroon)),
+          title: const Text('विद्यार्थी एवं Enrollment प्रबंधन',
+            style: TextStyle(fontWeight: FontWeight.w900)),
+          subtitle: const Text('विद्यार्थियों की सूची देखें और कोर्स assign / revoke करें।'),
+          trailing: const Icon(Icons.chevron_right_rounded),
+          onTap: () => manageStudents(courses),
+        )),
         const SizedBox(height:22),
         Row(children:[const Expanded(child:Text('कोर्स प्रबंधन',style:TextStyle(fontSize:17,fontWeight:FontWeight.w900))),
           Text('${courses.where((x)=>x['is_published']==true).length} Published',style:const TextStyle(color:KarmKritePalette.gold,fontSize:11,fontWeight:FontWeight.w800))]),
