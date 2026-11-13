@@ -1063,9 +1063,6 @@ class _ModuleScreenState extends State<ModuleScreen> {
         },
       ),
     );
-  },
-      ),
-    );
   }
 }
 
