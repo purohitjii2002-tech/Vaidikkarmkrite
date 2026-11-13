@@ -855,6 +855,10 @@ class _ModuleScreenState extends State<ModuleScreen> {
           mediaType: (item['media_type'] ?? '').toString(),
           savedItem:{...item,'title':getTitle(item),'category':widget.module.title,'body':(item['body']??'').toString(),'description':(item['description']??'').toString()},
         ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
