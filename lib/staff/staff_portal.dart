@@ -1,0 +1,367 @@
+
+import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
+import '../theme/karmkrite_theme.dart';
+
+class StaffPortalScreen extends StatefulWidget {
+  const StaffPortalScreen({super.key});
+  @override
+  State<StaffPortalScreen> createState() => _StaffPortalScreenState();
+}
+
+class _StaffPortalScreenState extends State<StaffPortalScreen> {
+  final email = TextEditingController();
+  final password = TextEditingController();
+  bool busy = false, hidePassword = true;
+  String? error, role;
+
+  @override
+  void initState() {
+    super.initState();
+    if (Supabase.instance.client.auth.currentUser != null) verifyRole();
+  }
+  @override
+  void dispose() { email.dispose(); password.dispose(); super.dispose(); }
+
+  Future<void> verifyRole() async {
+    setState(() { busy = true; error = null; });
+    try {
+      final user = Supabase.instance.client.auth.currentUser;
+      if (user == null) throw Exception('कृपया Staff Login करें।');
+      final row = await Supabase.instance.client.from('admin_users')
+          .select('role,is_active').eq('id', user.id).maybeSingle();
+      if (row == null || row['is_active'] != true) {
+        await Supabase.instance.client.auth.signOut();
+        throw Exception('इस खाते को Staff Portal की अनुमति नहीं है।');
+      }
+      final value = (row['role'] ?? '').toString();
+      if (!['super_admin','admin','editor','teacher'].contains(value)) {
+        await Supabase.instance.client.auth.signOut();
+        throw Exception('इस खाते की भूमिका मान्य नहीं है।');
+      }
+      if (mounted) setState(() => role = value);
+    } catch (e) {
+      if (mounted) setState(() => error = e.toString().replaceFirst('Exception: ', ''));
+    } finally { if (mounted) setState(() => busy = false); }
+  }
+
+  Future<void> login() async {
+    if (email.text.trim().isEmpty || password.text.isEmpty) {
+      setState(() => error = 'ईमेल और पासवर्ड दोनों भरें।'); return;
+    }
+    setState(() { busy = true; error = null; });
+    try {
+      await Supabase.instance.client.auth.signInWithPassword(
+        email: email.text.trim(), password: password.text);
+      await verifyRole();
+    } catch (_) {
+      if (mounted) setState(() => error = 'लॉगिन नहीं हो सका। ईमेल और पासवर्ड जाँचें।');
+      if (Supabase.instance.client.auth.currentUser != null) {
+        await Supabase.instance.client.auth.signOut();
+      }
+    } finally { if (mounted) setState(() => busy = false); }
+  }
+
+  Future<void> logout() async {
+    await Supabase.instance.client.auth.signOut();
+    if (mounted) setState(() { role = null; error = null; });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (role == 'super_admin' || role == 'admin' || role == 'editor') {
+      return AdminDashboardScreen(role: role!, onLogout: logout);
+    }
+    if (role == 'teacher') return TeacherDashboardScreen(onLogout: logout);
+    return Scaffold(
+      appBar: AppBar(title: const Text('Staff Portal')),
+      body: Center(child: SingleChildScrollView(
+        padding: const EdgeInsets.all(22),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 440),
+          child: Card(child: Padding(padding: const EdgeInsets.all(24),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+              Container(width: 60, height: 60, alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(colors: [KarmKritePalette.maroonDeep, KarmKritePalette.maroon]),
+                  borderRadius: BorderRadius.circular(18)),
+                child: const Icon(Icons.admin_panel_settings_rounded, color: KarmKritePalette.goldLight, size: 30)),
+              const SizedBox(height: 18),
+              const Text('KARMKRITE STAFF', style: TextStyle(
+                color: KarmKritePalette.gold, fontSize: 10, letterSpacing: 2, fontWeight: FontWeight.w900)),
+              const SizedBox(height: 7),
+              const Text('प्रबंधन पोर्टल में प्रवेश करें', style: TextStyle(fontSize: 21, fontWeight: FontWeight.w900)),
+              const SizedBox(height: 18),
+              TextField(controller: email, keyboardType: TextInputType.emailAddress,
+                decoration: const InputDecoration(labelText: 'Staff Email', prefixIcon: Icon(Icons.mail_outline_rounded))),
+              const SizedBox(height: 12),
+              TextField(controller: password, obscureText: hidePassword,
+                decoration: InputDecoration(labelText: 'Password', prefixIcon: const Icon(Icons.lock_outline_rounded),
+                  suffixIcon: IconButton(onPressed: () => setState(() => hidePassword = !hidePassword),
+                    icon: Icon(hidePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined)))),
+              if (error != null) ...[
+                const SizedBox(height: 12),
+                Text(error!, style: const TextStyle(color: Colors.redAccent, fontSize: 12)),
+              ],
+              const SizedBox(height: 18),
+              SizedBox(height: 50, child: ElevatedButton(
+                onPressed: busy ? null : login,
+                child: busy ? const SizedBox(width:20,height:20,child:CircularProgressIndicator(strokeWidth:2))
+                  : const Text('सुरक्षित लॉगिन करें'))),
+              const SizedBox(height: 12),
+              const Text('प्रवेश अधिकार डेटाबेस में सत्यापित होते हैं।',
+                textAlign: TextAlign.center, style: TextStyle(fontSize: 10, color: Colors.grey)),
+            ]),
+          )),
+        ),
+      )),
+    );
+  }
+}
+
+class AdminDashboardScreen extends StatefulWidget {
+  final String role;
+  final Future<void> Function() onLogout;
+  const AdminDashboardScreen({super.key, required this.role, required this.onLogout});
+  @override
+  State<AdminDashboardScreen> createState() => _AdminDashboardScreenState();
+}
+class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
+  late Future<Map<String,dynamic>> dataFuture;
+  @override
+  void initState() { super.initState(); dataFuture = loadData(); }
+  Future<Map<String,dynamic>> loadData() async {
+    final db = Supabase.instance.client;
+    final rows = await Future.wait([
+      db.from('courses').select('id,title,academy,level,is_published,created_at').order('created_at', ascending:false),
+      db.from('admin_users').select('id,email,role,is_active').order('created_at', ascending:false),
+      db.from('student_enrollments').select('id'),
+      db.from('course_lessons').select('id'),
+    ]);
+    return {'courses':rows[0], 'staff':rows[1], 'students':(rows[2] as List).length, 'lessons':(rows[3] as List).length};
+  }
+  Future<void> refresh() async { final f=loadData(); setState(()=>dataFuture=f); await f; }
+
+  Future<void> addCourse() async {
+    final title=TextEditingController(), description=TextEditingController();
+    String academy='vedic', level='beginner';
+    final values=await showDialog<Map<String,String>>(context:context,builder:(dialogContext)=>
+      StatefulBuilder(builder:(context,setDialogState)=>AlertDialog(
+        title:const Text('नया कोर्स बनाएँ'),
+        content:SingleChildScrollView(child:Column(mainAxisSize:MainAxisSize.min,children:[
+          TextField(controller:title,decoration:const InputDecoration(labelText:'कोर्स का नाम')),
+          const SizedBox(height:10),
+          TextField(controller:description,maxLines:3,decoration:const InputDecoration(labelText:'विवरण')),
+          const SizedBox(height:10),
+          DropdownButtonFormField<String>(value:academy,decoration:const InputDecoration(labelText:'Academy'),
+            items:const [
+              DropdownMenuItem(value:'jyotish',child:Text('Jyotish Academy')),
+              DropdownMenuItem(value:'karmkand',child:Text('Karmkand Academy')),
+              DropdownMenuItem(value:'vedic',child:Text('Vedic Academy')),
+            ],onChanged:(v)=>setDialogState(()=>academy=v??'vedic')),
+          const SizedBox(height:10),
+          DropdownButtonFormField<String>(value:level,decoration:const InputDecoration(labelText:'स्तर'),
+            items:const [
+              DropdownMenuItem(value:'beginner',child:Text('Beginner')),
+              DropdownMenuItem(value:'intermediate',child:Text('Intermediate')),
+              DropdownMenuItem(value:'advanced',child:Text('Advanced')),
+              DropdownMenuItem(value:'research',child:Text('Research')),
+            ],onChanged:(v)=>setDialogState(()=>level=v??'beginner')),
+        ])),
+        actions:[
+          TextButton(onPressed:()=>Navigator.pop(dialogContext),child:const Text('रद्द करें')),
+          ElevatedButton(onPressed:()=>Navigator.pop(dialogContext,{
+            'title':title.text.trim(),'description':description.text.trim(),'academy':academy,'level':level,
+          }),child:const Text('कोर्स बनाएँ')),
+        ],
+      )));
+    if(values==null || (values['title']??'').isEmpty){title.dispose();description.dispose();return;}
+    try {
+      await Supabase.instance.client.from('courses').insert({
+        ...values,'created_by':Supabase.instance.client.auth.currentUser?.id,
+      });
+      if(mounted){ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('कोर्स बना दिया गया। अभी यह unpublished है।')));await refresh();}
+    } catch(e) {
+      if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('कोर्स नहीं बन सका: $e')));
+    }
+    title.dispose(); description.dispose();
+  }
+  Future<void> togglePublish(Map<String,dynamic> course) async {
+    try {
+      await Supabase.instance.client.from('courses')
+        .update({'is_published':!(course['is_published']==true)}).eq('id',course['id']);
+      await refresh();
+    } catch(e) {
+      if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('स्थिति बदली नहीं जा सकी: $e')));
+    }
+  }
+  Widget metric(String label,String value,IconData icon)=>Expanded(child:Container(
+    padding:const EdgeInsets.all(13),
+    decoration:BoxDecoration(color:Theme.of(context).colorScheme.surface,borderRadius:BorderRadius.circular(16),
+      border:Border.all(color:Theme.of(context).dividerColor.withOpacity(.4))),
+    child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+      Icon(icon,color:KarmKritePalette.gold,size:21),const SizedBox(height:10),
+      Text(value,style:const TextStyle(fontSize:22,fontWeight:FontWeight.w900)),
+      Text(label,style:TextStyle(fontSize:10,color:Theme.of(context).colorScheme.onSurface.withOpacity(.62))),
+    ]),
+  ));
+
+  @override
+  Widget build(BuildContext context)=>Scaffold(
+    appBar:AppBar(title:const Text('KARMKRITE Admin'),actions:[
+      IconButton(onPressed:refresh,icon:const Icon(Icons.refresh_rounded)),
+      IconButton(onPressed:widget.onLogout,icon:const Icon(Icons.logout_rounded)),
+    ]),
+    floatingActionButton:widget.role=='editor'?null:FloatingActionButton.extended(
+      onPressed:addCourse,backgroundColor:KarmKritePalette.maroon,foregroundColor:KarmKritePalette.goldLight,
+      icon:const Icon(Icons.add_rounded),label:const Text('नया कोर्स')),
+    body:FutureBuilder<Map<String,dynamic>>(future:dataFuture,builder:(context,snapshot){
+      if(snapshot.connectionState==ConnectionState.waiting)return const Center(child:CircularProgressIndicator());
+      if(snapshot.hasError)return Center(child:Column(mainAxisSize:MainAxisSize.min,children:[
+        const Text('Admin डेटा लोड नहीं हो सका।'),TextButton(onPressed:refresh,child:const Text('पुनः प्रयास करें')),
+      ]));
+      final data=snapshot.data!;
+      final courses=List<Map<String,dynamic>>.from(data['courses']);
+      final staff=List<Map<String,dynamic>>.from(data['staff']);
+      return RefreshIndicator(onRefresh:refresh,child:ListView(padding:const EdgeInsets.fromLTRB(18,14,18,90),children:[
+        Container(padding:const EdgeInsets.all(20),decoration:BoxDecoration(
+          gradient:const LinearGradient(colors:[KarmKritePalette.maroonDeep,KarmKritePalette.maroon]),borderRadius:BorderRadius.circular(22)),
+          child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+            Text(widget.role.toUpperCase().replaceAll('_',' '),style:const TextStyle(color:KarmKritePalette.goldLight,fontSize:10,letterSpacing:2,fontWeight:FontWeight.w900)),
+            const SizedBox(height:8),const Text('ज्ञान मंच का नियंत्रण केंद्र',style:TextStyle(color:Colors.white,fontSize:21,fontWeight:FontWeight.w900)),
+            const SizedBox(height:5),Text('Courses, staff और learning activity का प्रबंधन।',style:TextStyle(color:Colors.white.withOpacity(.8),fontSize:12)),
+          ])),
+        const SizedBox(height:15),
+        Row(children:[metric('Courses','${courses.length}',Icons.video_library_outlined),const SizedBox(width:9),metric('Enrolments','${data['students']}',Icons.groups_2_outlined)]),
+        const SizedBox(height:9),
+        Row(children:[metric('Lessons','${data['lessons']}',Icons.play_lesson_outlined),const SizedBox(width:9),metric('Staff','${staff.length}',Icons.badge_outlined)]),
+        const SizedBox(height:22),
+        Row(children:[const Expanded(child:Text('कोर्स प्रबंधन',style:TextStyle(fontSize:17,fontWeight:FontWeight.w900))),
+          Text('${courses.where((x)=>x['is_published']==true).length} Published',style:const TextStyle(color:KarmKritePalette.gold,fontSize:11,fontWeight:FontWeight.w800))]),
+        const SizedBox(height:9),
+        if(courses.isEmpty)const Padding(padding:EdgeInsets.all(22),child:Text('अभी कोई कोर्स नहीं है। “नया कोर्स” से शुरुआत करें।',textAlign:TextAlign.center))
+        else ...courses.map((course)=>Card(margin:const EdgeInsets.only(bottom:8),child:ListTile(
+          leading:Container(width:40,height:40,alignment:Alignment.center,
+            decoration:BoxDecoration(color:KarmKritePalette.maroon.withOpacity(.09),borderRadius:BorderRadius.circular(12)),
+            child:Icon(course['academy']=='jyotish'?Icons.auto_awesome:course['academy']=='karmkand'?Icons.temple_hindu:Icons.menu_book,color:KarmKritePalette.maroon)),
+          title:Text((course['title']??'').toString(),style:const TextStyle(fontWeight:FontWeight.w800)),
+          subtitle:Text('${course['academy']} • ${course['level']}'),
+          trailing:widget.role=='editor'?const Icon(Icons.visibility_outlined):Switch(
+            value:course['is_published']==true,onChanged:(_)=>togglePublish(course),activeThumbColor:KarmKritePalette.gold),
+        ))),
+        const SizedBox(height:18),const Text('Staff Directory',style:TextStyle(fontSize:17,fontWeight:FontWeight.w900)),
+        const SizedBox(height:7),
+        ...staff.map((person)=>ListTile(contentPadding:const EdgeInsets.symmetric(horizontal:4),
+          leading:CircleAvatar(backgroundColor:KarmKritePalette.maroon.withOpacity(.1),
+            child:Icon(person['role']=='teacher'?Icons.co_present_rounded:Icons.admin_panel_settings_rounded,color:KarmKritePalette.maroon)),
+          title:Text((person['email']??'Staff account').toString()),
+          subtitle:Text((person['role']??'').toString().toUpperCase()),
+          trailing:Icon(person['is_active']==true?Icons.check_circle:Icons.block,
+            color:person['is_active']==true?Colors.green:Colors.redAccent,size:18))),
+      ]));
+    }),
+  );
+}
+
+class TeacherDashboardScreen extends StatefulWidget {
+  final Future<void> Function() onLogout;
+  const TeacherDashboardScreen({super.key,required this.onLogout});
+  @override
+  State<TeacherDashboardScreen> createState()=>_TeacherDashboardScreenState();
+}
+class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
+  late Future<Map<String,dynamic>> dataFuture;
+  @override
+  void initState(){super.initState();dataFuture=loadData();}
+  Future<Map<String,dynamic>> loadData() async {
+    final db=Supabase.instance.client, id=db.auth.currentUser!.id;
+    final assigned=await db.from('teacher_course_assignments')
+      .select('course_id,courses(id,title,academy,level)').eq('teacher_id',id);
+    final sessions=await db.from('class_sessions')
+      .select('id,title,starts_at,status,meeting_url,course_id').eq('teacher_id',id).order('starts_at');
+    return {'courses':assigned,'sessions':sessions};
+  }
+  Future<void> refresh() async {final f=loadData();setState(()=>dataFuture=f);await f;}
+  Future<void> scheduleClass(Map<String,dynamic> entry) async {
+    final title=TextEditingController();
+    final start=TextEditingController(text:DateTime.now().add(const Duration(days:1)).toIso8601String().substring(0,16));
+    final link=TextEditingController();
+    final values=await showDialog<Map<String,String>>(context:context,builder:(dialogContext)=>AlertDialog(
+      title:const Text('Live Class Schedule करें'),
+      content:Column(mainAxisSize:MainAxisSize.min,children:[
+        TextField(controller:title,decoration:const InputDecoration(labelText:'Class का नाम')),
+        const SizedBox(height:8),TextField(controller:start,decoration:const InputDecoration(labelText:'Start (YYYY-MM-DDTHH:MM)')),
+        const SizedBox(height:8),TextField(controller:link,decoration:const InputDecoration(labelText:'Meeting URL (optional)')),
+      ]),
+      actions:[
+        TextButton(onPressed:()=>Navigator.pop(dialogContext),child:const Text('रद्द करें')),
+        ElevatedButton(onPressed:()=>Navigator.pop(dialogContext,{'title':title.text.trim(),'starts_at':start.text.trim(),'meeting_url':link.text.trim()}),child:const Text('Schedule')),
+      ],
+    ));
+    if(values==null){title.dispose();start.dispose();link.dispose();return;}
+    final date=DateTime.tryParse(values['starts_at']??'');
+    if((values['title']??'').isEmpty||date==null){
+      if(mounted)ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('Class का नाम और सही तारीख/समय भरें।')));
+      title.dispose();start.dispose();link.dispose();return;
+    }
+    try{
+      await Supabase.instance.client.from('class_sessions').insert({
+        'course_id':entry['course_id'],'teacher_id':Supabase.instance.client.auth.currentUser!.id,
+        'title':values['title'],'starts_at':date.toUtc().toIso8601String(),
+        'meeting_url':(values['meeting_url']??'').isEmpty?null:values['meeting_url'],
+      });
+      if(mounted){ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('Live class schedule हो गई।')));await refresh();}
+    }catch(e){if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('Schedule नहीं हो सकी: $e')));}
+    title.dispose();start.dispose();link.dispose();
+  }
+  @override
+  Widget build(BuildContext context)=>Scaffold(
+    appBar:AppBar(title:const Text('Teacher Dashboard'),actions:[
+      IconButton(onPressed:refresh,icon:const Icon(Icons.refresh_rounded)),
+      IconButton(onPressed:widget.onLogout,icon:const Icon(Icons.logout_rounded)),
+    ]),
+    body:FutureBuilder<Map<String,dynamic>>(future:dataFuture,builder:(context,snapshot){
+      if(snapshot.connectionState==ConnectionState.waiting)return const Center(child:CircularProgressIndicator());
+      if(snapshot.hasError)return Center(child:Column(mainAxisSize:MainAxisSize.min,children:[
+        const Text('Teacher data लोड नहीं हो सका।'),TextButton(onPressed:refresh,child:const Text('पुनः प्रयास करें')),
+      ]));
+      final data=snapshot.data!;
+      final courses=List<Map<String,dynamic>>.from(data['courses']);
+      final sessions=List<Map<String,dynamic>>.from(data['sessions']);
+      return RefreshIndicator(onRefresh:refresh,child:ListView(padding:const EdgeInsets.all(18),children:[
+        Container(padding:const EdgeInsets.all(20),decoration:BoxDecoration(
+          gradient:const LinearGradient(colors:[KarmKritePalette.maroonDeep,KarmKritePalette.maroon]),borderRadius:BorderRadius.circular(22)),
+          child:const Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+            Text('TEACHER WORKSPACE',style:TextStyle(color:KarmKritePalette.goldLight,fontSize:10,letterSpacing:2,fontWeight:FontWeight.w900)),
+            SizedBox(height:8),Text('आपकी कक्षाएँ, आपका ज्ञान',style:TextStyle(color:Colors.white,fontSize:21,fontWeight:FontWeight.w900)),
+            SizedBox(height:5),Text('Assigned courses और live classes एक ही जगह।',style:TextStyle(color:Color(0xFFF1DDE0),fontSize:12)),
+          ])),
+        const SizedBox(height:20),
+        Row(children:[const Expanded(child:Text('मेरे कोर्स',style:TextStyle(fontSize:17,fontWeight:FontWeight.w900))),Text('${courses.length} Assigned',style:const TextStyle(color:KarmKritePalette.gold,fontWeight:FontWeight.w800,fontSize:11))]),
+        const SizedBox(height:8),
+        if(courses.isEmpty)const Padding(padding:EdgeInsets.all(20),child:Text('अभी कोई कोर्स assign नहीं किया गया है। Admin से संपर्क करें।',textAlign:TextAlign.center))
+        else ...courses.map((entry){
+          final course=Map<String,dynamic>.from(entry['courses'] as Map);
+          return Card(child:ListTile(
+            leading:const CircleAvatar(backgroundColor:Color(0xFFF4EBDD),child:Icon(Icons.menu_book_rounded,color:KarmKritePalette.maroon)),
+            title:Text((course['title']??'').toString(),style:const TextStyle(fontWeight:FontWeight.w800)),
+            subtitle:Text('${course['academy']} • ${course['level']}'),
+            trailing:IconButton(tooltip:'Live class schedule करें',onPressed:()=>scheduleClass(entry),
+              icon:const Icon(Icons.add_circle_outline,color:KarmKritePalette.maroon)),
+          ));
+        }),
+        const SizedBox(height:20),const Text('मेरी Live Classes',style:TextStyle(fontSize:17,fontWeight:FontWeight.w900)),
+        const SizedBox(height:8),
+        if(sessions.isEmpty)const Padding(padding:EdgeInsets.all(18),child:Text('अभी कोई class scheduled नहीं है।',textAlign:TextAlign.center))
+        else ...sessions.map((session)=>Card(child:ListTile(
+          leading:const Icon(Icons.video_camera_front_outlined,color:KarmKritePalette.maroon),
+          title:Text((session['title']??'').toString(),style:const TextStyle(fontWeight:FontWeight.w800)),
+          subtitle:Text('${session['starts_at']} • ${session['status']}'),
+          trailing:session['meeting_url']==null?null:IconButton(icon:const Icon(Icons.open_in_new),
+            onPressed:()=>launchUrl(Uri.parse(session['meeting_url'].toString()),mode:LaunchMode.externalApplication)),
+        ))),
+      ]));
+    }),
+  );
+}
