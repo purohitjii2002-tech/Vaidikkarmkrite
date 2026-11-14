@@ -807,6 +807,171 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
     return {'courses':assigned,'sessions':sessions};
   }
   Future<void> refresh() async {final f=loadData();setState(()=>dataFuture=f);await f;}
+  Future<void> addTeacherLesson(Map<String,dynamic> course) async {
+    final title = TextEditingController();
+    final description = TextEditingController();
+    final duration = TextEditingController(text: '0');
+    String type = 'video';
+    PlatformFile? selectedFile;
+
+    final values = await showDialog<Map<String,String>>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext,setDialogState) => AlertDialog(
+          title: const Text('कोर्स में नया पाठ'),
+          content: SingleChildScrollView(child: Column(mainAxisSize:MainAxisSize.min,children:[
+            TextField(controller:title,decoration:const InputDecoration(labelText:'पाठ का शीर्षक')),
+            const SizedBox(height:8),
+            TextField(controller:description,maxLines:2,decoration:const InputDecoration(labelText:'विवरण')),
+            const SizedBox(height:8),
+            DropdownButtonFormField<String>(
+              value:type,
+              decoration:const InputDecoration(labelText:'सामग्री का प्रकार'),
+              items:const [
+                DropdownMenuItem(value:'video',child:Text('Video')),
+                DropdownMenuItem(value:'pdf',child:Text('PDF / पुस्तक')),
+                DropdownMenuItem(value:'audio',child:Text('Audio / मंत्र')),
+                DropdownMenuItem(value:'article',child:Text('Text Lesson')),
+              ],
+              onChanged:(value)=>setDialogState(()=>type=value??'video'),
+            ),
+            const SizedBox(height:8),
+            if(type!='article') OutlinedButton.icon(
+              onPressed:() async {
+                final extensions=type=='pdf'?['pdf']:type=='audio'
+                  ?['mp3','m4a','aac','wav','ogg']:['mp4','webm'];
+                final result=await FilePicker.platform.pickFiles(
+                  type:FileType.custom,allowedExtensions:extensions,allowMultiple:false);
+                if(result!=null&&result.files.isNotEmpty){
+                  setDialogState(()=>selectedFile=result.files.single);
+                }
+              },
+              icon:const Icon(Icons.upload_file_rounded),
+              label:Text(selectedFile==null?'डिवाइस से फाइल चुनें':selectedFile!.name),
+            ),
+            if(selectedFile!=null) Text(
+              '${(selectedFile!.size/(1024*1024)).toStringAsFixed(1)} MB',
+              style:const TextStyle(fontSize:11)),
+            const SizedBox(height:8),
+            TextField(controller:duration,keyboardType:TextInputType.number,
+              decoration:const InputDecoration(labelText:'अवधि (मिनट)')),
+            const SizedBox(height:8),
+            const Text('अधिकतम 50 MB। पाठ पहले Draft रहेगा; प्रकाशित करने के बाद विद्यार्थी देख सकेंगे।',
+              style:TextStyle(fontSize:10,color:Colors.grey)),
+          ])),
+          actions:[
+            TextButton(onPressed:()=>Navigator.pop(dialogContext),child:const Text('रद्द करें')),
+            ElevatedButton(onPressed:()=>Navigator.pop(dialogContext,{
+              'title':title.text.trim(),'description':description.text.trim(),
+              'type':type,'duration':duration.text.trim(),
+            }),child:const Text('पाठ सेव करें')),
+          ],
+        ),
+      ),
+    );
+    if(values==null){title.dispose();description.dispose();duration.dispose();return;}
+    if((values['title']??'').isEmpty){
+      if(mounted)ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content:Text('पाठ का शीर्षक आवश्यक है।')));
+      title.dispose();description.dispose();duration.dispose();return;
+    }
+    String? uploadedPath;
+    try{
+      final db=Supabase.instance.client;
+      String? mediaPath;
+      if(selectedFile!=null){
+        final file=selectedFile!;
+        if(file.size>50*1024*1024)throw Exception('फाइल 50 MB से बड़ी है।');
+        if(file.path==null)throw Exception('फाइल का स्थानीय पथ उपलब्ध नहीं है।');
+        final userId=db.auth.currentUser?.id;
+        if(userId==null)throw Exception('लॉगिन सत्र समाप्त हुआ।');
+        final safeName=file.name.replaceAll(RegExp(r'[^A-Za-z0-9._ -]'),'_');
+        uploadedPath='${course['id']}/${userId}/${DateTime.now().millisecondsSinceEpoch}_${safeName}';
+        final ext=file.extension?.toLowerCase()??'';
+        final mime=values['type']=='pdf'?'application/pdf':
+          values['type']=='video'?(ext=='webm'?'video/webm':'video/mp4'):
+          ext=='m4a'?'audio/mp4':ext=='aac'?'audio/aac':
+          ext=='wav'?'audio/wav':ext=='ogg'?'audio/ogg':'audio/mpeg';
+        await db.storage.from('course-materials').upload(
+          uploadedPath!,File(file.path!),
+          fileOptions:FileOptions(cacheControl:'3600',contentType:mime,upsert:false));
+        mediaPath=uploadedPath;
+      }
+      final existing=await db.from('course_lessons').select('id')
+        .eq('course_id',course['id']);
+      await db.from('course_lessons').insert({
+        'course_id':course['id'],'title':values['title'],
+        'description':values['description'],'lesson_type':values['type'],
+        'media_url':mediaPath,'duration_minutes':int.tryParse(values['duration']??'0')??0,
+        'sort_order':existing.length,'created_by':db.auth.currentUser?.id,
+        'is_published':false,
+      });
+      if(mounted)ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content:Text('पाठ Draft के रूप में सेव हो गया।')));
+      await refresh();
+    }catch(e){
+      if(uploadedPath!=null){
+        try{await Supabase.instance.client.storage.from('course-materials').remove([uploadedPath]);}catch(_){}
+      }
+      if(mounted)ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content:Text('पाठ सेव नहीं हुआ: ${e}')));
+    }finally{title.dispose();description.dispose();duration.dispose();}
+  }
+
+  Future<void> manageTeacherLessons(Map<String,dynamic> course) async {
+    Future<List<Map<String,dynamic>>> load() async {
+      final rows=await Supabase.instance.client.from('course_lessons')
+        .select('id,title,lesson_type,duration_minutes,is_published,sort_order')
+        .eq('course_id',course['id']).order('sort_order');
+      return List<Map<String,dynamic>>.from(rows);
+    }
+    var future=load();
+    await showDialog<void>(context:context,builder:(dialogContext)=>StatefulBuilder(
+      builder:(context,setDialogState)=>AlertDialog(
+        title:Text('पाठ प्रबंधन • ${course['title']}'),
+        content:SizedBox(width:440,height:380,child:FutureBuilder<List<Map<String,dynamic>>>(
+          future:future,builder:(context,snapshot){
+            if(snapshot.connectionState==ConnectionState.waiting)return const Center(child:CircularProgressIndicator());
+            if(snapshot.hasError)return const Center(child:Text('पाठ लोड नहीं हुए।'));
+            final lessons=snapshot.data??[];
+            if(lessons.isEmpty)return const Center(child:Text('अभी कोई पाठ नहीं है।'));
+            return ListView.separated(itemCount:lessons.length,
+              separatorBuilder:(_,__)=>const Divider(height:1),
+              itemBuilder:(context,index){
+                final lesson=lessons[index];
+                final published=lesson['is_published']==true;
+                return ListTile(
+                  contentPadding:EdgeInsets.zero,
+                  leading:Icon(lesson['lesson_type']=='pdf'?Icons.picture_as_pdf:
+                    lesson['lesson_type']=='audio'?Icons.headphones:
+                    lesson['lesson_type']=='video'?Icons.play_circle_outline:Icons.article,
+                    color:KarmKritePalette.maroon),
+                  title:Text((lesson['title']??'').toString()),
+                  subtitle:Text('${lesson['lesson_type']} • ${published?'Published':'Draft'}'),
+                  trailing:Switch.adaptive(value:published,activeColor:KarmKritePalette.gold,
+                    onChanged:(value)async{
+                      try{
+                        await Supabase.instance.client.from('course_lessons')
+                          .update({'is_published':value}).eq('id',lesson['id']);
+                        if(context.mounted)setDialogState(()=>future=load());
+                      }catch(e){
+                        if(context.mounted)ScaffoldMessenger.of(this.context).showSnackBar(
+                          SnackBar(content:Text('स्थिति नहीं बदली: ${e}')));
+                      }
+                    }),
+                );
+              });
+          })),
+        actions:[
+          TextButton(onPressed:()=>Navigator.pop(dialogContext),child:const Text('बंद करें')),
+          ElevatedButton.icon(onPressed:()async{
+            await addTeacherLesson(course);
+            setDialogState(()=>future=load());
+          },icon:const Icon(Icons.add),label:const Text('नया पाठ')),
+        ],
+      )));
+  }
+
   Future<void> scheduleClass(Map<String,dynamic> entry) async {
     final title=TextEditingController();
     final start=TextEditingController(text:DateTime.now().add(const Duration(days:1)).toIso8601String().substring(0,16));
@@ -871,8 +1036,19 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
             leading:const CircleAvatar(backgroundColor:Color(0xFFF4EBDD),child:Icon(Icons.menu_book_rounded,color:KarmKritePalette.maroon)),
             title:Text((course['title']??'').toString(),style:const TextStyle(fontWeight:FontWeight.w800)),
             subtitle:Text('${course['academy']} • ${course['level']}'),
-            trailing:IconButton(tooltip:'Live class schedule करें',onPressed:()=>scheduleClass(entry),
-              icon:const Icon(Icons.add_circle_outline,color:KarmKritePalette.maroon)),
+            trailing:PopupMenuButton<String>(
+              tooltip:'कोर्स के कार्य',
+              onSelected:(action){
+                if(action=='lessons')manageTeacherLessons(course);
+                if(action=='live')scheduleClass(entry);
+              },
+              itemBuilder:(_)=>const [
+                PopupMenuItem(value:'lessons',child:ListTile(
+                  dense:true,leading:Icon(Icons.menu_book_outlined),title:Text('पाठ प्रबंधित करें'))),
+                PopupMenuItem(value:'live',child:ListTile(
+                  dense:true,leading:Icon(Icons.video_call_outlined),title:Text('Live Class Schedule'))),
+              ],
+            ),
           ));
         }),
         const SizedBox(height:20),const Text('मेरी Live Classes',style:TextStyle(fontSize:17,fontWeight:FontWeight.w900)),
