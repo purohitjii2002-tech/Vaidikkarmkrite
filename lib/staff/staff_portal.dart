@@ -1,5 +1,8 @@
 
 import 'dart:io';
+import 'dart:typed_data';
+import 'package:excel/excel.dart';
+import 'package:pdf/widgets.dart' as pw;
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -762,6 +765,16 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         const SizedBox(height: 9),
         Card(child: ListTile(
           leading: const CircleAvatar(backgroundColor: Color(0xFFF4EBDD),
+            child: Icon(Icons.fact_check_rounded, color: KarmKritePalette.maroon)),
+          title: const Text('Live Class Attendance Reports',style: TextStyle(fontWeight: FontWeight.w900)),
+          subtitle: const Text('सभी कोर्स की Live Class उपस्थिति और Present / Absent / Late रिपोर्ट।'),
+          trailing: const Icon(Icons.chevron_right_rounded),
+          onTap: () => Navigator.push(context, MaterialPageRoute(
+            builder: (_) => AttendanceReportsScreen(courses: courses, teacherView: false))),
+        )),
+        const SizedBox(height: 9),
+        Card(child: ListTile(
+          leading: const CircleAvatar(backgroundColor: Color(0xFFF4EBDD),
             child: Icon(Icons.auto_stories_rounded, color: KarmKritePalette.maroon)),
           title: const Text('Digital Granthalaya प्रबंधन',
             style: TextStyle(fontWeight: FontWeight.w900)),
@@ -1310,6 +1323,8 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
                 if(action=='reports')Navigator.push(context,MaterialPageRoute(
                   builder: (_) => LearningReportsScreen(
                     courses: [course], teacherView: true)));
+                if(action=='attendance')Navigator.push(context,MaterialPageRoute(
+                  builder: (_) => AttendanceReportsScreen(courses: [course], teacherView: true)));
 
               },
               itemBuilder:(_)=>const [
@@ -1319,6 +1334,8 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
                   dense:true,leading:Icon(Icons.video_call_outlined),title:Text('Live Class Schedule'))),
                 PopupMenuItem(value:'reports',child:ListTile(
                   dense:true,leading:Icon(Icons.insights_outlined),title:Text('विद्यार्थी Progress Report'))),
+                PopupMenuItem(value:'attendance',child:ListTile(
+                  dense:true,leading:Icon(Icons.fact_check_outlined),title:Text('Attendance Report'))),
               ],
             ),
           ));
@@ -1330,14 +1347,188 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
           leading:const Icon(Icons.video_camera_front_outlined,color:KarmKritePalette.maroon),
           title:Text((session['title']??'').toString(),style:const TextStyle(fontWeight:FontWeight.w800)),
           subtitle:Text('${session['starts_at']} • ${session['status']}'),
-          trailing:session['meeting_url']==null?null:IconButton(icon:const Icon(Icons.open_in_new),
-            onPressed:()=>launchUrl(Uri.parse(session['meeting_url'].toString()),mode:LaunchMode.externalApplication)),
+          trailing:Wrap(mainAxisSize:MainAxisSize.min,children:[
+            IconButton(tooltip:'Attendance दर्ज करें',icon:const Icon(Icons.fact_check_outlined),
+              onPressed:()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>AttendanceManagementScreen(session:session)))),
+            if(session['meeting_url']!=null) IconButton(icon:const Icon(Icons.open_in_new),
+              onPressed:()=>launchUrl(Uri.parse(session['meeting_url'].toString()),mode:LaunchMode.externalApplication)),
+          ]),
         ))),
       ]));
     }),
   );
 }
 
+
+
+class AttendanceManagementScreen extends StatefulWidget {
+  final Map<String,dynamic> session;
+  const AttendanceManagementScreen({super.key,required this.session});
+  @override
+  State<AttendanceManagementScreen> createState()=>_AttendanceManagementScreenState();
+}
+class _AttendanceManagementScreenState extends State<AttendanceManagementScreen>{
+  final db=Supabase.instance.client;
+  late Future<Map<String,dynamic>> future;
+  final Map<String,String?> statuses={};
+  bool saving=false;
+  @override
+  void initState(){super.initState();future=_load();}
+  Future<Map<String,dynamic>> _load() async {
+    final courseId=widget.session['course_id'].toString();
+    final rows=await db.from('student_enrollments').select('student_id').eq('course_id',courseId).eq('status','active');
+    final ids=List<Map<String,dynamic>>.from(rows).map((x)=>x['student_id'].toString()).toList();
+    if(ids.isEmpty)return {'students':<Map<String,dynamic>>[]};
+    final data=await Future.wait([
+      db.from('student_profiles').select('user_id,email,full_name').inFilter('user_id',ids),
+      db.from('class_attendance').select('student_id,status,marked_at').eq('session_id',widget.session['id'].toString()).inFilter('student_id',ids),
+    ]);
+    final profiles=List<Map<String,dynamic>>.from(data[0]), records=List<Map<String,dynamic>>.from(data[1]);
+    final byId={for(final x in records)x['student_id'].toString():x};
+    final students=profiles.map((p){
+      final id=p['user_id'].toString(), record=byId[id];
+      statuses.putIfAbsent(id,()=>record==null?null:record['status'].toString());
+      return <String,dynamic>{...p,'marked_at':record?['marked_at']};
+    }).toList();
+    students.sort((a,b)=>(a['full_name']??'').toString().compareTo((b['full_name']??'').toString()));
+    return {'students':students};
+  }
+  Future<void> _save(List<Map<String,dynamic>> students) async {
+    final marked=statuses.entries.where((x)=>x.value!=null).toList();
+    if(marked.isEmpty){ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('पहले विद्यार्थियों की उपस्थिति चुनें।')));return;}
+    setState(()=>saving=true);
+    try{
+      final teacherId=db.auth.currentUser!.id;
+      final payload=marked.map((x)=>({
+        'session_id':widget.session['id'],'student_id':x.key,'status':x.value,
+        'marked_by':teacherId,'marked_at':DateTime.now().toUtc().toIso8601String(),
+      })).toList();
+      await db.from('class_attendance').upsert(payload,onConflict:'session_id,student_id');
+      if(mounted){ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('${marked.length} विद्यार्थियों की उपस्थिति सेव हो गई।')));final f=_load();setState(()=>future=f);await f;}
+    }catch(e){if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('उपस्थिति सेव नहीं हुई: $e')));}
+    finally{if(mounted)setState(()=>saving=false);}
+  }
+  @override
+  Widget build(BuildContext context)=>Scaffold(
+    appBar:AppBar(title:const Text('Live Class Attendance')),
+    body:FutureBuilder<Map<String,dynamic>>(future:future,builder:(context,snapshot){
+      if(snapshot.connectionState==ConnectionState.waiting)return const Center(child:CircularProgressIndicator());
+      if(snapshot.hasError)return Center(child:Text('विद्यार्थी सूची लोड नहीं हुई: ${snapshot.error}'));
+      final students=List<Map<String,dynamic>>.from(snapshot.data?['students']??[]);
+      final marked=statuses.values.where((x)=>x!=null).length;
+      return Column(children:[
+        Container(width:double.infinity,padding:const EdgeInsets.all(16),color:KarmKritePalette.sandalwood,
+          child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+            Text((widget.session['title']??'Live Class').toString(),style:const TextStyle(fontWeight:FontWeight.w900,fontSize:17,color:KarmKritePalette.maroon)),
+            const SizedBox(height:4),Text('${students.length} विद्यार्थी • $marked उपस्थिति चुनी गई',style:const TextStyle(fontSize:12,color:KarmKritePalette.wood)),
+          ])),
+        Expanded(child:students.isEmpty?const Center(child:Text('इस कोर्स में कोई सक्रिय विद्यार्थी नहीं है。'))
+          :ListView.separated(padding:const EdgeInsets.all(14),itemCount:students.length,separatorBuilder:(_,__)=>const SizedBox(height:6),
+            itemBuilder:(context,index){
+              final student=students[index],id=student['user_id'].toString();
+              return Card(child:Padding(padding:const EdgeInsets.symmetric(horizontal:12,vertical:8),
+                child:Row(children:[
+                  Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+                    Text((student['full_name']??'विद्यार्थी').toString(),style:const TextStyle(fontWeight:FontWeight.w800)),
+                    Text((student['email']??'').toString(),style:const TextStyle(fontSize:10,color:Colors.grey)),
+                  ])),
+                  SizedBox(width:132,child:DropdownButtonFormField<String>(
+                    isExpanded:true,value:statuses[id],decoration:const InputDecoration(isDense:true,contentPadding:EdgeInsets.symmetric(horizontal:8,vertical:8)),
+                    hint:const Text('स्थिति चुनें',style:TextStyle(fontSize:11)),
+                    items:const [
+                      DropdownMenuItem(value:'present',child:Text('Present')),
+                      DropdownMenuItem(value:'absent',child:Text('Absent')),
+                      DropdownMenuItem(value:'late',child:Text('Late')),
+                      DropdownMenuItem(value:'excused',child:Text('Excused')),
+                    ],onChanged:(v)=>setState(()=>statuses[id]=v),
+                  )),
+                ])));
+            })),
+        SafeArea(child:Padding(padding:const EdgeInsets.all(14),child:SizedBox(width:double.infinity,
+          child:ElevatedButton.icon(onPressed:saving?null:()=>_save(students),
+            icon:saving?const SizedBox(width:16,height:16,child:CircularProgressIndicator(strokeWidth:2)):const Icon(Icons.save_rounded),
+            label:Text(saving?'सेव हो रहा है':'उपस्थिति सेव करें'))))),
+      ]);
+    }),
+  );
+}
+
+class AttendanceReportsScreen extends StatefulWidget {
+  final List<Map<String,dynamic>> courses;
+  final bool teacherView;
+  const AttendanceReportsScreen({super.key,required this.courses,required this.teacherView});
+  @override
+  State<AttendanceReportsScreen> createState()=>_AttendanceReportsScreenState();
+}
+class _AttendanceReportsScreenState extends State<AttendanceReportsScreen>{
+  final db=Supabase.instance.client;
+  late String courseId;
+  late Future<List<Map<String,dynamic>>> future;
+  @override
+  void initState(){super.initState();courseId=widget.courses.isEmpty?'':widget.courses.first['id'].toString();future=_load();}
+  Future<List<Map<String,dynamic>>> _load() async {
+    if(courseId.isEmpty)return [];
+    final sessionRows=await db.from('class_sessions').select('id,title,starts_at,course_id,teacher_id').eq('course_id',courseId).order('starts_at',ascending:false);
+    final sessions=List<Map<String,dynamic>>.from(sessionRows);
+    if(sessions.isEmpty)return [];
+    final ids=sessions.map((x)=>x['id'].toString()).toList();
+    final attendanceRows=await db.from('class_attendance').select('session_id,student_id,status,marked_at').inFilter('session_id',ids);
+    final records=List<Map<String,dynamic>>.from(attendanceRows);
+    final bySession=<String,List<Map<String,dynamic>>>{};
+    for(final row in records){bySession.putIfAbsent(row['session_id'].toString(),()=>[]).add(row);}
+    return sessions.map((session){
+      final rows=bySession[session['id'].toString()]??[];
+      return <String,dynamic>{...session,'marked':rows.length,
+        'present':rows.where((x)=>x['status']=='present').length,
+        'absent':rows.where((x)=>x['status']=='absent').length,
+        'late':rows.where((x)=>x['status']=='late').length,
+        'excused':rows.where((x)=>x['status']=='excused').length};
+    }).toList();
+  }
+  Future<void> _selectCourse(String? value) async {
+    if(value==null)return;setState(()=>courseId=value);final f=_load();setState(()=>future=f);await f;
+  }
+  @override
+  Widget build(BuildContext context)=>Scaffold(
+    appBar:AppBar(title:const Text('Live Class Attendance Report')),
+    body:widget.courses.isEmpty?const Center(child:Text('कोई कोर्स उपलब्ध नहीं है।'))
+      :FutureBuilder<List<Map<String,dynamic>>>(future:future,builder:(context,snapshot){
+        if(snapshot.connectionState==ConnectionState.waiting)return const Center(child:CircularProgressIndicator());
+        if(snapshot.hasError)return Center(child:Text('Attendance रिपोर्ट लोड नहीं हुई: ${snapshot.error}'));
+        final rows=snapshot.data??[];
+        final present=rows.fold<int>(0,(sum,x)=>sum+(x['present'] as int));
+        final absent=rows.fold<int>(0,(sum,x)=>sum+(x['absent'] as int));
+        final selected=widget.courses.firstWhere((x)=>x['id'].toString()==courseId,orElse:()=>widget.courses.first);
+        return RefreshIndicator(onRefresh:()async{final f=_load();setState(()=>future=f);await f;},
+          child:ListView(padding:const EdgeInsets.all(16),children:[
+            DropdownButtonFormField<String>(value:courseId,decoration:const InputDecoration(labelText:'कोर्स चुनें'),
+              items:widget.courses.map((c)=>DropdownMenuItem<String>(value:c['id'].toString(),child:Text((c['title']??'Course').toString(),overflow:TextOverflow.ellipsis))).toList(),
+              onChanged:_selectCourse),
+            const SizedBox(height:14),
+            Container(padding:const EdgeInsets.all(16),decoration:BoxDecoration(color:KarmKritePalette.sandalwood,borderRadius:BorderRadius.circular(16)),
+              child:Row(children:[_attendanceMetric('Classes',rows.length.toString()),_attendanceMetric('Present',present.toString()),_attendanceMetric('Absent',absent.toString())])),
+            const SizedBox(height:18),Text((selected['title']??'').toString(),style:const TextStyle(fontSize:17,fontWeight:FontWeight.w900)),
+            const SizedBox(height:8),
+            if(rows.isEmpty)const Padding(padding:EdgeInsets.all(20),child:Text('इस कोर्स की कोई Live Class अभी दर्ज नहीं है।',textAlign:TextAlign.center))
+            else ...rows.map((row)=>Card(child:Padding(padding:const EdgeInsets.all(14),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+              Text((row['title']??'Live Class').toString(),style:const TextStyle(fontWeight:FontWeight.w800)),
+              Text((row['starts_at']??'').toString(),style:const TextStyle(fontSize:10,color:Colors.grey)),
+              const SizedBox(height:9),
+              Wrap(spacing:14,runSpacing:6,children:[
+                Text('Present: ${row['present']}',style:const TextStyle(color:Colors.green,fontWeight:FontWeight.w700)),
+                Text('Absent: ${row['absent']}',style:const TextStyle(color:Colors.red,fontWeight:FontWeight.w700)),
+                Text('Late: ${row['late']}'),Text('Excused: ${row['excused']}'),Text('Marked: ${row['marked']}',style:const TextStyle(color:Colors.grey)),
+              ]),
+            ])))),
+          ]),
+        );
+      }),
+  );
+}
+Widget _attendanceMetric(String label,String value)=>Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+  Text(value,style:const TextStyle(fontSize:21,fontWeight:FontWeight.w900,color:KarmKritePalette.maroon)),
+  Text(label,style:const TextStyle(fontSize:10,color:KarmKritePalette.wood)),
+]));
 
 class LearningReportsScreen extends StatefulWidget {
   final List<Map<String,dynamic>> courses;
@@ -1420,6 +1611,57 @@ class _LearningReportsScreenState extends State<LearningReportsScreen> {
     }).toList();
     students.sort((a,b)=>(b['percent'] as int).compareTo(a['percent'] as int));
     return {'students':students,'lessons':lessons.length};
+  }
+
+  Future<void> _exportExcel(List<Map<String,dynamic>> students,String courseTitle) async {
+    try {
+      final book=Excel.createExcel();
+      final sheet=book['Progress'];
+      sheet.appendRow([TextCellValue('विद्यार्थी'),TextCellValue('ईमेल'),TextCellValue('पूरे पाठ'),TextCellValue('कुल पाठ'),TextCellValue('प्रगति %'),TextCellValue('प्रवेश तारीख')]);
+      for(final student in students){
+        sheet.appendRow([
+          TextCellValue((student['name']??'').toString()),
+          TextCellValue((student['email']??'').toString()),
+          IntCellValue((student['completed']??0) as int),
+          IntCellValue((student['total']??0) as int),
+          IntCellValue((student['percent']??0) as int),
+          TextCellValue(_dateLabel(student['enrolled_at'])),
+        ]);
+      }
+      final bytes=book.encode();
+      if(bytes==null)throw Exception('Excel फ़ाइल तैयार नहीं हुई।');
+      final path=await FilePicker.platform.saveFile(
+        dialogTitle:'Progress Report सेव करें',fileName:'KARMKRITE_Progress_Report.xlsx',
+        type:FileType.custom,allowedExtensions:['xlsx'],bytes:Uint8List.fromList(bytes));
+      if(path!=null && mounted)ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('Excel रिपोर्ट सेव हो गई।')));
+    }catch(e){if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('Excel Export नहीं हो सका: $e')));}
+  }
+
+  Future<void> _exportPdf(List<Map<String,dynamic>> students) async {
+    try {
+      final document=pw.Document();
+      document.addPage(pw.MultiPage(pageFormat:pw.PdfPageFormat.a4,build:(context)=>[
+        pw.Text('KARMKRITE - STUDENT PROGRESS REPORT',style:pw.TextStyle(fontSize:17,fontWeight:pw.FontWeight.bold)),
+        pw.SizedBox(height:8),
+        pw.Text('Generated: ${DateTime.now().toLocal().toString().substring(0,16)}'),
+        pw.SizedBox(height:16),
+        pw.Table.fromTextArray(
+          headers:['Student Email','Completed','Total','Progress'],
+          data:students.map((x)=>[(x['email']??'').toString(),(x['completed']??0).toString(),(x['total']??0).toString(),'${x['percent']}%']).toList(),
+          headerStyle:pw.TextStyle(fontWeight:pw.FontWeight.bold),
+          headerDecoration:const pw.BoxDecoration(color:pw.PdfColors.grey300),
+          cellStyle:const pw.TextStyle(fontSize:9),
+          cellAlignment:pw.Alignment.centerLeft,
+        ),
+        pw.SizedBox(height:10),
+        pw.Text('Learning progress for active course enrollments.'),
+      ]));
+      final bytes=await document.save();
+      final path=await FilePicker.platform.saveFile(
+        dialogTitle:'PDF Progress Report सेव करें',fileName:'KARMKRITE_Progress_Report.pdf',
+        type:FileType.custom,allowedExtensions:['pdf'],bytes:Uint8List.fromList(bytes));
+      if(path!=null && mounted)ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('PDF रिपोर्ट सेव हो गई।')));
+    }catch(e){if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('PDF Export नहीं हो सका: $e')));}
   }
 
   Future<void> _changeCourse(String? value) async {
@@ -1555,9 +1797,9 @@ class _LearningReportsScreenState extends State<LearningReportsScreen> {
               ])),
             const SizedBox(height:20),
             Row(children:[
-              const Expanded(child:Text('विद्यार्थीवार प्रगति',
-                style:TextStyle(fontSize:17,fontWeight:FontWeight.w900))),
-              Text('${students.length} विद्यार्थी',style:const TextStyle(fontSize:11,color:Colors.grey)),
+              const Expanded(child:Text('विद्यार्थीवार प्रगति',style:TextStyle(fontSize:17,fontWeight:FontWeight.w900))),
+              IconButton(tooltip:'Excel Export',onPressed:()=>_exportExcel(students,(selected['title']??'').toString()),icon:const Icon(Icons.table_view_rounded,color:KarmKritePalette.maroon)),
+              IconButton(tooltip:'PDF Export',onPressed:()=>_exportPdf(students),icon:const Icon(Icons.picture_as_pdf_outlined,color:KarmKritePalette.maroon)),
             ]),
             const SizedBox(height:8),
             if(students.isEmpty)const Padding(padding:EdgeInsets.all(22),
