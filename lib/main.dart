@@ -1331,7 +1331,11 @@ class _BooksScreenState extends State<BooksScreen> {
       final books = List<Map<String,dynamic>>.from(rows)
         .where((book) {
           final versions = book['book_versions'] as List<dynamic>? ?? const [];
-          return versions.any((version) =>
+          final category = book['categories'];
+          final isPanchang = category is Map &&
+              (((category['name_hi'] ?? '').toString().contains('पंचांग')) ||
+               ((category['name_en'] ?? '').toString().toLowerCase().contains('panchang')));
+          return !isPanchang && versions.any((version) =>
             (version is Map ? (version['pdf_url'] ?? '').toString().trim() : '').isNotEmpty);
         }).toList();
       // Hide admin-created entries without an uploaded PDF; they cannot be opened.
