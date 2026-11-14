@@ -122,10 +122,10 @@ class _VideoLessonPlayerState extends State<_VideoLessonPlayer> {
                         min: 0,
                         max: value.duration.inMilliseconds
                             .toDouble()
-                            .clamp(1, double.infinity),
+                            .clamp(1, double.infinity).toDouble(),
                         value: value.position.inMilliseconds
                             .toDouble()
-                            .clamp(0, value.duration.inMilliseconds.toDouble()),
+                            .clamp(0, value.duration.inMilliseconds.toDouble()).toDouble(),
                         onChanged: (position) => _controller.seekTo(
                           Duration(milliseconds: position.round()),
                         ),
@@ -220,7 +220,7 @@ class _AudioLessonPlayerState extends State<_AudioLessonPlayer> {
       ));
     }
     final maxMs = _duration.inMilliseconds.toDouble();
-    final currentMs = _position.inMilliseconds.toDouble().clamp(0, maxMs > 0 ? maxMs : 1);
+    final currentMs = _position.inMilliseconds.toDouble().clamp(0, maxMs > 0 ? maxMs : 1).toDouble();
     return Center(child: Padding(
       padding: const EdgeInsets.all(28),
       child: Column(mainAxisSize: MainAxisSize.min, children: [
