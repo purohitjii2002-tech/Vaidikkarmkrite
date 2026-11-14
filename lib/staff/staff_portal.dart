@@ -1366,10 +1366,13 @@ class _LearningReportsScreenState extends State<LearningReportsScreen> {
       .eq('course_id',selectedCourseId).eq('status','active')
       .order('enrolled_at',ascending:false);
     final enrollments=List<Map<String,dynamic>>.from(enrollmentRows);
-    final lessonRows=await db.from('course_lessons').select('id')
-      .eq('course_id',selectedCourseId).eq('is_published',true);
-    final lessonIds=List<Map<String,dynamic>>.from(lessonRows).map((x)=>x['id'].toString()).toSet();
-    if(enrollments.isEmpty)return {'students':<Map<String,dynamic>>[],'lessons':lessonIds.length};
+    final lessonRows=await db.from('course_lessons')
+      .select('id,title,lesson_type,duration_minutes')
+      .eq('course_id',selectedCourseId).eq('is_published',true)
+      .order('created_at');
+    final lessons=List<Map<String,dynamic>>.from(lessonRows);
+    final lessonIds=lessons.map((x)=>x['id'].toString()).toSet();
+    if(enrollments.isEmpty)return {'students':<Map<String,dynamic>>[],'lessons':lessons.length};
     final ids=enrollments.map((x)=>x['student_id'].toString()).toList();
     final result=await Future.wait([
       db.from('student_profiles').select('user_id,email,full_name').inFilter('user_id',ids),
@@ -1379,34 +1382,136 @@ class _LearningReportsScreenState extends State<LearningReportsScreen> {
     final profiles=List<Map<String,dynamic>>.from(result[0]);
     final progress=List<Map<String,dynamic>>.from(result[1]);
     final profileById={for(final p in profiles)p['user_id'].toString():p};
-    final completedByStudent=<String,Set<String>>{};
+    final completedByStudent=<String,Map<String,String>>{};
     for(final p in progress){
       final sid=p['student_id'].toString(), lid=p['lesson_id'].toString();
-      if(lessonIds.contains(lid))completedByStudent.putIfAbsent(sid,()=>{}).add(lid);
+      if(lessonIds.contains(lid)){
+        completedByStudent.putIfAbsent(sid,()=>{})[lid]=(p['completed_at']??'').toString();
+      }
     }
     final students=enrollments.map((e){
       final sid=e['student_id'].toString();
       final p=profileById[sid]??<String,dynamic>{};
-      final completed=completedByStudent[sid]?.length??0;
-      final total=lessonIds.length;
+      final completedMap=completedByStudent[sid]??<String,String>{};
+      final completed=completedMap.length, total=lessons.length;
+      final completedLessons=<Map<String,dynamic>>[];
+      final pendingLessons=<Map<String,dynamic>>[];
+      for(final lesson in lessons){
+        final lid=lesson['id'].toString();
+        final item=<String,dynamic>{
+          'title':(lesson['title']??'बिना शीर्षक का पाठ').toString(),
+          'type':(lesson['lesson_type']??'text').toString(),
+          'duration':lesson['duration_minutes']??0,
+          'completed_at':completedMap[lid],
+        };
+        if(completedMap.containsKey(lid)){completedLessons.add(item);}
+        else{pendingLessons.add(item);}
+      }
       return <String,dynamic>{
+        'student_id':sid,
         'name':(p['full_name']??'').toString().trim().isEmpty?'विद्यार्थी':p['full_name'],
         'email':(p['email']??'').toString(),
         'completed':completed,'total':total,
         'percent':total==0?0:(completed*100~/total),
         'enrolled_at':e['enrolled_at'],
+        'completed_lessons':completedLessons,
+        'pending_lessons':pendingLessons,
       };
     }).toList();
     students.sort((a,b)=>(b['percent'] as int).compareTo(a['percent'] as int));
-    return {'students':students,'lessons':lessonIds.length};
+    return {'students':students,'lessons':lessons.length};
   }
 
-  Future<void> _changeCourse(String? value){
-    if(value==null)return Future.value();
+  Future<void> _changeCourse(String? value) async {
+    if(value==null)return;
     setState(()=>selectedCourseId=value);
     final next=_load();
     setState(()=>reportFuture=next);
-    return next.then((_) {});
+    await next;
+  }
+
+  String _dateLabel(dynamic value){
+    if(value==null || value.toString().isEmpty)return 'उपलब्ध नहीं';
+    final date=DateTime.tryParse(value.toString())?.toLocal();
+    if(date==null)return 'उपलब्ध नहीं';
+    return '${date.day.toString().padLeft(2,'0')}-${date.month.toString().padLeft(2,'0')}-${date.year}';
+  }
+
+  Future<void> _showStudentDetail(Map<String,dynamic> student) async {
+    final completed=List<Map<String,dynamic>>.from(student['completed_lessons']??[]);
+    final pending=List<Map<String,dynamic>>.from(student['pending_lessons']??[]);
+    await showModalBottomSheet<void>(
+      context:context,isScrollControlled:true,showDragHandle:true,
+      builder:(sheetContext)=>SafeArea(child:FractionallySizedBox(
+        heightFactor:.88,
+        child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
+          Padding(padding:const EdgeInsets.fromLTRB(20,8,20,12),
+            child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+              Text(student['name'].toString(),style:const TextStyle(fontSize:20,fontWeight:FontWeight.w900)),
+              if(student['email'].toString().isNotEmpty)
+                Text(student['email'].toString(),style:const TextStyle(color:Colors.grey,fontSize:12)),
+              const SizedBox(height:10),
+              Row(children:[
+                _detailMetric('प्रगति','${student['percent']}%'),
+                _detailMetric('पूरे पाठ','${student['completed']}'),
+                _detailMetric('बाकी पाठ','${pending.length}'),
+              ]),
+              const SizedBox(height:8),
+              Text('कोर्स में प्रवेश: ${_dateLabel(student['enrolled_at'])}',
+                style:const TextStyle(fontSize:11,color:Colors.grey)),
+            ])),
+          const Divider(height:1),
+          Expanded(child:ListView(padding:const EdgeInsets.fromLTRB(18,12,18,24),children:[
+            _lessonSection('पूरे किए गए पाठ',completed,true),
+            const SizedBox(height:18),
+            _lessonSection('अधूरे पाठ',pending,false),
+          ])),
+        ]),
+      )),
+    );
+  }
+
+  Widget _detailMetric(String label,String value)=>Expanded(child:Container(
+    margin:const EdgeInsets.only(right:8),padding:const EdgeInsets.all(10),
+    decoration:BoxDecoration(color:KarmKritePalette.sandalwood.withOpacity(.55),
+      borderRadius:BorderRadius.circular(12)),
+    child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+      Text(value,style:const TextStyle(fontWeight:FontWeight.w900,fontSize:19,color:KarmKritePalette.maroon)),
+      Text(label,style:const TextStyle(fontSize:10,color:Colors.grey)),
+    ]),
+  ));
+
+  Widget _lessonSection(String heading,List<Map<String,dynamic>> lessons,bool done){
+    return Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+      Row(children:[
+        Icon(done?Icons.check_circle_rounded:Icons.pending_actions_rounded,
+          color:done?Colors.green:KarmKritePalette.copper,size:19),
+        const SizedBox(width:7),
+        Expanded(child:Text('$heading (${lessons.length})',
+          style:const TextStyle(fontWeight:FontWeight.w900,fontSize:15))),
+      ]),
+      const SizedBox(height:8),
+      if(lessons.isEmpty)
+        Padding(padding:const EdgeInsets.symmetric(vertical:10),
+          child:Text(done?'अभी कोई पाठ पूरा नहीं हुआ।':'सभी प्रकाशित पाठ पूरे हो चुके हैं।',
+            style:const TextStyle(color:Colors.grey,fontSize:12)))
+      else
+        ...lessons.map((lesson)=>ListTile(
+          dense:true,contentPadding:const EdgeInsets.symmetric(horizontal:4),
+          leading:Icon(
+            lesson['type']=='video'?Icons.play_circle_outline_rounded:
+            lesson['type']=='audio'?Icons.headphones_rounded:
+            lesson['type']=='pdf'?Icons.picture_as_pdf_outlined:Icons.article_outlined,
+            color:done?Colors.green:KarmKritePalette.maroon),
+          title:Text(lesson['title'].toString(),style:const TextStyle(fontSize:13,fontWeight:FontWeight.w600)),
+          subtitle:Text(done
+            ?'पूरा किया: ${_dateLabel(lesson['completed_at'])}'
+            :'${lesson['type']} • ${lesson['duration']} मिनट',
+            style:const TextStyle(fontSize:10,color:Colors.grey)),
+          trailing:Icon(done?Icons.check_circle:Icons.radio_button_unchecked,
+            color:done?Colors.green:Colors.grey,size:18),
+        )),
+    ]);
   }
 
   @override
@@ -1445,36 +1550,46 @@ class _LearningReportsScreenState extends State<LearningReportsScreen> {
                 Row(children:[
                   _metric('विद्यार्थी',students.length.toString()),
                   _metric('प्रकाशित पाठ',totalLessons.toString()),
-                  _metric('औसत प्रगति','$avg%'),
+                  _metric('औसत प्रगति','${avg}%'),
                 ]),
               ])),
             const SizedBox(height:20),
-            const Text('विद्यार्थीवार प्रगति',style:TextStyle(fontSize:17,fontWeight:FontWeight.w900)),
+            Row(children:[
+              const Expanded(child:Text('विद्यार्थीवार प्रगति',
+                style:TextStyle(fontSize:17,fontWeight:FontWeight.w900))),
+              Text('${students.length} विद्यार्थी',style:const TextStyle(fontSize:11,color:Colors.grey)),
+            ]),
             const SizedBox(height:8),
             if(students.isEmpty)const Padding(padding:EdgeInsets.all(22),
               child:Text('इस कोर्स में अभी कोई सक्रिय विद्यार्थी enrolled नहीं है।',
                 textAlign:TextAlign.center))
             else ...students.map((student)=>Card(
               margin:const EdgeInsets.only(bottom:9),
-              child:Padding(padding:const EdgeInsets.all(14),child:Column(
-                crossAxisAlignment:CrossAxisAlignment.start,children:[
-                  Row(children:[
-                    Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-                      Text(student['name'].toString(),style:const TextStyle(fontWeight:FontWeight.w800)),
-                      if(student['email'].toString().isNotEmpty)
-                        Text(student['email'].toString(),style:const TextStyle(fontSize:11,color:Colors.grey)),
-                    ])),
-                    Text('${student['percent']}%',style:const TextStyle(
-                      color:KarmKritePalette.maroon,fontWeight:FontWeight.w900,fontSize:18)),
-                  ]),
-                  const SizedBox(height:10),
-                  ClipRRect(borderRadius:BorderRadius.circular(8),child:LinearProgressIndicator(
-                    value:(student['percent'] as int)/100,minHeight:7,
-                    backgroundColor:KarmKritePalette.sandalwood,color:KarmKritePalette.maroon)),
-                  const SizedBox(height:6),
-                  Text('${student['completed']} / ${student['total']} पाठ पूर्ण',
-                    style:const TextStyle(fontSize:11,color:Colors.grey)),
-                ])))),
+              child:InkWell(
+                borderRadius:BorderRadius.circular(14),
+                onTap:()=>_showStudentDetail(student),
+                child:Padding(padding:const EdgeInsets.all(14),child:Column(
+                  crossAxisAlignment:CrossAxisAlignment.start,children:[
+                    Row(children:[
+                      Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+                        Text(student['name'].toString(),style:const TextStyle(fontWeight:FontWeight.w800)),
+                        if(student['email'].toString().isNotEmpty)
+                          Text(student['email'].toString(),style:const TextStyle(fontSize:11,color:Colors.grey)),
+                      ])),
+                      Text('${student['percent']}%',style:const TextStyle(
+                        color:KarmKritePalette.maroon,fontWeight:FontWeight.w900,fontSize:18)),
+                      const SizedBox(width:4),
+                      const Icon(Icons.chevron_right_rounded,color:Colors.grey),
+                    ]),
+                    const SizedBox(height:10),
+                    ClipRRect(borderRadius:BorderRadius.circular(8),child:LinearProgressIndicator(
+                      value:(student['percent'] as int)/100,minHeight:7,
+                      backgroundColor:KarmKritePalette.sandalwood,color:KarmKritePalette.maroon)),
+                    const SizedBox(height:6),
+                    Text('${student['completed']} / ${student['total']} पाठ पूर्ण  •  विवरण देखने के लिए टैप करें',
+                      style:const TextStyle(fontSize:11,color:Colors.grey)),
+                  ])),
+              ))),
           ]),
         );
       }),
