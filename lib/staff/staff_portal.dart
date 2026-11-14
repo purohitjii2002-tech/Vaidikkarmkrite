@@ -748,6 +748,17 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           trailing: const Icon(Icons.chevron_right_rounded),
           onTap: () => manageStudents(courses),
         )),
+        const SizedBox(height: 9),
+        Card(child: ListTile(
+          leading: const CircleAvatar(backgroundColor: Color(0xFFF4EBDD),
+            child: Icon(Icons.auto_stories_rounded, color: KarmKritePalette.maroon)),
+          title: const Text('Digital Granthalaya प्रबंधन',
+            style: TextStyle(fontWeight: FontWeight.w900)),
+          subtitle: const Text('पुस्तकें, PDF संस्करण और श्रेणियाँ नियंत्रित करें।'),
+          trailing: const Icon(Icons.chevron_right_rounded),
+          onTap: () => Navigator.push(context, MaterialPageRoute(
+            builder: (_) => const GranthalayaAdminScreen())),
+        )),
         const SizedBox(height:22),
         Row(children:[const Expanded(child:Text('कोर्स प्रबंधन',style:TextStyle(fontSize:17,fontWeight:FontWeight.w900))),
           Text('${courses.where((x)=>x['is_published']==true).length} Published',style:const TextStyle(color:KarmKritePalette.gold,fontSize:11,fontWeight:FontWeight.w800))]),
@@ -783,6 +794,250 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           subtitle:Text((person['role']??'').toString().toUpperCase()),
           trailing:Icon(person['is_active']==true?Icons.check_circle:Icons.block,
             color:person['is_active']==true?Colors.green:Colors.redAccent,size:18))),
+      ]));
+    }),
+  );
+}
+
+
+class GranthalayaAdminScreen extends StatefulWidget {
+  const GranthalayaAdminScreen({super.key});
+  @override
+  State<GranthalayaAdminScreen> createState() => _GranthalayaAdminScreenState();
+}
+
+class _GranthalayaAdminScreenState extends State<GranthalayaAdminScreen> {
+  late Future<Map<String, dynamic>> future;
+  final db = Supabase.instance.client;
+
+  @override
+  void initState() { super.initState(); future = load(); }
+
+  bool _isPanchang(Map row) {
+    final hi = (row['name_hi'] ?? '').toString();
+    final en = (row['name_en'] ?? '').toString().toLowerCase();
+    return hi.contains('पंचांग') || en.contains('panchang');
+  }
+
+  Future<Map<String, dynamic>> load() async {
+    final result = await Future.wait([
+      db.from('categories').select('id,name_hi,name_en,description,icon,sort_order,is_active').order('sort_order'),
+      db.from('books').select('id,category_id,title_hi,title_en,author,description,cover_url,current_version,is_active,created_at,book_versions(id,version_no,pdf_url,file_path,file_size,created_at)').order('created_at', ascending: false),
+    ]);
+    return {
+      'categories': List<Map<String,dynamic>>.from(result[0]).where((x)=>!_isPanchang(x)).toList(),
+      'books': List<Map<String,dynamic>>.from(result[1]),
+    };
+  }
+
+  Future<void> refresh() async { final f=load(); setState(()=>future=f); await f; }
+
+  Future<void> editCategory([Map<String,dynamic>? old]) async {
+    final hi=TextEditingController(text:(old?['name_hi']??'').toString());
+    final en=TextEditingController(text:(old?['name_en']??'').toString());
+    final desc=TextEditingController(text:(old?['description']??'').toString());
+    final icon=TextEditingController(text:(old?['icon']??'book').toString());
+    final order=TextEditingController(text:(old?['sort_order']??0).toString());
+    final save=await showDialog<bool>(context:context,builder:(d)=>AlertDialog(
+      title:Text(old==null?'नई श्रेणी':'श्रेणी संपादित करें'),
+      content:SingleChildScrollView(child:Column(mainAxisSize:MainAxisSize.min,children:[
+        TextField(controller:hi,decoration:const InputDecoration(labelText:'नाम (हिन्दी)')),
+        TextField(controller:en,decoration:const InputDecoration(labelText:'Name (English)')),
+        TextField(controller:desc,maxLines:2,decoration:const InputDecoration(labelText:'विवरण')),
+        TextField(controller:icon,decoration:const InputDecoration(labelText:'Icon key')),
+        TextField(controller:order,keyboardType:TextInputType.number,decoration:const InputDecoration(labelText:'क्रम')),
+      ])),
+      actions:[
+        TextButton(onPressed:()=>Navigator.pop(d,false),child:const Text('रद्द करें')),
+        ElevatedButton(onPressed:()=>Navigator.pop(d,true),child:const Text('सेव करें')),
+      ],
+    ));
+    if(save==true && hi.text.trim().isNotEmpty) {
+      if(hi.text.contains('पंचांग') || en.text.toLowerCase().contains('panchang')) {
+        throw Exception('Panchang श्रेणी इस ऐप में उपलब्ध नहीं है।');
+      }
+      final data={'name_hi':hi.text.trim(),'name_en':en.text.trim(),'description':desc.text.trim(),
+        'icon':icon.text.trim().isEmpty?'book':icon.text.trim(),'sort_order':int.tryParse(order.text)??0};
+      if(old==null) { await db.from('categories').insert(data); }
+      else { await db.from('categories').update(data).eq('id',old['id']); }
+    }
+    hi.dispose();en.dispose();desc.dispose();icon.dispose();order.dispose();
+  }
+
+  Future<void> manageCategories(List<Map<String,dynamic>> rows) async {
+    await showDialog<void>(context:context,builder:(d)=>StatefulBuilder(builder:(d,setD)=>AlertDialog(
+      title:const Text('पुस्तक श्रेणियाँ'),
+      content:SizedBox(width:420,height:380,child:Column(children:[
+        Align(alignment:Alignment.centerRight,child:TextButton.icon(
+          onPressed:()async{try{await editCategory();await refresh();setD((){});}catch(e){if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('$e')));}},
+          icon:const Icon(Icons.add),label:const Text('नई श्रेणी'))),
+        Expanded(child:ListView.separated(
+          itemCount:rows.length,separatorBuilder:(_,__)=>const Divider(height:1),
+          itemBuilder:(ctx,i){final row=rows[i];return ListTile(
+            contentPadding:EdgeInsets.zero,title:Text((row['name_hi']??'').toString()),
+            subtitle:Text((row['name_en']??'').toString()),
+            trailing:Row(mainAxisSize:MainAxisSize.min,children:[
+              IconButton(onPressed:()async{try{await editCategory(row);await refresh();setD((){});}catch(e){if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('$e')));}},icon:const Icon(Icons.edit_outlined)),
+              Switch.adaptive(value:row['is_active']==true,onChanged:(v)async{
+                await db.from('categories').update({'is_active':v}).eq('id',row['id']);
+                row['is_active']=v;await refresh();setD((){});
+              }),
+            ]),
+          );},
+        )),
+      ])),
+      actions:[TextButton(onPressed:()=>Navigator.pop(d),child:const Text('बंद करें'))],
+    )));
+  }
+
+  Future<void> editBook([Map<String,dynamic>? old]) async {
+    final hi=TextEditingController(text:(old?['title_hi']??'').toString());
+    final en=TextEditingController(text:(old?['title_en']??'').toString());
+    final author=TextEditingController(text:(old?['author']??'').toString());
+    final desc=TextEditingController(text:(old?['description']??'').toString());
+    final cover=TextEditingController(text:(old?['cover_url']??'').toString());
+    final rawCats=await db.from('categories').select('id,name_hi,name_en').eq('is_active',true).order('sort_order');
+    final cats=List<Map<String,dynamic>>.from(rawCats).where((x)=>!_isPanchang(x)).toList();
+    if(cats.isEmpty) throw Exception('पहले पुस्तक की श्रेणी बनाएँ।');
+    String cat=(old?['category_id']??cats.first['id']).toString();
+    if(!cats.any((x)=>x['id'].toString()==cat))cat=cats.first['id'].toString();
+    PlatformFile? pdf;
+    final save=await showDialog<bool>(context:context,builder:(d)=>StatefulBuilder(builder:(d,setD)=>AlertDialog(
+      title:Text(old==null?'नई पुस्तक जोड़ें':'पुस्तक संपादित करें'),
+      content:SizedBox(width:430,child:SingleChildScrollView(child:Column(mainAxisSize:MainAxisSize.min,children:[
+        TextField(controller:hi,decoration:const InputDecoration(labelText:'पुस्तक का नाम (हिन्दी)')),
+        TextField(controller:en,decoration:const InputDecoration(labelText:'Book title (English)')),
+        TextField(controller:author,decoration:const InputDecoration(labelText:'लेखक / सम्पादक')),
+        TextField(controller:desc,maxLines:3,decoration:const InputDecoration(labelText:'विवरण')),
+        TextField(controller:cover,keyboardType:TextInputType.url,decoration:const InputDecoration(labelText:'Cover image URL (वैकल्पिक)')),
+        const SizedBox(height:10),
+        DropdownButtonFormField<String>(value:cat,decoration:const InputDecoration(labelText:'श्रेणी'),
+          items:cats.map((x)=>DropdownMenuItem(value:x['id'].toString(),child:Text(x['name_hi'].toString(),overflow:TextOverflow.ellipsis))).toList(),
+          onChanged:(v)=>setD(()=>cat=v??cat)),
+        const SizedBox(height:10),
+        OutlinedButton.icon(onPressed:()async{
+          final picked=await FilePicker.platform.pickFiles(type:FileType.custom,allowedExtensions:const ['pdf'],allowMultiple:false);
+          if(picked!=null&&picked.files.isNotEmpty)setD(()=>pdf=picked.files.single);
+        },icon:const Icon(Icons.picture_as_pdf_rounded),
+          label:Text(pdf==null?(old==null?'मुख्य PDF चुनें (आवश्यक)':'नया PDF संस्करण चुनें (वैकल्पिक)'):'PDF: ${pdf!.name}')),
+        if(pdf!=null)Text('${(pdf!.size/(1024*1024)).toStringAsFixed(1)} MB',style:const TextStyle(fontSize:11)),
+        const SizedBox(height:8),
+        const Text('यह PDF सार्वजनिक Digital Granthalaya में उपलब्ध होगी। अधिकतम आकार 100 MB।',style:TextStyle(fontSize:10,color:Colors.grey)),
+      ]))),
+      actions:[
+        TextButton(onPressed:()=>Navigator.pop(d,false),child:const Text('रद्द करें')),
+        ElevatedButton(onPressed:()=>Navigator.pop(d,true),child:const Text('सेव करें')),
+      ],
+    )));
+    if(save==true) {
+      if(hi.text.trim().isEmpty)throw Exception('पुस्तक का हिन्दी नाम आवश्यक है।');
+      if(old==null&&pdf==null)throw Exception('नई पुस्तक के लिए PDF चुनें।');
+      final payload={'title_hi':hi.text.trim(),'title_en':en.text.trim(),'author':author.text.trim(),
+        'description':desc.text.trim(),'cover_url':cover.text.trim().isEmpty?null:cover.text.trim(),'category_id':cat};
+      String bookId;
+      int current;
+      if(old==null) {
+        final inserted=await db.from('books').insert({...payload,'current_version':0,'is_active':true}).select('id').single();
+        bookId=inserted['id'].toString();current=0;
+      } else {
+        bookId=old['id'].toString();current=(old['current_version'] as num?)?.toInt()??0;
+        await db.from('books').update(payload).eq('id',bookId);
+      }
+      if(pdf!=null)await uploadVersion(bookId,current,pdf!);
+      await refresh();
+    }
+    hi.dispose();en.dispose();author.dispose();desc.dispose();cover.dispose();
+  }
+
+  Future<void> uploadVersion(String bookId,int current,PlatformFile pdf) async {
+    if(pdf.size>100*1024*1024)throw Exception('PDF 100 MB से बड़ी है।');
+    if(pdf.path==null)throw Exception('चुनी गई PDF का path उपलब्ध नहीं है।');
+    final user=db.auth.currentUser;
+    if(user==null)throw Exception('Admin login समाप्त हो गया है।');
+    final safe=pdf.name.replaceAll(RegExp(r'[^A-Za-z0-9._-]'),'_');
+    final path='books/$bookId/${DateTime.now().millisecondsSinceEpoch}_$safe';
+    await db.storage.from('karmkrite-pdfs').upload(path,File(pdf.path!),
+      fileOptions:const FileOptions(cacheControl:'3600',contentType:'application/pdf',upsert:false));
+    final url=db.storage.from('karmkrite-pdfs').getPublicUrl(path);
+    final next=current+1;
+    await db.from('book_versions').insert({'book_id':bookId,'version_no':next,'pdf_url':url,
+      'file_path':path,'file_size':pdf.size,'created_by':user.id});
+    await db.from('books').update({'current_version':next}).eq('id',bookId);
+    if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('PDF संस्करण ${next} सेव हो गया।')));
+  }
+
+  Future<void> showVersions(Map<String,dynamic> book) async {
+    final versions=List<Map<String,dynamic>>.from(book['book_versions']??const []);
+    versions.sort((a,b)=>((b['version_no']??0) as num).compareTo((a['version_no']??0) as num));
+    await showDialog<void>(context:context,builder:(d)=>AlertDialog(
+      title:Text('संस्करण इतिहास: ${book['title_hi']}'),
+      content:SizedBox(width:400,height:300,child:versions.isEmpty
+        ?const Center(child:Text('कोई PDF संस्करण नहीं है।'))
+        :ListView.separated(itemCount:versions.length,separatorBuilder:(_,__)=>const Divider(height:1),
+          itemBuilder:(ctx,i){final v=versions[i];final size=((v['file_size']??0) as num)/(1024*1024);
+            return ListTile(leading:const Icon(Icons.picture_as_pdf,color:KarmKritePalette.maroon),
+              title:Text('संस्करण ${v['version_no']}'),
+              subtitle:Text('${size.toStringAsFixed(1)} MB'),
+              trailing:v['version_no']==book['current_version']?const Chip(label:Text('Current')):null);
+          })),
+      actions:[TextButton(onPressed:()=>Navigator.pop(d),child:const Text('बंद करें'))],
+    ));
+  }
+
+  @override
+  Widget build(BuildContext context)=>Scaffold(
+    appBar:AppBar(title:const Text('Digital Granthalaya'),actions:[IconButton(onPressed:refresh,icon:const Icon(Icons.refresh))]),
+    floatingActionButton:FloatingActionButton.extended(
+      onPressed:()async{try{await editBook();}catch(e){if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('पुस्तक सेव नहीं हुई: ${e}')));}},
+      backgroundColor:KarmKritePalette.maroon,foregroundColor:KarmKritePalette.goldLight,
+      icon:const Icon(Icons.add),label:const Text('पुस्तक जोड़ें')),
+    body:FutureBuilder<Map<String,dynamic>>(future:future,builder:(context,s){
+      if(s.connectionState==ConnectionState.waiting)return const Center(child:CircularProgressIndicator());
+      if(s.hasError)return Center(child:Column(mainAxisSize:MainAxisSize.min,children:[
+        const Text('Granthalaya डेटा लोड नहीं हुआ।'),TextButton(onPressed:refresh,child:const Text('पुनः प्रयास करें'))]));
+      final data=s.data!;final books=List<Map<String,dynamic>>.from(data['books']);
+      final cats=List<Map<String,dynamic>>.from(data['categories']);
+      final names={for(final x in cats)x['id'].toString():x['name_hi'].toString()};
+      return RefreshIndicator(onRefresh:refresh,child:ListView(padding:const EdgeInsets.fromLTRB(16,14,16,100),children:[
+        Container(padding:const EdgeInsets.all(18),decoration:BoxDecoration(
+          gradient:const LinearGradient(colors:[KarmKritePalette.maroonDeep,KarmKritePalette.maroon]),
+          borderRadius:BorderRadius.circular(20),border:Border.all(color:KarmKritePalette.gold)),
+          child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+            const Text('KARMKRITE DIGITAL GRANTHALAYA',style:TextStyle(color:KarmKritePalette.goldLight,fontWeight:FontWeight.w900,letterSpacing:1)),
+            const SizedBox(height:8),Text('${books.length} पुस्तकें • ${cats.length} श्रेणियाँ',style:const TextStyle(color:Colors.white)),
+            const SizedBox(height:8),OutlinedButton.icon(
+              style:OutlinedButton.styleFrom(foregroundColor:KarmKritePalette.goldLight,side:const BorderSide(color:KarmKritePalette.gold)),
+              onPressed:()=>manageCategories(cats),icon:const Icon(Icons.category_outlined),label:const Text('श्रेणियाँ प्रबंधित करें')),
+          ])),
+        const SizedBox(height:18),Row(children:[
+          const Expanded(child:Text('पुस्तक सूची',style:TextStyle(fontSize:18,fontWeight:FontWeight.w900))),
+          Text('${books.where((x)=>x['is_active']==true).length} प्रकाशित',style:const TextStyle(color:KarmKritePalette.gold,fontWeight:FontWeight.w800)),
+        ]),
+        const SizedBox(height:8),
+        if(books.isEmpty)const Padding(padding:EdgeInsets.all(24),child:Text('अभी कोई पुस्तक नहीं है।',textAlign:TextAlign.center))
+        else ...books.map((book){
+          final versions=List<Map<String,dynamic>>.from(book['book_versions']??const []);
+          final current=versions.where((v)=>v['version_no']==book['current_version']).toList();
+          final mb=current.isEmpty?0:((current.first['file_size']??0) as num)/(1024*1024);
+          return Card(margin:const EdgeInsets.only(bottom:9),child:ListTile(
+            leading:const CircleAvatar(backgroundColor:Color(0xFFF4EBDD),child:Icon(Icons.menu_book,color:KarmKritePalette.maroon)),
+            title:Text((book['title_hi']??'').toString(),style:const TextStyle(fontWeight:FontWeight.w800)),
+            subtitle:Text('${names[book['category_id']]??'श्रेणी नहीं'} • ${versions.length} संस्करण • ${mb.toStringAsFixed(1)} MB • ${book['is_active']==true?'प्रकाशित':'छिपी हुई'}'),
+            trailing:PopupMenuButton<String>(onSelected:(v)async{try{
+              if(v=='edit')await editBook(book);
+              if(v=='versions')await showVersions(book);
+              if(v=='toggle'){await db.from('books').update({'is_active':book['is_active']!=true}).eq('id',book['id']);await refresh();}
+            }catch(e){if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('कार्य पूरा नहीं हुआ: ${e}')));}},
+              itemBuilder:(_)=>[
+                const PopupMenuItem(value:'edit',child:Text('विवरण / नया PDF संस्करण')),
+                const PopupMenuItem(value:'versions',child:Text('संस्करण इतिहास')),
+                PopupMenuItem(value:'toggle',child:Text(book['is_active']==true?'पुस्तक छिपाएँ':'पुस्तक प्रकाशित करें')),
+              ]),
+          ));
+        }),
+        const SizedBox(height:18),
+        const Text('नया PDF संस्करण जोड़ने पर पुराना संस्करण इतिहास में सुरक्षित रहेगा।',
+          style:TextStyle(fontSize:11,color:Colors.grey)),
       ]));
     }),
   );
