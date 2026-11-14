@@ -751,6 +751,17 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         const SizedBox(height: 9),
         Card(child: ListTile(
           leading: const CircleAvatar(backgroundColor: Color(0xFFF4EBDD),
+            child: Icon(Icons.insights_rounded, color: KarmKritePalette.maroon)),
+          title: const Text('Student Progress एवं Teacher Reports',
+            style: TextStyle(fontWeight: FontWeight.w900)),
+          subtitle: const Text('कोर्सवार उपस्थिति-जैसी learning progress, पूर्ण पाठ और विद्यार्थी रिपोर्ट देखें।'),
+          trailing: const Icon(Icons.chevron_right_rounded),
+          onTap: () => Navigator.push(context, MaterialPageRoute(
+            builder: (_) => LearningReportsScreen(courses: courses, teacherView: false))),
+        )),
+        const SizedBox(height: 9),
+        Card(child: ListTile(
+          leading: const CircleAvatar(backgroundColor: Color(0xFFF4EBDD),
             child: Icon(Icons.auto_stories_rounded, color: KarmKritePalette.maroon)),
           title: const Text('Digital Granthalaya प्रबंधन',
             style: TextStyle(fontWeight: FontWeight.w900)),
@@ -1296,12 +1307,18 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
               onSelected:(action){
                 if(action=='lessons')manageTeacherLessons(course);
                 if(action=='live')scheduleClass(entry);
+                if(action=='reports')Navigator.push(context,MaterialPageRoute(
+                  builder: (_) => LearningReportsScreen(
+                    courses: [course], teacherView: true)));
+
               },
               itemBuilder:(_)=>const [
                 PopupMenuItem(value:'lessons',child:ListTile(
                   dense:true,leading:Icon(Icons.menu_book_outlined),title:Text('पाठ प्रबंधित करें'))),
                 PopupMenuItem(value:'live',child:ListTile(
                   dense:true,leading:Icon(Icons.video_call_outlined),title:Text('Live Class Schedule'))),
+                PopupMenuItem(value:'reports',child:ListTile(
+                  dense:true,leading:Icon(Icons.insights_outlined),title:Text('विद्यार्थी Progress Report'))),
               ],
             ),
           ));
@@ -1319,4 +1336,154 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
       ]));
     }),
   );
+}
+
+
+class LearningReportsScreen extends StatefulWidget {
+  final List<Map<String,dynamic>> courses;
+  final bool teacherView;
+  const LearningReportsScreen({super.key,required this.courses,required this.teacherView});
+  @override
+  State<LearningReportsScreen> createState()=>_LearningReportsScreenState();
+}
+
+class _LearningReportsScreenState extends State<LearningReportsScreen> {
+  late String selectedCourseId;
+  late Future<Map<String,dynamic>> reportFuture;
+  final db=Supabase.instance.client;
+
+  @override
+  void initState(){
+    super.initState();
+    selectedCourseId=widget.courses.isEmpty?'':widget.courses.first['id'].toString();
+    reportFuture=_load();
+  }
+
+  Future<Map<String,dynamic>> _load() async {
+    if(selectedCourseId.isEmpty)return {'students':<Map<String,dynamic>>[],'lessons':0};
+    final enrollmentRows=await db.from('student_enrollments')
+      .select('student_id,status,enrolled_at')
+      .eq('course_id',selectedCourseId).eq('status','active')
+      .order('enrolled_at',ascending:false);
+    final enrollments=List<Map<String,dynamic>>.from(enrollmentRows);
+    final lessonRows=await db.from('course_lessons').select('id')
+      .eq('course_id',selectedCourseId).eq('is_published',true);
+    final lessonIds=List<Map<String,dynamic>>.from(lessonRows).map((x)=>x['id'].toString()).toSet();
+    if(enrollments.isEmpty)return {'students':<Map<String,dynamic>>[],'lessons':lessonIds.length};
+    final ids=enrollments.map((x)=>x['student_id'].toString()).toList();
+    final result=await Future.wait([
+      db.from('student_profiles').select('user_id,email,full_name').inFilter('user_id',ids),
+      db.from('lesson_progress').select('student_id,lesson_id,completed_at')
+        .eq('course_id',selectedCourseId).inFilter('student_id',ids),
+    ]);
+    final profiles=List<Map<String,dynamic>>.from(result[0]);
+    final progress=List<Map<String,dynamic>>.from(result[1]);
+    final profileById={for(final p in profiles)p['user_id'].toString():p};
+    final completedByStudent=<String,Set<String>>{};
+    for(final p in progress){
+      final sid=p['student_id'].toString(), lid=p['lesson_id'].toString();
+      if(lessonIds.contains(lid))completedByStudent.putIfAbsent(sid,()=>{}).add(lid);
+    }
+    final students=enrollments.map((e){
+      final sid=e['student_id'].toString();
+      final p=profileById[sid]??<String,dynamic>{};
+      final completed=completedByStudent[sid]?.length??0;
+      final total=lessonIds.length;
+      return <String,dynamic>{
+        'name':(p['full_name']??'').toString().trim().isEmpty?'विद्यार्थी':p['full_name'],
+        'email':(p['email']??'').toString(),
+        'completed':completed,'total':total,
+        'percent':total==0?0:(completed*100~/total),
+        'enrolled_at':e['enrolled_at'],
+      };
+    }).toList();
+    students.sort((a,b)=>(b['percent'] as int).compareTo(a['percent'] as int));
+    return {'students':students,'lessons':lessonIds.length};
+  }
+
+  Future<void> _changeCourse(String? value){
+    if(value==null)return Future.value();
+    setState(()=>selectedCourseId=value);
+    final next=_load();
+    setState(()=>reportFuture=next);
+    return next.then((_) {});
+  }
+
+  @override
+  Widget build(BuildContext context)=>Scaffold(
+    appBar:AppBar(title:Text(widget.teacherView?'विद्यार्थी Progress Report':'Learning Reports')),
+    body:widget.courses.isEmpty
+      ? const Center(child:Text('रिपोर्ट देखने के लिए कोई कोर्स उपलब्ध नहीं है।'))
+      : FutureBuilder<Map<String,dynamic>>(future:reportFuture,builder:(context,snapshot){
+        if(snapshot.connectionState==ConnectionState.waiting)
+          return const Center(child:CircularProgressIndicator());
+        if(snapshot.hasError)
+          return Center(child:Padding(padding:const EdgeInsets.all(24),child:Text(
+            'रिपोर्ट लोड नहीं हो सकी।\\n${snapshot.error}',textAlign:TextAlign.center)));
+        final data=snapshot.data??{};
+        final students=List<Map<String,dynamic>>.from(data['students']??[]);
+        final totalLessons=(data['lessons']??0) as int;
+        final avg=students.isEmpty?0:students.fold<int>(0,(sum,x)=>sum+(x['percent'] as int))~/students.length;
+        final selected=widget.courses.firstWhere((c)=>c['id'].toString()==selectedCourseId,
+          orElse:()=>widget.courses.first);
+        return RefreshIndicator(onRefresh:()async{final f=_load();setState(()=>reportFuture=f);await f;},
+          child:ListView(padding:const EdgeInsets.all(18),children:[
+            DropdownButtonFormField<String>(
+              value:selectedCourseId,decoration:const InputDecoration(labelText:'कोर्स चुनें'),
+              items:widget.courses.map((c)=>DropdownMenuItem<String>(
+                value:c['id'].toString(),child:Text((c['title']??'कोर्स').toString(),
+                  overflow:TextOverflow.ellipsis))).toList(),
+              onChanged:_changeCourse),
+            const SizedBox(height:16),
+            Container(padding:const EdgeInsets.all(18),decoration:BoxDecoration(
+              gradient:const LinearGradient(colors:[KarmKritePalette.maroonDeep,KarmKritePalette.maroon]),
+              borderRadius:BorderRadius.circular(18)),
+              child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+                Text((selected['title']??'').toString(),style:const TextStyle(
+                  color:Colors.white,fontWeight:FontWeight.w900,fontSize:18)),
+                const SizedBox(height:14),
+                Row(children:[
+                  _metric('विद्यार्थी',students.length.toString()),
+                  _metric('प्रकाशित पाठ',totalLessons.toString()),
+                  _metric('औसत प्रगति','$avg%'),
+                ]),
+              ])),
+            const SizedBox(height:20),
+            const Text('विद्यार्थीवार प्रगति',style:TextStyle(fontSize:17,fontWeight:FontWeight.w900)),
+            const SizedBox(height:8),
+            if(students.isEmpty)const Padding(padding:EdgeInsets.all(22),
+              child:Text('इस कोर्स में अभी कोई सक्रिय विद्यार्थी enrolled नहीं है।',
+                textAlign:TextAlign.center))
+            else ...students.map((student)=>Card(
+              margin:const EdgeInsets.only(bottom:9),
+              child:Padding(padding:const EdgeInsets.all(14),child:Column(
+                crossAxisAlignment:CrossAxisAlignment.start,children:[
+                  Row(children:[
+                    Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+                      Text(student['name'].toString(),style:const TextStyle(fontWeight:FontWeight.w800)),
+                      if(student['email'].toString().isNotEmpty)
+                        Text(student['email'].toString(),style:const TextStyle(fontSize:11,color:Colors.grey)),
+                    ])),
+                    Text('${student['percent']}%',style:const TextStyle(
+                      color:KarmKritePalette.maroon,fontWeight:FontWeight.w900,fontSize:18)),
+                  ]),
+                  const SizedBox(height:10),
+                  ClipRRect(borderRadius:BorderRadius.circular(8),child:LinearProgressIndicator(
+                    value:(student['percent'] as int)/100,minHeight:7,
+                    backgroundColor:KarmKritePalette.sand,color:KarmKritePalette.maroon)),
+                  const SizedBox(height:6),
+                  Text('${student['completed']} / ${student['total']} पाठ पूर्ण',
+                    style:const TextStyle(fontSize:11,color:Colors.grey)),
+                ]))),
+          ]),
+        );
+      }),
+  );
+
+  Widget _metric(String label,String value)=>Expanded(child:Column(
+    crossAxisAlignment:CrossAxisAlignment.start,children:[
+      Text(value,style:const TextStyle(color:KarmKritePalette.goldLight,
+        fontWeight:FontWeight.w900,fontSize:22)),
+      Text(label,style:const TextStyle(color:Colors.white70,fontSize:10)),
+    ]));
 }
