@@ -1474,7 +1474,7 @@ class _LearningReportsScreenState extends State<LearningReportsScreen> {
                   const SizedBox(height:6),
                   Text('${student['completed']} / ${student['total']} पाठ पूर्ण',
                     style:const TextStyle(fontSize:11,color:Colors.grey)),
-                ]))),
+                ])))),
           ]),
         );
       }),
