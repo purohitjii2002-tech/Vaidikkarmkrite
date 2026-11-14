@@ -497,7 +497,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 if (selectedFile != null) ...[
                   const SizedBox(height: 5),
                   Text(
-                    '\${selectedFile!.name} • \${(selectedFile!.size / (1024 * 1024)).toStringAsFixed(1)} MB',
+                    '${selectedFile!.name} • ${(selectedFile!.size / (1024 * 1024)).toStringAsFixed(1)} MB',
                     textAlign: TextAlign.center,
                     style: const TextStyle(fontSize: 11),
                   ),
@@ -561,7 +561,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         final safeName = file.name.replaceAll(RegExp(r'[^A-Za-z0-9._ -]'), '_');
         final userId = db.auth.currentUser?.id;
         if (userId == null) throw Exception('लॉगिन सत्र समाप्त हो गया है।');
-        uploadedPath = '\${course['id']}/$userId/\${DateTime.now().millisecondsSinceEpoch}_$safeName';
+        uploadedPath = '${course['id']}/$userId/${DateTime.now().millisecondsSinceEpoch}_$safeName';
 
         final mimeType = values['lesson_type'] == 'pdf'
             ? 'application/pdf'
