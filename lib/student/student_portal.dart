@@ -252,14 +252,21 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
           if (url.isNotEmpty) SizedBox(width: double.infinity, child: ElevatedButton.icon(
             style: ElevatedButton.styleFrom(backgroundColor: _studentMaroon, foregroundColor: _studentGoldLight),
             onPressed: () async {
-              final uri = Uri.tryParse(url);
-              if (uri == null || !{'http', 'https'}.contains(uri.scheme)) {
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('यह Media URL मान्य नहीं है।')));
-                return;
+              try {
+                final isExternal = url.startsWith('https://') || url.startsWith('http://');
+                final resolvedUrl = isExternal
+                    ? url
+                    : await _db.storage.from('course-materials').createSignedUrl(url, 3600);
+                final uri = Uri.tryParse(resolvedUrl);
+                if (uri == null || !{'http', 'https'}.contains(uri.scheme)) {
+                  throw Exception('यह Media URL मान्य नहीं है।');
+                }
+                final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
+                if (!ok) throw Exception('लिंक नहीं खुल सका।');
+              } catch (e) {
+                if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('सामग्री नहीं खुली: $e')));
               }
-              final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
-              if (!ok && mounted) ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('लिंक नहीं खुल सका।')));
             },
             icon: Icon(type == 'pdf' ? Icons.picture_as_pdf : type == 'audio' ? Icons.headphones : Icons.play_circle),
             label: Text(type == 'pdf' ? 'PDF खोलें' : type == 'audio' ? 'Audio सुनें' : 'कक्षा देखें'))),
