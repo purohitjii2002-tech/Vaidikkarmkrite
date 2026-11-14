@@ -530,6 +530,26 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                       maxLines: 2, overflow: TextOverflow.ellipsis),
                   subtitle: Text(
                     '${lesson['lesson_type']} • ${lesson['duration_minutes']} min • $stateLabel'),
+                  trailing: Switch.adaptive(
+                    value: lesson['is_published'] == true,
+                    activeColor: KarmKritePalette.gold,
+                    onChanged: (published) async {
+                      try {
+                        await Supabase.instance.client
+                            .from('course_lessons')
+                            .update({'is_published': published})
+                            .eq('id', lesson['id']);
+                        if (context.mounted) {
+                          setDialogState(() => lessonsFuture = load());
+                        }
+                      } catch (e) {
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(this.context).showSnackBar(
+                            SnackBar(content: Text('पाठ की स्थिति नहीं बदली: $e')));
+                        }
+                      }
+                    },
+                  ),
                 );
               },
             );
