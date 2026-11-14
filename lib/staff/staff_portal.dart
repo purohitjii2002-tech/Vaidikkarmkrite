@@ -1470,7 +1470,7 @@ class _LearningReportsScreenState extends State<LearningReportsScreen> {
                   const SizedBox(height:10),
                   ClipRRect(borderRadius:BorderRadius.circular(8),child:LinearProgressIndicator(
                     value:(student['percent'] as int)/100,minHeight:7,
-                    backgroundColor:KarmKritePalette.sand,color:KarmKritePalette.maroon)),
+                    backgroundColor:KarmKritePalette.sandalwood,color:KarmKritePalette.maroon)),
                   const SizedBox(height:6),
                   Text('${student['completed']} / ${student['total']} पाठ पूर्ण',
                     style:const TextStyle(fontSize:11,color:Colors.grey)),
