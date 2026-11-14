@@ -1317,6 +1317,7 @@ class _BooksScreenState extends State<BooksScreen> {
   late Future<List<Map<String,dynamic>>> future;
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
+  String? _selectedCategoryId;
   @override
   void initState(){super.initState();future=load();}
   @override
@@ -1325,7 +1326,7 @@ class _BooksScreenState extends State<BooksScreen> {
     final prefs = await SharedPreferences.getInstance();
     try {
       final rows = await Supabase.instance.client.from('books')
-        .select('id,title_hi,title_en,author,description,cover_url,book_versions(pdf_url,version_no)')
+        .select('id,category_id,title_hi,title_en,author,description,cover_url,categories(name_hi,name_en),book_versions(pdf_url,version_no)')
         .eq('is_active',true).order('created_at',ascending:false);
       final books = List<Map<String,dynamic>>.from(rows)
         .where((book) {
@@ -1385,12 +1386,29 @@ class _BooksScreenState extends State<BooksScreen> {
           }
           final books=s.data??[];
           final query = _searchQuery.trim().toLowerCase();
-          final filteredBooks = query.isEmpty ? books : books.where((book) {
+          final filteredBooks = books.where((book) {
             final title = ((en ? book['title_en'] : book['title_hi']) ?? book['title_hi'] ?? '').toString().toLowerCase();
             final author = (book['author'] ?? '').toString().toLowerCase();
             final description = (book['description'] ?? '').toString().toLowerCase();
-            return title.contains(query) || author.contains(query) || description.contains(query);
+            final category = book['categories'] is Map
+                ? ((en ? book['categories']['name_en'] : book['categories']['name_hi']) ?? '').toString().toLowerCase()
+                : '';
+            final matchesSearch = query.isEmpty || title.contains(query) ||
+                author.contains(query) || description.contains(query) || category.contains(query);
+            final matchesCategory = _selectedCategoryId == null ||
+                book['category_id']?.toString() == _selectedCategoryId;
+            return matchesSearch && matchesCategory;
           }).toList();
+          final categoryMap = <String, String>{};
+          for (final book in books) {
+            final category = book['categories'];
+            final id = book['category_id']?.toString() ?? '';
+            if (id.isNotEmpty && category is Map) {
+              final name = ((en ? category['name_en'] : category['name_hi']) ?? '').toString();
+              if (name.isNotEmpty && !name.contains('पंचांग') &&
+                  !name.toLowerCase().contains('panchang')) categoryMap[id] = name;
+            }
+          }
           return RefreshIndicator(
             color:const Color(0xFFA64B32),
             onRefresh:()async { setState(()=>future=load()); await future; },
@@ -1446,6 +1464,28 @@ class _BooksScreenState extends State<BooksScreen> {
                       ),
                     ),
                   ),
+                ),
+                const SizedBox(height:12),
+                DropdownButtonFormField<String>(
+                  value: _selectedCategoryId,
+                  isExpanded: true,
+                  decoration: InputDecoration(
+                    labelText: en ? 'Filter by category' : 'श्रेणी के अनुसार पुस्तकें',
+                    prefixIcon: const Icon(Icons.category_outlined),
+                    filled: true,
+                    fillColor: const Color(0xFFFFFBF5),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+                  ),
+                  items: [
+                    DropdownMenuItem<String>(
+                      value: null,
+                      child: Text(en ? 'All categories' : 'सभी श्रेणियाँ'),
+                    ),
+                    ...categoryMap.entries.map((entry) => DropdownMenuItem<String>(
+                      value: entry.key, child: Text(entry.value, overflow: TextOverflow.ellipsis),
+                    )),
+                  ],
+                  onChanged: (value) => setState(() => _selectedCategoryId = value),
                 ),
                 const SizedBox(height:18),
                 Row(children:[
