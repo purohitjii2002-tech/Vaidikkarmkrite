@@ -1,4 +1,6 @@
 
+import 'dart:io';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -437,58 +439,177 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   }
 
   Future<bool> addLesson(Map<String,dynamic> course) async {
-    final title=TextEditingController(), description=TextEditingController(), media=TextEditingController();
-    final duration=TextEditingController(text:'0');
-    String type='video';
-    final values=await showDialog<Map<String,String>>(context:context,builder:(dialogContext)=>
-      StatefulBuilder(builder:(context,setDialogState)=>AlertDialog(
-        title:const Text('नया पाठ जोड़ें'),
-        content:SingleChildScrollView(child:Column(mainAxisSize:MainAxisSize.min,children:[
-          TextField(controller:title,decoration:const InputDecoration(labelText:'पाठ का शीर्षक')),
-          const SizedBox(height:8),
-          TextField(controller:description,maxLines:2,decoration:const InputDecoration(labelText:'विवरण')),
-          const SizedBox(height:8),
-          DropdownButtonFormField<String>(value:type,decoration:const InputDecoration(labelText:'सामग्री का प्रकार'),
-            items:const [
-              DropdownMenuItem(value:'video',child:Text('Video')),
-              DropdownMenuItem(value:'pdf',child:Text('PDF / पुस्तक')),
-              DropdownMenuItem(value:'audio',child:Text('Audio / मंत्र')),
-              DropdownMenuItem(value:'article',child:Text('Text Lesson')),
-            ],onChanged:(v)=>setDialogState(()=>type=v??'video')),
-          const SizedBox(height:8),
-          TextField(controller:media,keyboardType:TextInputType.url,decoration:const InputDecoration(labelText:'Media URL (वैकल्पिक)')),
-          const SizedBox(height:8),
-          TextField(controller:duration,keyboardType:TextInputType.number,decoration:const InputDecoration(labelText:'अवधि (मिनट)')),
-        ])),
-        actions:[
-          TextButton(onPressed:()=>Navigator.pop(dialogContext),child:const Text('रद्द करें')),
-          ElevatedButton(onPressed:()=>Navigator.pop(dialogContext,{
-            'title':title.text.trim(),'description':description.text.trim(),'lesson_type':type,
-            'media_url':media.text.trim(),'duration':duration.text.trim(),
-          }),child:const Text('पाठ सेव करें')),
-        ],
-      )));
-    if(values==null){title.dispose();description.dispose();media.dispose();duration.dispose();return false;}
-    if((values['title']??'').isEmpty){
-      if(mounted)ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('पाठ का शीर्षक आवश्यक है।')));
-      title.dispose();description.dispose();media.dispose();duration.dispose();return false;
+    final title = TextEditingController();
+    final description = TextEditingController();
+    final media = TextEditingController();
+    final duration = TextEditingController(text: '0');
+    String type = 'video';
+    PlatformFile? selectedFile;
+
+    final values = await showDialog<Map<String, String>>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) => AlertDialog(
+          title: const Text('नया पाठ जोड़ें'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(controller: title, decoration: const InputDecoration(labelText: 'पाठ का शीर्षक')),
+                const SizedBox(height: 8),
+                TextField(controller: description, maxLines: 2, decoration: const InputDecoration(labelText: 'विवरण')),
+                const SizedBox(height: 8),
+                DropdownButtonFormField<String>(
+                  value: type,
+                  decoration: const InputDecoration(labelText: 'सामग्री का प्रकार'),
+                  items: const [
+                    DropdownMenuItem(value: 'video', child: Text('Video')),
+                    DropdownMenuItem(value: 'pdf', child: Text('PDF / पुस्तक')),
+                    DropdownMenuItem(value: 'audio', child: Text('Audio / मंत्र')),
+                    DropdownMenuItem(value: 'article', child: Text('Text Lesson')),
+                  ],
+                  onChanged: (value) => setDialogState(() {
+                    type = value ?? 'video';
+                    selectedFile = null;
+                  }),
+                ),
+                const SizedBox(height: 10),
+                if (type != 'article')
+                  OutlinedButton.icon(
+                    onPressed: () async {
+                      final extensions = type == 'pdf'
+                          ? ['pdf']
+                          : type == 'audio'
+                              ? ['mp3', 'm4a', 'aac', 'wav', 'ogg']
+                              : ['mp4', 'webm'];
+                      final result = await FilePicker.platform.pickFiles(
+                        type: FileType.custom,
+                        allowedExtensions: extensions,
+                        allowMultiple: false,
+                      );
+                      if (result != null && result.files.isNotEmpty) {
+                        setDialogState(() => selectedFile = result.files.single);
+                      }
+                    },
+                    icon: const Icon(Icons.upload_file_rounded),
+                    label: Text(selectedFile == null ? 'डिवाइस से फाइल चुनें' : 'फाइल बदलें'),
+                  ),
+                if (selectedFile != null) ...[
+                  const SizedBox(height: 5),
+                  Text(
+                    '\${selectedFile!.name} • \${(selectedFile!.size / (1024 * 1024)).toStringAsFixed(1)} MB',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(fontSize: 11),
+                  ),
+                ],
+                const SizedBox(height: 8),
+                TextField(
+                  controller: media,
+                  keyboardType: TextInputType.url,
+                  decoration: const InputDecoration(labelText: 'या बाहरी Media URL (वैकल्पिक)'),
+                ),
+                const SizedBox(height: 8),
+                TextField(controller: duration, keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(labelText: 'अवधि (मिनट)')),
+                const SizedBox(height: 8),
+                const Text(
+                  'निजी Storage में अधिकतम 50 MB प्रति फाइल। बड़े वीडियो के लिए अलग streaming सेवा जोड़ी जाएगी।',
+                  style: TextStyle(fontSize: 10, color: Colors.grey),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('रद्द करें')),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(dialogContext, {
+                'title': title.text.trim(),
+                'description': description.text.trim(),
+                'lesson_type': type,
+                'media_url': media.text.trim(),
+                'duration': duration.text.trim(),
+              }),
+              child: const Text('पाठ सेव करें'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (values == null) {
+      title.dispose(); description.dispose(); media.dispose(); duration.dispose();
+      return false;
     }
-    try{
-      final existing=await Supabase.instance.client.from('course_lessons')
-        .select('id').eq('course_id',course['id']);
-      await Supabase.instance.client.from('course_lessons').insert({
-        'course_id':course['id'],'title':values['title'],'description':values['description'],
-        'lesson_type':values['lesson_type'],'media_url':(values['media_url']??'').isEmpty?null:values['media_url'],
-        'duration_minutes':int.tryParse(values['duration']??'0')??0,'sort_order':existing.length,
-        'created_by':Supabase.instance.client.auth.currentUser?.id,
+    if ((values['title'] ?? '').isEmpty) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('पाठ का शीर्षक आवश्यक है।')));
+      title.dispose(); description.dispose(); media.dispose(); duration.dispose();
+      return false;
+    }
+
+    String? uploadedPath;
+    try {
+      final db = Supabase.instance.client;
+      var mediaPath = (values['media_url'] ?? '').trim();
+      if (selectedFile != null) {
+        final file = selectedFile!;
+        if (file.size > 50 * 1024 * 1024) {
+          throw Exception('फाइल 50 MB से बड़ी है। कृपया छोटी फाइल चुनें।');
+        }
+        if (file.path == null) throw Exception('चुनी गई फाइल का स्थानीय पथ उपलब्ध नहीं है।');
+        final extension = file.extension?.toLowerCase() ?? '';
+        final safeName = file.name.replaceAll(RegExp(r'[^A-Za-z0-9._ -]'), '_');
+        final userId = db.auth.currentUser?.id;
+        if (userId == null) throw Exception('लॉगिन सत्र समाप्त हो गया है।');
+        uploadedPath = '\${course['id']}/$userId/\${DateTime.now().millisecondsSinceEpoch}_$safeName';
+
+        final mimeType = values['lesson_type'] == 'pdf'
+            ? 'application/pdf'
+            : values['lesson_type'] == 'video'
+                ? (extension == 'webm' ? 'video/webm' : 'video/mp4')
+                : extension == 'm4a'
+                    ? 'audio/mp4'
+                    : extension == 'aac'
+                        ? 'audio/aac'
+                        : extension == 'wav'
+                            ? 'audio/wav'
+                            : extension == 'ogg'
+                                ? 'audio/ogg'
+                                : 'audio/mpeg';
+
+        await db.storage.from('course-materials').upload(
+          uploadedPath,
+          File(file.path!),
+          fileOptions: FileOptions(cacheControl: '3600', contentType: mimeType, upsert: false),
+        );
+        mediaPath = uploadedPath;
+      }
+
+      final existing = await db.from('course_lessons').select('id').eq('course_id', course['id']);
+      await db.from('course_lessons').insert({
+        'course_id': course['id'],
+        'title': values['title'],
+        'description': values['description'],
+        'lesson_type': values['lesson_type'],
+        'media_url': mediaPath.isEmpty ? null : mediaPath,
+        'duration_minutes': int.tryParse(values['duration'] ?? '0') ?? 0,
+        'sort_order': existing.length,
+        'created_by': db.auth.currentUser?.id,
       });
-      if(mounted)ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('पाठ सेव हो गया। अभी unpublished है।')));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('पाठ और सामग्री सेव हो गई। अभी unpublished है।')));
       await refresh();
-      title.dispose();description.dispose();media.dispose();duration.dispose();
+      title.dispose(); description.dispose(); media.dispose(); duration.dispose();
       return true;
-    }catch(e){
-      if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('पाठ सेव नहीं हुआ: $e')));
-      title.dispose();description.dispose();media.dispose();duration.dispose();
+    } catch (e) {
+      if (uploadedPath != null) {
+        try {
+          await Supabase.instance.client.storage.from('course-materials').remove([uploadedPath]);
+        } catch (_) {}
+      }
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('पाठ सेव नहीं हुआ: $e')));
+      title.dispose(); description.dispose(); media.dispose(); duration.dispose();
       return false;
     }
   }
