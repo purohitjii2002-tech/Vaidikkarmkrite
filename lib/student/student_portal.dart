@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'lesson_media_player.dart';
 
 const _studentMaroon = Color(0xFF681D24);
 const _studentDeep = Color(0xFF421219);
@@ -261,8 +262,20 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                 if (uri == null || !{'http', 'https'}.contains(uri.scheme)) {
                   throw Exception('यह Media URL मान्य नहीं है।');
                 }
-                final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
-                if (!ok) throw Exception('लिंक नहीं खुल सका।');
+                if (type == 'audio' || type == 'video' || resolvedUrl.toLowerCase().contains('.m3u8')) {
+                  if (!mounted) return;
+                  Navigator.pop(sheetContext);
+                  await Navigator.of(context).push(MaterialPageRoute(
+                    builder: (_) => LessonMediaPlayerScreen(
+                      title: (lesson['title'] ?? 'पाठ').toString(),
+                      url: resolvedUrl,
+                      type: type,
+                    ),
+                  ));
+                } else {
+                  final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
+                  if (!ok) throw Exception('लिंक नहीं खुल सका।');
+                }
               } catch (e) {
                 if (mounted) ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(content: Text('सामग्री नहीं खुली: $e')));
