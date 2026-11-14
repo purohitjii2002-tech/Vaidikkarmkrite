@@ -1538,6 +1538,8 @@ class _BooksScreenState extends State<BooksScreen> {
                       ),
                     );
                   }),
+                const SizedBox(height: 22),
+                const EnrolledCourseMaterialsSection(),
               ],
             ),
           );
@@ -1552,6 +1554,114 @@ class _BooksScreenState extends State<BooksScreen> {
     alignment:Alignment.center,
     child:const Icon(Icons.menu_book_rounded,color:Color(0xFFC69A43),size:30),
   );
+}
+
+
+class EnrolledCourseMaterialsSection extends StatefulWidget {
+  const EnrolledCourseMaterialsSection({super.key});
+  @override
+  State<EnrolledCourseMaterialsSection> createState() => _EnrolledCourseMaterialsSectionState();
+}
+
+class _EnrolledCourseMaterialsSectionState extends State<EnrolledCourseMaterialsSection> {
+  late Future<List<Map<String,dynamic>>> _future;
+  final _db = Supabase.instance.client;
+
+  @override
+  void initState() {
+    super.initState();
+    _future = _load();
+  }
+
+  Future<List<Map<String,dynamic>>> _load() async {
+    final user = _db.auth.currentUser;
+    if (user == null) return [];
+    final enrollments = await _db.from('student_enrollments')
+      .select('course_id').eq('student_id',user.id).eq('status','active');
+    final ids = List<Map<String,dynamic>>.from(enrollments)
+      .map((row)=>row['course_id'].toString()).toList();
+    if (ids.isEmpty) return [];
+    final rows = await _db.from('course_lessons')
+      .select('id,title,description,media_url,course_id,courses(title)')
+      .inFilter('course_id',ids).eq('is_published',true)
+      .eq('lesson_type','pdf').order('sort_order');
+    return List<Map<String,dynamic>>.from(rows);
+  }
+
+  Future<void> _open(Map<String,dynamic> item) async {
+    final path = (item['media_url']??'').toString().trim();
+    if (path.isEmpty) return;
+    try {
+      final url = path.startsWith('http://') || path.startsWith('https://')
+        ? path
+        : await _db.storage.from('course-materials').createSignedUrl(path,3600);
+      if (!mounted) return;
+      await Navigator.push(context,MaterialPageRoute(builder:(_)=>InAppPdfReader(
+        title:(item['title']??'अध्ययन सामग्री').toString(),url:url)));
+    } catch(e) {
+      if(mounted)ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content:Text('PDF नहीं खुल सकी: $e')));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<List<Map<String,dynamic>>>(
+      future:_future,
+      builder:(context,snapshot) {
+        final rows=snapshot.data??[];
+        return Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+          const Row(children:[
+            Icon(Icons.school_outlined,color:Color(0xFFC69A43),size:20),
+            SizedBox(width:8),
+            Expanded(child:Text('मेरे कोर्स की अध्ययन सामग्री',
+              style:TextStyle(color:Color(0xFF392B28),fontSize:17,fontWeight:FontWeight.w800))),
+          ]),
+          const SizedBox(height:8),
+          if(snapshot.connectionState==ConnectionState.waiting)
+            const Padding(padding:EdgeInsets.all(18),child:Center(child:CircularProgressIndicator()))
+          else if(snapshot.hasError)
+            Container(
+              width:double.infinity,padding:const EdgeInsets.all(16),
+              decoration:BoxDecoration(color:const Color(0xFFFFFBF5),
+                borderRadius:BorderRadius.circular(16),border:Border.all(color:const Color(0xFFE9DDC8))),
+              child:Row(children:[
+                const Expanded(child:Text('कोर्स सामग्री लोड नहीं हुई।')),
+                TextButton(onPressed:()=>setState(()=>_future=_load()),child:const Text('Retry')),
+              ]),
+            )
+          else if(_db.auth.currentUser==null)
+            const Padding(padding:EdgeInsets.symmetric(vertical:12),
+              child:Text('अपने Enrolled Course की PDF देखने के लिए विद्यार्थी लॉगिन करें।',
+                style:TextStyle(color:Color(0xFF817565),fontSize:12)))
+          else if(rows.isEmpty)
+            const Padding(padding:EdgeInsets.symmetric(vertical:12),
+              child:Text('आपके सक्रिय कोर्स में अभी कोई प्रकाशित PDF पाठ नहीं है।',
+                style:TextStyle(color:Color(0xFF817565),fontSize:12)))
+          else
+            ...rows.map((item) {
+              final course = item['courses'] is Map
+                ? ((item['courses'] as Map)['title']??'कोर्स').toString()
+                : 'कोर्स';
+              return Card(
+                margin:const EdgeInsets.only(bottom:8),
+                color:const Color(0xFFFFFBF5),
+                child:ListTile(
+                  onTap:()=>_open(item),
+                  leading:const CircleAvatar(
+                    backgroundColor:Color(0xFFF4EBDD),
+                    child:Icon(Icons.picture_as_pdf_rounded,color:Color(0xFF681D24))),
+                  title:Text((item['title']??'').toString(),
+                    style:const TextStyle(fontWeight:FontWeight.w800,color:Color(0xFF392B28))),
+                  subtitle:Text(course,style:const TextStyle(color:Color(0xFF817565),fontSize:11)),
+                  trailing:const Icon(Icons.open_in_new,color:Color(0xFFC69A43)),
+                ),
+              );
+            }),
+        ]);
+      },
+    );
+  }
 }
 
 class InAppPdfReader extends StatefulWidget {
