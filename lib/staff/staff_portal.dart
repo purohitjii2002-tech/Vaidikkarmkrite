@@ -1,7 +1,8 @@
 
 import 'dart:io';
 import 'dart:typed_data';
-import 'package:excel/excel.dart';
+import 'package:excel/excel.dart' hide Border;
+import 'package:pdf/pdf.dart' as pdf;
 import 'package:pdf/widgets.dart' as pw;
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -1347,7 +1348,7 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
           leading:const Icon(Icons.video_camera_front_outlined,color:KarmKritePalette.maroon),
           title:Text((session['title']??'').toString(),style:const TextStyle(fontWeight:FontWeight.w800)),
           subtitle:Text('${session['starts_at']} • ${session['status']}'),
-          trailing:Wrap(mainAxisSize:MainAxisSize.min,children:[
+          trailing:Wrap(children:[
             IconButton(tooltip:'Attendance दर्ज करें',icon:const Icon(Icons.fact_check_outlined),
               onPressed:()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>AttendanceManagementScreen(session:session)))),
             if(session['meeting_url']!=null) IconButton(icon:const Icon(Icons.open_in_new),
@@ -1640,7 +1641,7 @@ class _LearningReportsScreenState extends State<LearningReportsScreen> {
   Future<void> _exportPdf(List<Map<String,dynamic>> students) async {
     try {
       final document=pw.Document();
-      document.addPage(pw.MultiPage(pageFormat:pw.PdfPageFormat.a4,build:(context)=>[
+      document.addPage(pw.MultiPage(pageFormat:pdf.PdfPageFormat.a4,build:(context)=>[
         pw.Text('KARMKRITE - STUDENT PROGRESS REPORT',style:pw.TextStyle(fontSize:17,fontWeight:pw.FontWeight.bold)),
         pw.SizedBox(height:8),
         pw.Text('Generated: ${DateTime.now().toLocal().toString().substring(0,16)}'),
@@ -1649,7 +1650,7 @@ class _LearningReportsScreenState extends State<LearningReportsScreen> {
           headers:['Student Email','Completed','Total','Progress'],
           data:students.map((x)=>[(x['email']??'').toString(),(x['completed']??0).toString(),(x['total']??0).toString(),'${x['percent']}%']).toList(),
           headerStyle:pw.TextStyle(fontWeight:pw.FontWeight.bold),
-          headerDecoration:const pw.BoxDecoration(color:pw.PdfColors.grey300),
+          headerDecoration:const pw.BoxDecoration(color:pdf.PdfColors.grey300),
           cellStyle:const pw.TextStyle(fontSize:9),
           cellAlignment:pw.Alignment.centerLeft,
         ),
